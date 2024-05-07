@@ -26,3 +26,109 @@ properties:
   clock-frequency:
     type: int
     required: true
+
+compatible: "ili9341"
+propeties:
+  spi-max-frequency:
+    type: int
+    required: true 
+  
+  reg:
+    type: int
+    required: true
+  
+  cs-gpios:
+    type: phandle-array
+    required: true
+
+  cmd-data-gpios:
+    type: phandle-array
+    required: true      
+  
+  width:
+    type: int
+    required: true
+
+  height:
+    type: int
+    required: true
+
+  rotation:
+    type: int
+    required: true
+
+  pixel-format:
+    type: int
+    required: true
+
+  pwctrla:
+    type: array
+    required: true
+
+  pwctrlb:
+    type: array
+    required: true
+
+  timctrla:
+    type: array
+    required: true
+
+  timctrlb:
+    type: array
+    required: true
+
+  pwseqctrl:
+    type: array
+    required: true
+
+  pumpratioctrl:
+    type: array
+    required: true
+
+  disctrl:
+    type: array
+    required: true
+
+  vmctrl1:
+    type: array
+    required: true
+
+  vmctrl2:
+    type: array
+    required: true
+
+  enable3g:
+    type: array
+    required: true
+
+  ifctl:
+    type: array
+    required: true
+
+  ifmode:
+    type: array
+    required: true
+
+  gamset:
+    type: array
+    required: true
+
+  frmctr1:
+    type: array
+    required: true
+
+  pwctrl1:
+    type: array
+    required: true
+
+  pwctrl2:
+    type: array
+    required: true
+
+  pgamctrl:
+    type: array
+    required: true
+
+  ngamctrl:
+    type: array
+    required: true
