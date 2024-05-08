@@ -42,7 +42,6 @@ typedef union{
 } qspi_Data;
 
 
-
 typedef struct
 {
   uint32_t cr     ;
@@ -443,7 +442,7 @@ void fastReadQuad(uint8_t qspinum,uint8_t* data,uint32_t address,uint8_t data_le
         0,0,0,data_length,0);
     qspi_clear_flags(qspinum,1, 1, 1, 1);
     qspi_data_len(qspinum,(uint32_t)data_length,WRITE);
-    qspi_config_ccr(qspinum,0x6B,CCR_IMODE_SINGLE_LINE, CCR_ADMODE_SINGLE_LINE, CCR_ADSIZE_24_BIT,CCR_ABMODE_NIL,0,\
+    qspi_config_ccr(qspinum, SPI_NOR_CMD_QREAD, CCR_IMODE_SINGLE_LINE, CCR_ADMODE_SINGLE_LINE, CCR_ADSIZE_24_BIT,CCR_ABMODE_NIL,0,\
         7,0, CCR_DMODE_FOUR_LINE, CCR_FMODE_INDIRECT_READ, 0, 0, 0, CCR_MM_MODE_XIP);
     qspi_config_ar(qspinum,address, CCR_FMODE_INDIRECT_READ);
 	// if(data_length>10)
@@ -468,7 +467,7 @@ void fastReadQuad32(uint8_t qspinum,uint32_t* data,uint32_t address,uint8_t data
         0,0,0,data_length,0);
     qspi_clear_flags(qspinum,1, 1, 1, 1);
     qspi_data_len(qspinum,(uint32_t)data_length,WRITE);
-    qspi_config_ccr(qspinum,0x6B,CCR_IMODE_SINGLE_LINE, CCR_ADMODE_SINGLE_LINE, CCR_ADSIZE_24_BIT,CCR_ABMODE_NIL,0,\
+    qspi_config_ccr(qspinum, SPI_NOR_CMD_QREAD, CCR_IMODE_SINGLE_LINE, CCR_ADMODE_SINGLE_LINE, CCR_ADSIZE_24_BIT,CCR_ABMODE_NIL,0,\
         7,0, CCR_DMODE_FOUR_LINE, CCR_FMODE_INDIRECT_READ, 0, 0, 0, CCR_MM_MODE_XIP);
     qspi_config_ar(qspinum,address, CCR_FMODE_INDIRECT_READ);
 	// if(data_length>10)
@@ -493,7 +492,7 @@ void fastReadQuadIO(uint8_t qspinum,uint8_t *data,uint32_t address,uint8_t data_
         0,0,0,16,0);
     qspi_clear_flags(qspinum,1, 1, 1, 1);
 	qspi_data_len(qspinum,(uint32_t)data_length,WRITE);
-    qspi_config_ccr(qspinum,0xEB,CCR_IMODE_TWO_LINE, CCR_ADMODE_SINGLE_LINE, CCR_ADSIZE_24_BIT,CCR_ABMODE_FOUR_LINE,CCR_ABSIZE_8_BIT,\
+    qspi_config_ccr(qspinum, SPI_NOR_CMD_4READ, CCR_IMODE_TWO_LINE, CCR_ADMODE_SINGLE_LINE, CCR_ADSIZE_24_BIT,CCR_ABMODE_FOUR_LINE,CCR_ABSIZE_8_BIT,\
         4,0, CCR_DMODE_FOUR_LINE, CCR_FMODE_INDIRECT_READ, 0, 0, 0, CCR_MM_MODE_XIP);
     qspi_config_abr(qspinum, 0x20);
 	qspi_config_ar(qspinum,address, CCR_FMODE_INDIRECT_READ);
@@ -532,7 +531,7 @@ void inputpageQuad(uint8_t qspinum,uint8_t* data,uint32_t address,uint8_t data_l
         0,0,0,data_length,0);
     qspi_clear_flags(qspinum,1, 1, 1, 1);
     qspi_data_len(qspinum,(uint32_t)(data_length - 1),WRITE);
-    qspi_config_ccr(qspinum,0x32,CCR_IMODE_SINGLE_LINE, CCR_ADMODE_SINGLE_LINE, CCR_ADSIZE_24_BIT,CCR_ABMODE_NIL,0,\
+    qspi_config_ccr(qspinum,SPI_NOR_CMD_PP_1_1_4, CCR_IMODE_SINGLE_LINE, CCR_ADMODE_SINGLE_LINE, CCR_ADSIZE_24_BIT,CCR_ABMODE_NIL,0,\
         0,0, CCR_DMODE_FOUR_LINE, CCR_FMODE_INDIRECT_WRITE, 0, 0, 0, CCR_MM_MODE_XIP);
     qspi_config_ar(qspinum,address, CCR_FMODE_INDIRECT_WRITE);
     qspi8_wr_dr(qspinum,data,data_length);
@@ -549,7 +548,7 @@ void sector4KErase(uint8_t qspinum,uint32_t address){
     qspi_config_cr(qspinum, PRESCALE_QSPI,0,0,0,0, \
         0,0,0,16,0);
     qspi_clear_flags(qspinum,1, 1, 1, 1);
-    qspi_config_ccr(qspinum, 0x20,CCR_IMODE_SINGLE_LINE, CCR_ADMODE_SINGLE_LINE,CCR_ADSIZE_24_BIT, CCR_ABMODE_NIL, 0,\
+    qspi_config_ccr(qspinum, SPI_NOR_CMD_SE, CCR_IMODE_SINGLE_LINE, CCR_ADMODE_SINGLE_LINE,CCR_ADSIZE_24_BIT, CCR_ABMODE_NIL, 0,\
         1, 0, CCR_DMODE_NO_DATA, CCR_FMODE_INDIRECT_WRITE, 0, 0, 0, CCR_MM_MODE_XIP);
     qspi_config_ar(qspinum,address,CCR_FMODE_INDIRECT_WRITE);
     qspi_wait_till_transaction_complete(qspinum);
@@ -565,7 +564,7 @@ void sector32KErase(uint8_t qspinum,uint32_t address){
         0,0,0,16,0);
     qspi_clear_flags(qspinum,1, 1, 1, 1);
     // qspi_data_len(qspinum,32000,WRITE);
-    qspi_config_ccr(qspinum, 0x52,CCR_IMODE_SINGLE_LINE, CCR_ADMODE_SINGLE_LINE,CCR_ADSIZE_24_BIT, CCR_ABMODE_NIL, 0,\
+    qspi_config_ccr(qspinum, SPI_NOR_CMD_BE_32K, CCR_IMODE_SINGLE_LINE, CCR_ADMODE_SINGLE_LINE,CCR_ADSIZE_24_BIT, CCR_ABMODE_NIL, 0,\
         1, 0, CCR_DMODE_NO_DATA, CCR_FMODE_INDIRECT_WRITE, 0, 0, 0, CCR_MM_MODE_XIP);
     qspi_config_ar(qspinum,address,CCR_FMODE_INDIRECT_WRITE);
     qspi_wait_till_transaction_complete(qspinum);
@@ -579,7 +578,7 @@ void chipErase(uint8_t qspinum){
     qspi_config_cr(qspinum, PRESCALE_QSPI,0,0,0,0, \
         0,0,0,16,0);
     qspi_clear_flags(qspinum,1, 1, 1, 1);
-    qspi_config_ccr(qspinum, 0xC4,CCR_IMODE_SINGLE_LINE, CCR_ADMODE_NIL,CCR_ADSIZE_8_BIT, CCR_ABMODE_NIL, 0,\
+    qspi_config_ccr(qspinum, SPI_NOR_CMD_BULKE, CCR_IMODE_SINGLE_LINE, CCR_ADMODE_NIL,CCR_ADSIZE_8_BIT, CCR_ABMODE_NIL, 0,\
         1, 0, CCR_DMODE_NO_DATA, CCR_FMODE_INDIRECT_WRITE, 0, 0, 0, CCR_MM_MODE_XIP);
     /* qspi_wait_till_tx_complete(qspinum); */
     qspi_wait_till_transaction_complete(qspinum);
@@ -593,7 +592,7 @@ void writeEnable(uint8_t qspinum){
     qspi_config_cr(qspinum, PRESCALE_QSPI,0,0,0,0, \
         0,0,0,16,0);
     qspi_clear_flags(qspinum,1, 1, 1, 1);
-    qspi_config_ccr(qspinum, 0x06,CCR_IMODE_SINGLE_LINE, CCR_ADMODE_NIL,CCR_ADSIZE_8_BIT, CCR_ABMODE_NIL, 0,\
+    qspi_config_ccr(qspinum, SPI_NOR_CMD_WREN, CCR_IMODE_SINGLE_LINE, CCR_ADMODE_NIL,CCR_ADSIZE_8_BIT, CCR_ABMODE_NIL, 0,\
         1, 0, CCR_DMODE_NO_DATA, CCR_FMODE_INDIRECT_WRITE, 0, 0, 0, CCR_MM_MODE_XIP);
     /* qspi_wait_till_tx_complete(qspinum); */
     /* qspi_disable(qspinum); */
@@ -608,7 +607,7 @@ void writeDisable(uint8_t qspinum){
     qspi_config_cr(qspinum, PRESCALE_QSPI,0,0,0,0, \
         0,0,0,16,0);
     qspi_clear_flags(qspinum,1, 1, 1, 1);
-    qspi_config_ccr(qspinum, 0x04,CCR_IMODE_SINGLE_LINE, CCR_ADMODE_NIL,CCR_ADSIZE_8_BIT, CCR_ABMODE_NIL, 0,\
+    qspi_config_ccr(qspinum, SPI_NOR_CMD_WRDI, CCR_IMODE_SINGLE_LINE, CCR_ADMODE_NIL,CCR_ADSIZE_8_BIT, CCR_ABMODE_NIL, 0,\
         1, 0, CCR_DMODE_NO_DATA, CCR_FMODE_INDIRECT_WRITE, 0, 0, 0, CCR_MM_MODE_XIP);
     qspi_wait_till_transaction_complete(qspinum);
     qspi_disable(qspinum);
@@ -646,7 +645,7 @@ void resume(uint8_t qspinum){
     qspi_config_cr(qspinum, PRESCALE_QSPI,0,0,0,0, \
         0,0,0,16,0);
     qspi_clear_flags(qspinum,1, 1, 1, 1);
-    qspi_config_ccr(qspinum, 0x7A,CCR_IMODE_SINGLE_LINE, CCR_ADMODE_NIL,CCR_ADSIZE_8_BIT, CCR_ABMODE_NIL, 0,\
+    qspi_config_ccr(qspinum, 0x30,CCR_IMODE_SINGLE_LINE, CCR_ADMODE_NIL,CCR_ADSIZE_8_BIT, CCR_ABMODE_NIL, 0,\
         0, 0, CCR_DMODE_NO_DATA, CCR_FMODE_INDIRECT_WRITE, 0, 0, 0, CCR_MM_MODE_XIP);
     qspi_wait_till_tx_complete(qspinum);
     qspi_disable(qspinum);
@@ -657,7 +656,7 @@ void power_down(uint8_t qspinum){
     qspi_config_cr(qspinum, PRESCALE_QSPI,0,0,0,0, \
         0,0,0,16,0);
     qspi_clear_flags(qspinum,1, 1, 1, 1);
-    qspi_config_ccr(qspinum, 0x7A,CCR_IMODE_SINGLE_LINE, CCR_ADMODE_NIL,CCR_ADSIZE_8_BIT, CCR_ABMODE_NIL, 0,\
+    qspi_config_ccr(qspinum, SPI_NOR_CMD_DPD, CCR_IMODE_SINGLE_LINE, CCR_ADMODE_NIL,CCR_ADSIZE_8_BIT, CCR_ABMODE_NIL, 0,\
         0, 0, CCR_DMODE_NO_DATA, CCR_FMODE_INDIRECT_WRITE, 0, 0, 0, CCR_MM_MODE_XIP);
     qspi_wait_till_tx_complete(qspinum);
     qspi_disable(qspinum);
@@ -669,7 +668,7 @@ void release_power_down(uint8_t qspinum){
     qspi_config_cr(qspinum, PRESCALE_QSPI,0,0,0,0, \
         0,0,0,16,0);
     qspi_clear_flags(qspinum,1, 1, 1, 1);
-    qspi_config_ccr(qspinum, 0x7A,CCR_IMODE_SINGLE_LINE, CCR_ADMODE_NIL,CCR_ADSIZE_8_BIT, CCR_ABMODE_NIL, 0,\
+    qspi_config_ccr(qspinum, SPI_NOR_CMD_RDPD, CCR_IMODE_SINGLE_LINE, CCR_ADMODE_NIL,CCR_ADSIZE_8_BIT, CCR_ABMODE_NIL, 0,\
         0, 0, CCR_DMODE_NO_DATA, CCR_FMODE_INDIRECT_WRITE, 0, 0, 0, CCR_MM_MODE_XIP);
     qspi_wait_till_tx_complete(qspinum);
     qspi_disable(qspinum);
@@ -681,7 +680,7 @@ uint8_t readStatusRegister(uint8_t qspinum){
         0,0,0,1,0);
 	qspi_clear_flags(qspinum,1, 1, 1, 1);
     qspi_data_len(qspinum,1,WRITE);
-	qspi_config_ccr(qspinum,0x05,CCR_IMODE_SINGLE_LINE, CCR_ADMODE_NIL, CCR_ADSIZE_24_BIT,CCR_ABMODE_NIL,0,\
+	qspi_config_ccr(qspinum, SPI_NOR_CMD_RDSR, CCR_IMODE_SINGLE_LINE, CCR_ADMODE_NIL, CCR_ADSIZE_24_BIT,CCR_ABMODE_NIL,0,\
         0,0, CCR_DMODE_SINGLE_LINE, CCR_FMODE_INDIRECT_READ, 0, 0, 0, CCR_MM_MODE_XIP);
 	qspi_wait_till_rx_fifo_fills(qspinum,1);
 	uint8_t data=qspi8_rd_dr(qspinum);
@@ -849,7 +848,7 @@ void qspi_ram_init(uint8_t qspinum, int flash_size){
 
 /*------------------------------------------------------API Functions------------------------------------------------------------*/
 
-void flash_shakti_erase()
+void flash_shakti_erase(const struct device *dev, off_t addr, size_t size)
 {
     uint8_t sr,fsr;
     // uint8_t sfdp[304];
@@ -876,7 +875,7 @@ void flash_shakti_erase()
     printf("Flag Status Register : %x \n",fsr);
     // sector4KErase(QSPI_NUM,(uint32_t *)ERASE_ADDR);
     // chipErase(QSPI_NUM);
-    sector32KErase(QSPI_NUM,(uint32_t *)SectorErase);
+    sector32KErase(QSPI_NUM,addr);
     sr = readStatusRegister(QSPI_NUM);
     printf("Status Register : %x \n",sr);
     // fsr = readFlagStatusRegister(QSPI_NUM);
@@ -896,7 +895,8 @@ void flash_shakti_erase()
 }
 
 
-void flash_shakti_write()
+void flash_shakti_write(const struct device *dev, off_t addr, 
+                        const void *src, size_t size)
 {
     // uint8_t sha_text[] = {0x67, 0xd9, 0x0d, 0x71, 0xfe, 0x2b, 0x25, 0x66, 0xb7, 0xa2, 0xd3, 0x0e, 0xf6, 0x6c, 0xad, 0x7f, 0x7c, 0x9b, 0x79, 0xcd, 0xdf, 0xe7, 0x8d, 0x60, 0xbd, 0x72, 0x8e, 0x98, 0x49, 0x3e, 0xa0, 0x10};
     // uint8_t data[]={0x52, 0x4a, 0x6b, 0x45, 0x8a, 0x42, 0xaa, 0x12, 0x6f, 0x6b, 0x45, 0x8a, 0x42, 0xaa, 0x12, 0x8b};
@@ -936,7 +936,8 @@ void flash_shakti_write()
 }
 
 
-void flash_shakti_read()
+void flash_shakti_read(const struct device *dev, off_t addr, 
+                        void *dest, size_t size)
 {
     uint32_t address=0x00000400;
     uint8_t data_length=16;
