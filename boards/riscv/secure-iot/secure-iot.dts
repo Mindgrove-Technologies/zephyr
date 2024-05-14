@@ -45,3 +45,7 @@ chosen {
 &qspi0 {
 	status = "okay";
 };
+
+&qspi1 {
+	status = "okay";
+};

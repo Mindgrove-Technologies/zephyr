@@ -153,6 +153,10 @@ extern "C" {
 #define CCR_IMODE(x)               (x<<8 )
 #define CCR_INSTRUCTION(x)         (x<<0 )
 
+#define FLASH_4K_ERASE             4096
+#define FLASH_32K_ERASE            32768
+#define FLASH_CHIP_ERASE           134217728            
+
 #ifdef __cplusplus
 }
 #endif
