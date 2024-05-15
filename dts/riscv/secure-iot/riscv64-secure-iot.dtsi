@@ -32,6 +32,7 @@
   };
 
   soc {
+    #gpio-cells = <1>;
     #address-cells = <1>;
 		#size-cells = <1>;
     compatible = "shakti,spike-bare-soc", "simple-bus";
@@ -79,6 +80,7 @@
     gpio0: gpio@40200 {
                 compatible = "shakti,gpio0";
                 reg = < 0x0 0x40200 0x0 0x08>;
+                #gpio-cells=<1>;
     };
     
     i2c0: i2c@44000 {

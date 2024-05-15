@@ -154,6 +154,7 @@ dfi	DFI Inc.
 dfrobot	DFRobot
 dh	DH electronics GmbH
 difrnce	Shenzhen Yagu Electronic Technology Co., Ltd.
+buydisplay	buydisplay
 digi	Digi International Inc.
 digilent	Diglent, Inc.
 diodes	Diodes Incorporated
