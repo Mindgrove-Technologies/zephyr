@@ -437,18 +437,3 @@ static struct display_driver_api gc9a01_driver_api = {
 PM_DEVICE_DT_INST_DEFINE(0, gc9a01_pm_action);
 DEVICE_DT_INST_DEFINE(0, gc9a01_init, PM_DEVICE_DT_INST_GET(0), NULL, &gc9a01_config, POST_KERNEL,
                       CONFIG_DISPLAY_INIT_PRIORITY, &gc9a01_driver_api);
-
-struct gc9a01_cfg{
-    uint8_t cs_gpios;
-    uint8_t bl_gpios;
-    uint8_t reset_gpios;
-    uint8_t dc_gpios;
-};
-
-#define GC9A01_INIT(n) \
-    static struct gc9a01_cfg gc9a01_cfg_##n = {
-        .cs_gpios = DT_INST_PROP(n, cs-gpios), \
-        .bl_gpios = DT_INST_PROP(n, bl-gpios), \
-        .reset_gpios = DT_INST_PROP(n, reset-gpios), \
-        .dc_gpios = DT_INST_PROP(n, dc-gpios) , \
-    }; \
