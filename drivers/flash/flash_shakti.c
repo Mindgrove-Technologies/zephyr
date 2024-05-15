@@ -26,10 +26,10 @@ typedef void (*flash_shakti_qspi_config_func_t)(void);
 /**
  * The struct `flash_shakti_qspi_config` contains a function pointer and a struct for flash parameters.
  * @property {flash_shakti_qspi_config_func_t} cfg_func - The `cfg_func` property in the
- * `flash_shakti_qspi_config` struct is of type `flash_shakti_qspi_config_func_t`. This property likely
+ * `flash_shakti_qspi_config` struct is of type `flash_shakti_qspi_config_func_t`. This property 
  * represents a function pointer or a callback function that is used to configure the QSPI flash
- * device. The exact definition and implementation of
- * @property parameters - The `parameters` property in the `flash_shakti_qspi_config` struct likely
+ * device.
+ * @property parameters - The `parameters` property in the `flash_shakti_qspi_config` struct 
  * contains specific configuration parameters related to the flash memory device being used. These
  * parameters could include details such as the memory size, page size, block size, and other
  * characteristics that are necessary for properly configuring and interfacing
@@ -47,7 +47,7 @@ struct flash_shakti_qspi_config {
  * @property sem - The `sem` property is a semaphore variable defined within the
  * `flash_shakti_qspi_data` struct. Semaphores are synchronization primitives used in concurrent
  * programming to control access to shared resources. In this case, the `sem` semaphore is used
- * to coordinate access to resources or synchronize operations
+ * to coordinate access to resources or synchronize operations.
  * @property device_sync_sem - The `device_sync_sem` is a semaphore used for synchronizing access to
  * the device in the context of the `flash_shakti_qspi_data` structure. Semaphores are synchronization
  * primitives that are commonly used in concurrent programming to control access to shared resources.
