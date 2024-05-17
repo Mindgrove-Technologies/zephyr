@@ -1,3 +1,25 @@
+/**
+ * Project                           : Secure IoT SoC
+ * Name of the file                  : flash_shakti.c
+ * Brief Description of file         : This is a zephyr rtos FLASH Driver file for Mindgrove Silicon's QSPI Peripheral.
+ * Name of Author                    : Kishore J
+ * Email ID                          : kishore@mindgrovetech.in
+ * 
+ * @file flash_shakti.c
+ * @author Kishore J (kishore@mindgrovetech.in)
+ * @brief This is a zephyr rtos FLASH Driver file for Mindgrove Silicon's QSPI Peripheral.
+ * @version 0.1
+ * @date 2024-05-14
+ * 
+ * @copyright Copyright (c) Mindgrove Technologies Pvt. Ltd 2023. All rights reserved.
+ * 
+ * @copyright Copyright (c) 2017 Google LLC.
+ * @copyright Copyright (c) 2018 qianfan Zhao.
+ * @copyright Copyright (c) 2023 Gerson Fernando Budke.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #define DT_DRV_COMPAT shakti_qspi_flash
 
 #include <errno.h>
