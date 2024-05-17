@@ -1,0 +1,16 @@
+sample:
+  description: Hello World sample, the simplest Zephyr
+    application
+  name: flash_qspi
+common:
+  tags: introduction
+  integration_platforms:
+    - native_posix
+  harness: console
+  harness_config:
+    type: one_line
+    regex:
+      - "flash qspi! (.*)"
+tests:
+  sample.basic.flashqspi:
+    tags: introduction
