@@ -26,6 +26,7 @@ int main(void)
 	uint8_t buf[sizeof(expected)];
 	int rc;
 
+	/*
 	printk("\nTest 1: Flash erase\n");
 	
 	rc = flash_erase(dev, SectorErase_addr, FLASH_32K_ERASE);
@@ -48,7 +49,7 @@ int main(void)
 		printf("Flash read successfull! %d\n", rc);
 		// return;
 	}
-
+	*/
 
 	return 0;
 }
