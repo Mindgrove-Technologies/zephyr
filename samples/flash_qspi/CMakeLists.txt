@@ -7,8 +7,10 @@ project(flash_qspi)
 
 target_sources(app PRIVATE src/main.c)
 
-if(CONFIG_XIP)
-    zephyr_code_relocate(src/main.c ROM_TEXT NOCOPY)
-    zephyr_code_relocate(src/main.c ROM_DATA)
-    zephyr_code_relocate(src/main.c ROM_BSS)
-endif()
+set(OPENOCD_EXECUTABLE "/usr/local/bin/mind-openocd")
+
+# if(CONFIG_XIP)
+#     zephyr_code_relocate(src/main.c TEXT NOCOPY)
+#     zephyr_code_relocate(src/main.c ROM)
+#     zephyr_code_relocate(src/main.c ROM_BSS)
+# endif()

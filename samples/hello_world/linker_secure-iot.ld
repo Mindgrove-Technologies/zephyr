@@ -30,7 +30,7 @@
 
 MEMORY
 {
-     EXTFLASH (wx) : ORIGIN = 0x90000000, LENGTH = 0x10000000
+     FLASH (rx) : ORIGIN = 0x90000000, LENGTH = 512M
 }
 
 #include <zephyr/arch/riscv/common/linker.ld>
