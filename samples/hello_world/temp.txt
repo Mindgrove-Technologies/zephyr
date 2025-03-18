@@ -1,0 +1,8 @@
+-- west flash: rebuilding
+ninja: no work to do.
+-- west flash: using runner openocd
+-- runner_config: RunnerConfig(build_dir='/home/jennifer/workspace/zephyr/zephyrproject/zephyr/samples/hello_world/build', board_dir='/home/jennifer/workspace/zephyr/zephyrproject/zephyr/boards/riscv/secure-iot', elf_file='/home/jennifer/workspace/zephyr/zephyrproject/zephyr/samples/hello_world/build/zephyr/zephyr.elf', exe_file=None, hex_file=None, bin_file='/home/jennifer/workspace/zephyr/zephyrproject/zephyr/samples/hello_world/build/zephyr/zephyr.bin', uf2_file=None, file=None, file_type=<FileType.OTHER: 0>, gdb='/opt/riscv/bin/riscv64-unknown-elf-gdb', openocd='/usr/local/bin/openocd', openocd_search=None)
+-- runner_cls: <class 'runners.openocd.OpenOcdBinaryRunner'>
+-- runner: <runners.openocd.OpenOcdBinaryRunner object at 0x77f0d3ae0df0>
+-- command name: flash
+-- Shell Command ['/usr/local/bin/openocd', '-f', '/home/jennifer/workspace/zephyr/zephyrproject/zephyr/boards/riscv/secure-iot/support/FT2232H-JTAG.cfg', '-c', 'secureiot flash_write /home/jennifer/workspace/zephyr/zephyrproject/zephyr/samples/hello_world/build/zephyr/zephyr.elf']

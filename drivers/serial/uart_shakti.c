@@ -59,7 +59,7 @@
 #define STS_RX_NOT_EMPTY    1 << 2
 #define STS_TX_FULL 	    1 << 1
 #define STS_TX_EMPTY 	    1 << 0
-
+#define CEIL_DIV_US(x, y) ((unsigned short)(((x) + (y) - 1) / (y)))
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 
@@ -401,7 +401,8 @@ static int uart_shakti_init(struct device *dev)
 	//uart->rxctrl = RXCTRL_RXEN | CTRL_CNT(cfg->txcnt_irq);
 
 	/* Set baud rate */
-	uart->div = (cfg->sys_clk_freq / cfg->baud_rate) / 16;
+	// uart->div = (cfg->sys_clk_freq / cfg->baud_rate) / 16;
+	uart->div = CEIL_DIV_US(cfg->sys_clk_freq, (16*cfg->baud_rate));
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	/* Ensure that uart IRQ is disabled initially */
@@ -491,7 +492,7 @@ static void uart_shakti_irq_cfg_func_2 (void){
 #define UART_SHAKTI_INIT(n) \
 	static struct uart_shakti_device_config uart_shakti_dev_cfg_##n = { \
 	.port         = DT_INST_PROP(n, base),							\
-	.sys_clk_freq = SHAKTI_NEXYS_FREQUENCY,							\
+	.sys_clk_freq = 700000000,							\
 	.baud_rate    = DT_INST_PROP(n, current_speed),					\
 	.cfg_func     =	 &uart_shakti_irq_cfg_func_##n,                   \
 	.rxcnt_irq    = 0,                                              \	

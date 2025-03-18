@@ -344,7 +344,7 @@ static void bg_thread_main(void *unused1, void *unused2, void *unused3)
 #if CONFIG_STACK_POINTER_RANDOM
 	z_stack_adjust_initialized = 1;
 #endif
-	boot_banner();
+	// boot_banner();
 
 #if defined(CONFIG_CPP)
 	void z_cpp_init_static(void);
