@@ -7,8 +7,8 @@ project(hello_world)
 
 target_sources(app PRIVATE src/main.c)
 
-# if(CONFIG_XIP)
-#     zephyr_code_relocate(src/main.c ROM_TEXT NOCOPY)
-#     zephyr_code_relocate(src/main.c ROM_DATA)
-#     zephyr_code_relocate(src/main.c ROM_BSS)
-# endif()
+if(CONFIG_XIP)
+    zephyr_code_relocate(FILES src/main.c LOCATION ROM_TEXT NOCOPY)
+    zephyr_code_relocate(FILES src/main.c LOCATION RAM_DATA)
+    zephyr_code_relocate(FILES src/main.c LOCATION RAM_BSS)
+endif()
