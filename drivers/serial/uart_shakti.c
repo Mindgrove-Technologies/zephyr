@@ -26,7 +26,7 @@
 
 #ifdef CONFIG_BOARD_SECURE_IOT
 
-#define SHAKTI_NEXYS_FREQUENCY 40000000 // Change to 40000000 for nexys video board and 100 * 10^6 for vcu118 FPGA
+#define SHAKTI_UART_0_CLK_FREQUENCY 700000000 // Change to 40000000 for nexys video board and 100 * 10^6 for vcu118 FPGA
 #define SHAKTI_UART_1_CLK_FREQUENCY 40000000
 #define SECIOT_NEXYS_UART_BAUD 19200
 #define SECIOT_VCU118_UART_BAUD 115200
@@ -425,7 +425,31 @@ static const struct uart_driver_api uart_shakti_driver_api = {
 	.irq_rx_disable   = uart_shakti_irq_rx_disable,
 	.irq_err_enable   = uart_shakti_irq_err_enable,
 	.irq_err_disable  = uart_shakti_irq_err_disable,
-	
+	.irq_is_pending   = uart_shakti_irq_is_pending,
+	.irq_update       = uart_shakti_irq_update,
+	.irq_callback_set = uart_shakti_irq_callback_set,
+#endif
+};
+
+#ifdef CONFIG_UART_SHAKTI_PORT_0
+
+static struct uart_shakti_data uart_shakti_data_0;
+
+#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+static void uart_shakti_irq_cfg_func_0(void);
+#endif
+
+// PINCTRL_DT_INST_DEFINE(0);
+
+static const struct uart_shakti_device_config uart_shakti_dev_cfg_0 = {
+	.port         = 0X11300,
+	.sys_clk_freq = SHAKTI_UART_0_CLK_FREQUENCY,
+	.baud_rate    = SECIOT_VCU118_UART_BAUD,
+	.rxcnt_irq    = 0,
+	.txcnt_irq    = 0,
+	// .pcfg	      = PINCTRL_DT_INST_DEV_CONFIG_GET(0),
+#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+	.cfg_func     = uart_shakti_irq_cfg_func_0,
 #endif
 };
 
