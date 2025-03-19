@@ -280,6 +280,7 @@ static void z_sys_init_run_level(enum init_level level)
 		__init_end,
 	};
 	const struct init_entry *entry;
+	__asm volatile("ebreak");
 
 	for (entry = levels[level]; entry < levels[level+1]; entry++) {
 		const struct device *dev = entry->dev;
