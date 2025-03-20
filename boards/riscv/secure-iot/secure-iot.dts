@@ -9,6 +9,7 @@
 chosen {
 		zephyr,console = &uart0;
 		zephyr,display = &gc9x01_display;
+		zephyr,flash = &qspi0;
 	};
 };
 
@@ -75,4 +76,21 @@ chosen {
 
 	status = "okay";
 	base = <0xc000000>;
+};
+
+&qspi0 {
+	status = "okay";
+	flash0@90000200 {
+        compatible = "winbond,nor-flash";  /* Update with specific flash part number "winbond,w25q<id> nor-flash is generic" */
+        reg = <0x00000000 0x90000200 0x10000>;  /* Base address 0x90000000, size 512MB (0x20000000) */
+        spi-max-frequency = <60000000>;  /* Maximum SPI frequency */
+        flash-size = <0x10000>;  /* Size of the flash in bytes (512MB = 0x20000000) */
+        status = "okay";  /* Enable the NOR flash device */
+        label = "nor_flash";  /* Arbitrary label for identification */
+		bus-width = <4>;
+    };
+};
+
+&qspi1 {
+	status = "okay";
 };

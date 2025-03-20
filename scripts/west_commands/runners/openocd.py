@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Linaro Limited.
+    # Copyright (c) 2017 Linaro Limited.
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -22,6 +22,12 @@ DEFAULT_OPENOCD_TELNET_PORT = 4444
 DEFAULT_OPENOCD_GDB_PORT = 3333
 DEFAULT_OPENOCD_RESET_HALT_CMD = 'reset init'
 DEFAULT_OPENOCD_TARGET_HANDLE = "_TARGETNAME"
+
+from west import log
+ 
+def _banner(msg):
+    log.inf('-- ' + msg, colorize=True)
+ 
 
 class OpenOcdBinaryRunner(ZephyrBinaryRunner):
     '''Runner front-end for openocd.'''
@@ -60,7 +66,7 @@ class OpenOcdBinaryRunner(ZephyrBinaryRunner):
         if cfg.openocd_search is not None:
             for p in cfg.openocd_search:
                 search_args.extend(['-s', p])
-        self.openocd_cmd = [cfg.openocd or 'openocd'] + search_args
+        self.openocd_cmd = [cfg.openocd or 'openocd'] #+ search_args
         # openocd doesn't cope with Windows path names, so convert
         # them to POSIX style just to be sure.
         self.elf_name = Path(cfg.elf_file).as_posix()
@@ -292,7 +298,8 @@ class OpenOcdBinaryRunner(ZephyrBinaryRunner):
             for i in self.pre_load:
                 pre_load_cmd.append("-c")
                 pre_load_cmd.append(i)
-            load_image = ['-c', 'load_image ' + self.elf_name]
+            load_image = ['-c', 'secureiot flash_write ' + self.elf_name]
+            load_bin = ['-c', 'secureiot flash_write /home/jennifer/Downloads/output.bin 0x90000400']
 
         verify_image = []
         post_verify_cmd = []
@@ -304,13 +311,15 @@ class OpenOcdBinaryRunner(ZephyrBinaryRunner):
 
         prologue = ['-c', 'resume ' + ep_addr,
                     '-c', 'shutdown']
+        prologue = [] #to be deleted later - jennj
 
         cmd = (self.openocd_cmd + self.serial + self.cfg_cmd +
                pre_init_cmd + self.init_arg + self.targets_arg +
                pre_load_cmd + ['-c', self.reset_halt_cmd] +
-               load_image +
+               load_image + load_bin +
                verify_image + post_verify_cmd +
                prologue)
+        _banner(f'Shell Command {cmd}')
 
         self.check_call(cmd)
 
@@ -348,6 +357,7 @@ class OpenOcdBinaryRunner(ZephyrBinaryRunner):
 
         self.require(gdb_cmd[0])
         self.print_gdbserver_message()
+        _banner(f'GDB Command {gdb_cmd}')
         self.run_server_and_client(server_cmd, gdb_cmd)
 
     def do_debugserver(self, **kwargs):

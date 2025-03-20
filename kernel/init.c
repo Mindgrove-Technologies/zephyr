@@ -280,7 +280,7 @@ static void z_sys_init_run_level(enum init_level level)
 		__init_end,
 	};
 	const struct init_entry *entry;
-	__asm volatile("ebreak");
+	// __asm volatile("ebreak");
 
 	for (entry = levels[level]; entry < levels[level+1]; entry++) {
 		const struct device *dev = entry->dev;
@@ -327,6 +327,7 @@ extern void boot_banner(void);
 __boot_func
 static void bg_thread_main(void *unused1, void *unused2, void *unused3)
 {
+	// __asm volatile("ebreak");
 	ARG_UNUSED(unused1);
 	ARG_UNUSED(unused2);
 	ARG_UNUSED(unused3);
@@ -606,13 +607,13 @@ FUNC_NORETURN void z_cstart(void)
 #ifdef CONFIG_MULTITHREADING
 	switch_to_main_thread(prepare_multithreading());
 #else
-#ifdef ARCH_SWITCH_TO_MAIN_NO_MULTITHREADING
-	/* Custom ARCH-specific routine to switch to main()
-	 * in the case of no multi-threading.
-	 */
-	ARCH_SWITCH_TO_MAIN_NO_MULTITHREADING(bg_thread_main,
-		NULL, NULL, NULL);
-#else
+// #ifdef ARCH_SWITCH_TO_MAIN_NO_MULTITHREADING
+// 	/* Custom ARCH-specific routine to switch to main()
+// 	 * in the case of no multi-threading.
+// 	 */
+// 	ARCH_SWITCH_TO_MAIN_NO_MULTITHREADING(bg_thread_main,
+// 		NULL, NULL, NULL);
+// #else
 	bg_thread_main(NULL, NULL, NULL);
 
 	/* LCOV_EXCL_START
@@ -622,7 +623,7 @@ FUNC_NORETURN void z_cstart(void)
 	while (true) {
 	}
 	/* LCOV_EXCL_STOP */
-#endif
+// #endif
 #endif /* CONFIG_MULTITHREADING */
 
 	/*
