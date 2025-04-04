@@ -14,14 +14,23 @@ chosen {
 
 &uart0 {
 	status = "okay";
+	base = <0x11300>;
+	current-speed = <19200>;
+	clock-frequency = <100000000>;
+};
+
+&uart1 {
+	status = "okay";
+	base = <0x11400>;
 	current-speed = <115200>;
 	clock-frequency = <100000000>;
 };
 
 &uart1 {
 	status = "okay";
+	base = <0x11400>;
 	current-speed = <115200>;
-	clock-frequency = <100000000>;
+	clock-frequency = <700000000>;
 };
 
 &i2c0 {
@@ -59,6 +68,10 @@ chosen {
           spi-max-frequency = <2000000>;
           cmd-data-gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
           reset-gpios = <&gpio0 1 GPIO_ACTIVE_LOW>;
+          pixel-format = <16>;
+          width = <240>;
+          height = <240>;
+		  display-inversion;
 		  width = <240>;
 		  height = <240>;
 		  rotation = <180>;

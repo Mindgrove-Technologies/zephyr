@@ -62,11 +62,14 @@
     };
 
     uart0: serial@11300 {
+        compatible = "shakti,uart";
+        reg= < 0x0 0x11300 0x0 0x100>;
       compatible = "shakti,uart0";
       reg= < 0x0 0x11300 0x0 0x100>;
     };
 
     uart1: serial@11400 {
+        compatible = "shakti,uart";
         compatible = "shakti,uart1";
         reg= < 0x0 0x11400 0x0 0x100>;
     };    
@@ -109,6 +112,18 @@
     i2c1: i2c@44100 {
       compatible = "shakti,i2c0";
       reg= <0x0 0x44100 0x0 0x100>;
+    };
+
+    qspi0: qspi@40000 {
+            compatible = "shakti,qspi-flash";
+            status = "okay";
+            reg = <0x0 0x40000 0x0 0x100>;
+    };
+
+    qspi1: qspi@40100 {
+            compatible = "shakti,qspi-flash";
+            status = "okay";
+            reg = <0x0 0x40000 0x0 0x100>;
     };
 
     watchdog: watchdog@40400
