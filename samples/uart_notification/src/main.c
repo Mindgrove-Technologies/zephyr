@@ -63,7 +63,11 @@ int main()
     //     // printk("\n");
     // }
     
-    
+const struct device * dev = DEVICE_DT_GET(DT_NODELABEL(uart1));
 
+int main()
+{
+    unsigned char *p_char;
+    printk("UART testing begin...\n");
     
 }

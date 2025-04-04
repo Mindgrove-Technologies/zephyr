@@ -153,6 +153,20 @@ void main_task_handler(void)
 	const struct device *display_dev;
 	display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
 
+#include "../generated/gui_guider.h"
+#include "../generated/events_init.h"
+
+#define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
+#include <zephyr/logging/log.h>
+LOG_MODULE_REGISTER(app);
+
+lv_ui guider_ui;
+
+int main(void)
+{
+	const struct device *display_dev;
+
+	display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
 	if (!device_is_ready(display_dev)) {
 		LOG_ERR("Device not ready, aborting test");
 		return 0;
@@ -312,3 +326,15 @@ K_THREAD_DEFINE(process_message_notification, MY_STACK_SIZE,
 K_THREAD_DEFINE(screen_refresh_task, MY_STACK_SIZE,
                 screen_refresh_task_handler, NULL, NULL, NULL,
                 MY_PRIORITY, 0, 0);
+
+	setup_ui(&guider_ui);
+   	events_init(&guider_ui);
+
+	// lv_task_handler();
+	display_blanking_off(display_dev);
+
+	while (1) {
+		lv_task_handler();
+		// k_sleep(K_MSEC(10));
+	}
+}

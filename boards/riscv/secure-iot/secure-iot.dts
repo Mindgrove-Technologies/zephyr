@@ -107,7 +107,8 @@ chosen {
 
 	status = "okay";
 	base = <0xc000000>;
-}
+};
+
 &pwm0 {
 	status = "okay";
 	db_configure = <0 4 5000>;

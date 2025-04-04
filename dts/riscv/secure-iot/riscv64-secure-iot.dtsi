@@ -70,6 +70,7 @@
 
     uart1: serial@11400 {
         compatible = "shakti,uart";
+        compatible = "shakti,uart1";
         reg= < 0x0 0x11400 0x0 0x100>;
     };    
 
@@ -124,6 +125,7 @@
             status = "okay";
             reg = <0x0 0x40000 0x0 0x100>;
     };
+
     pwm0: pwm@30000 {
       compatible = "shakti,pwm";
       reg= < 0x0 0x30000 0x0 0x100>;

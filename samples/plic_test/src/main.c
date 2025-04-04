@@ -1,6 +1,4 @@
 /* This sample describes the step by step procedure to be followed for using PLIC in zephyr*/
-
-
 /*
  * Copyright (c) 2012-2014 Wind River Systems, Inc.
  *
@@ -33,7 +31,15 @@
  * @brief The function is an example for user-defined ISR() from application side.
  * @param void* The parameter \a void* is a null pointer to array of arguments that can be passed to isr().
  */
+#define INT_ID 			(uint32_t)(GPIO_PIN + 32)
 
+
+// void arch_system_halt(unsigned int reason)
+// {
+// 	struct _isr_table_entry *plic_int_t;
+// 	plic_int_t = (struct _isr_table_entry *)(&_sw_isr_table[11]);
+//     plic_int_t->isr(plic_int_t->arg);
+// }
 int gpio_application_isr(const void*)
 {
     printk("Entered ISR from application side\n");
@@ -45,8 +51,6 @@ int gpio_application_isr(const void*)
  * @brief This function installs the irq service for a specific peripheral and lined.
  * @param void 
  */
-
-
 static void isr_installer(void)
 {
 	IRQ_CONNECT(INT_ID, 1, gpio_application_isr, NULL, 0);
@@ -58,7 +62,6 @@ static void isr_installer(void)
  * @brief The main function describes the steps to initialize interrupts
  * @param void 
  */
-
 int main(void)
 {
 
@@ -73,6 +76,11 @@ int main(void)
 	plic_irq_enable(INT_ID);
 		
 	// Install user-defined ISR() into zephyr's isr_table
+	gpio_pin_configure(dev, GPIO_PIN, 0);
+    gpio_pin_interrupt_configure(dev, GPIO_PIN, 1);
+
+	plic_irq_enable(INT_ID);
+		
 	isr_installer();
 
 
