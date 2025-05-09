@@ -1,3 +1,4 @@
+
 /* For Shakti Vajra SOC
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -26,7 +27,7 @@
 
 #ifdef CONFIG_BOARD_SECURE_IOT
 
-#define SHAKTI_UART_0_CLK_FREQUENCY 700000000 // Change to 40000000 for nexys video board and 100 * 10^6 for vcu118 FPGA
+#define SHAKTI_UART_0_CLK_FREQUENCY 40000000 // Change to 40000000 for nexys video board and 100 * 10^6 for vcu118 FPGA
 #define SHAKTI_UART_1_CLK_FREQUENCY 40000000
 #define SECIOT_NEXYS_UART_BAUD 19200
 #define SECIOT_VCU118_UART_BAUD 115200
@@ -61,33 +62,128 @@
 #define STS_TX_EMPTY 	    1 << 0
 
 
+#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+
+#define RX_FIFO_80_FULL_IE  1 << 8
+#define BREAK_ERROR_IE      1 << 7
+#define FRAME_ERROR_IE      1 << 6
+#define OVERRUN_IE          1 << 5
+#define PARITY_ERROR_IE     1 << 4
+#define RX_NOT_EMPTY_IE     1 << 3
+#define RX_NO_FULL_IE       1 << 2
+#define TX_NOT_FULL_IE      1 << 1
+#define TX_DONE_IE          1 << 0
+
+/* UART control register */
+#define STOP_BITS(x) ( (x & 3) << 1) 				/*! 00 - 1 stop bits, 01 - 1.5 stop bits; 10 - 2 stop bits; 11 unused */
+#define PARITY(x) ( (x & 3)  << 3 ) 				/*! 00 --- No parity; 01 -Odd Parity; 10 - Even Parity;  11 - Unused */
+#define UART_TX_RX_LEN(x)       ( (x & 0x3) << 5) 	/*! Maximum length 32 bits */
+
+#endif /* CONFIG_UART_INTERRUPT_DRIVER */
 /*
  * RX/TX Threshold count to generate TX/RX Interrupts.
  * Used by txctrl and rxctrl registers
  */
 #define CTRL_CNT(x)    (((x) & 0x07) << 16)
+typedef union{
+  uint32_t data_32;
+  uint16_t data_16;
+  uint8_t data_8;
+} Data;
+typedef struct {                                /*!< UART0 Structure                                                           */
+    uint16_t  BAUD_REG;                     /*!< Baud register                                                             */
+     uint16_t  RESERVED;
+  
+    Data  TX_REG;                       /*!< TX data register                                                          */
+    Data  RX_REG;                       /*!< RX data register                                                          */
+  
+  union {
+      uint16_t STATUS_REG;                  /*!< UART Status register                                                      */
+    
+    struct {
+        uint16_t STATUS_TX_EMPTY : 1;       /*!< Transmittor register empty flag                                           */
+        uint16_t STATUS_TX_FULL : 1;        /*!< Transmittor register full flag                                            */
+        uint16_t STATUS_RX_NOT_EMPTY : 1;   /*!< Receiver register not empty flag                                          */
+        uint16_t STATUS_RX_FULL : 1;        /*!< Receiver register full flag                                               */
+        uint16_t STATUS_PARITY_ERR : 1;     /*!< Parity error in received data flag                                        */
+        uint16_t STATUS_OVERRUN_ERR : 1;    /*!< Overrun error flag                                                        */
+        uint16_t STATUS_FRAME_ERR : 1;      /*!< Frame error flag                                                          */
+        uint16_t STATUS_BREAK_ERR : 1;      /*!< Break error flag                                                          */
+        uint16_t STATUS_RX_ALMOST_FULL : 1; /*!< Indicates that the RXFIFO is almost full depending on RX_threshold
+                                                     register                                                                  */
+        uint16_t STATUS_OUTP_READY : 1;     /*!< Output ready flag                                                         */
+        uint16_t STATUS_CAN_TAKE_INPUT : 1; /*!< Can take input flag                                                       */
+            uint16_t            : 5;
+    } STATUS_REG_b;
+  } ;
+     uint16_t  RESERVED1;
+    uint16_t  DELAY_REG;                    /*!< Stores the delay to have before Tranmission                               */
+     uint16_t  RESERVED2;
+  
+  union {
+      uint16_t CTRL;                        /*!< Control register                                                          */
+    
+    struct {
+            uint16_t            : 1;
+        uint16_t CTRL_STOP_BITS : 2;        /*!< To select the number of stop bits. 00 - 1 Stop bits, 01 - 1.5
+                                                     Stop bits, 10 - 2 Stop bits                                               */
+        uint16_t CTRL_PARITY : 2;           /*!< To select the type of parity. 00 - None, 01 - Odd, 10 - Even              */
+        uint16_t CHAR_SIZE  : 2;            /*!< Selects the transmission data size 00 - 8 bits, 01 - 7 bits,
+                                                     10 - 6 bits, 11 - 5 bits                                                  */
+        uint16_t CTRL_TX_THRESH : 3;        /*!< Select the total number of bits in single transcation 000 -
+                                                     None, 001 - 8 bits, 010 - 16 bits, 011 - 32 bits, 110 -
+                                                     64 bits                                                                   */
+        uint16_t CTRL_RX_THRESH : 3;        /*!< Select the total number of bits in single receive 000 - None,
+                                                     001 - 8 bits, 010 - 16 bits, 011 - 32 bits, 110 - 64 bits                 */
+        uint16_t CTRL_PULLUP_EN : 1;        /*!< Pullup enable                                                             */
+            uint16_t            : 2;
+    } CTRL_b;
+  } ;
+     uint16_t  RESERVED3;
+  
+  union {
+      uint16_t INTR_EN;                     /*!< Interrupts enable register                                                */
+    
+    struct {
+        uint16_t INTR_TX_EMPTY_EN : 1;      /*!< Enable for interrupt of transmission fifo empty                           */
+        uint16_t INTR_TX_FULL_EN : 1;       /*!< Enable for interrupt of transmission fifo full                            */
+        uint16_t INTR_RX_NOT_EMPTY_EN : 1;  /*!< Enable for interrupt of receiver fifo not empty                           */
+        uint16_t INTR_RX_FULL_EN : 1;       /*!< Enable for interrupt of receiver fifo full                                */
+        uint16_t INTR_PARITY_EN : 1;        /*!< Enable for interrupt of parity error                                      */
+        uint16_t INTR_OVERRUN_EN : 1;       /*!< Enable for interrupt of overrun error                                     */
+        uint16_t INTR_FRAME_EN : 1;         /*!< Enable for interrupt of frame error                                       */
+        uint16_t INTR_BREAK_EN : 1;         /*!< Enable for interrupt of break error                                       */
+        uint16_t INTR_RX_ALMOST_FULL : 1;   /*!< Enable for interrupt RX fifo almost full depending on the RX_threshold
+                                                     register                                                                  */
+            uint16_t            : 7;
+    } INTR_EN_b;
+  } ;
+     uint16_t  RESERVED4;
+    uint8_t   RX_THRESHOLD;                 /*!< The threshold value to indicate the RX FIFO almost full interrupt         */
+     uint8_t   RESERVED5;
+     uint16_t  RESERVED6;
+} UART_Type;     
 
-struct uart_shakti_regs_t {
-    uint16_t div;
-    uint16_t reserv0;
-    uint32_t tx;
-    uint32_t rx;
-    unsigned short  status;
-    uint16_t reserv2;
-    uint16_t delay;
-    uint16_t reserv3;
-    uint16_t control;
-    uint16_t reserv4;
-    uint8_t  ie; 
-    uint8_t  reserv5;
-    uint16_t reserv6;
-    uint8_t  iqcycles;
-    uint8_t  reserv7;
-    uint16_t reserv8;
-    uint8_t  rx_threshold;
-    uint8_t  reserv9;
-    uint16_t reserv10;
-};
+
+// struct uart_shakti_regs_t {
+//     uint16_t div;
+//     uint16_t reserv0;
+//     uint32_t tx;
+//     uint32_t rx;
+//     unsigned short  status;
+//     uint16_t reserv2;
+//     uint16_t delay;
+//     uint16_t reserv3;
+//     uint16_t control;
+//     uint16_t reserv4;
+//     uint8_t  ie; 
+//     uint8_t  reserv5;
+//     uint16_t reserv6;
+//     uint8_t  iqcycles;
+//     uint8_t  reserv7;
+//     uint16_t reserv8;
+//     uint8_t  rx_threshold;
+// };
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 typedef void (*irq_cfg_func_t)(void);
@@ -135,10 +231,13 @@ static unsigned char uart_shakti_poll_out(struct device *dev,
   	volatile struct uart_shakti_regs_t *uart = DEV_UART(dev);
 
 	// Wait while TX FIFO is full
-	while (uart->status & STS_TX_FULL)
-		;
+	// while (uart->STATUS_REG & STS_TX_FULL);
 
-	uart->tx = (int)c;
+	// uart->TX_REG = (int)c;
+	k_busy_wait(80);
+	while(((UART_Type*)(0x11300))->STATUS_REG & STS_TX_FULL);
+
+	((UART_Type*)(0x11300))->TX_REG.data_8 = (int)c;
 
 	return c; 
 }
@@ -155,9 +254,14 @@ static int uart_shakti_poll_in(struct device *dev, unsigned char *c)
 {
 	volatile struct uart_shakti_regs_t *uart = DEV_UART(dev);
 
-	while ((uart->status & STS_RX_NOT_EMPTY) == 0);
-	volatile uint32_t read_val = uart->rx;
-	*c = (unsigned char)(read_val & RXDATA_MASK);
+	if (((UART_Type*)(0x11300))->STATUS_REG & STS_RX_NOT_EMPTY)
+		return -1;
+
+	// volatile uint32_t read_val = uart->RX_REG;
+	// *c = (unsigned char)(read_val & RXDATA_MASK);
+	
+	while((((UART_Type*)(0x11300))->STATUS_REG & STS_RX_NOT_EMPTY) == 0);
+	*c = (((UART_Type*)(0x11300))->RX_REG.data_8);
 
 	return 0;
 }
@@ -174,14 +278,14 @@ static int uart_shakti_poll_in(struct device *dev, unsigned char *c)
  * @return Number of bytes sent
  */
 static int uart_shakti_fifo_fill(struct device *dev,
-				const u8_t *tx_data,
+				const uint8_t *tx_data,
 				int size)
 {
 	volatile struct uart_shakti_regs_t *uart = DEV_UART(dev);
 	int i;
 
-	for (i = 0; i < size && !(uart->tx & TXDATA_FULL); i++)
-		uart->tx = (int)tx_data[i];
+	for (i = 0; i < size && !(uart->TX_REG & TXDATA_FULL); i++)
+		uart->TX_REG = (int)tx_data[i];
 
 	return i;
 }
@@ -196,7 +300,7 @@ static int uart_shakti_fifo_fill(struct device *dev,
  * @return Number of bytes read
  */
 static int uart_shakti_fifo_read(struct device *dev,
-				u8_t *rx_data,
+				uint8_t *rx_data,
 				const int size)
 {
 	volatile struct uart_shakti_regs_t *uart = DEV_UART(dev);
@@ -204,12 +308,12 @@ static int uart_shakti_fifo_read(struct device *dev,
 	uint32_t val;
 
 	for (i = 0; i < size; i++) {
-		val = uart->rx;
+		val = uart->RX_REG;
 
 		if (val & RXDATA_EMPTY)
 			break;
 
-		rx_data[i] = (u8_t)(val & RXDATA_MASK);
+		rx_data[i] = (uint8_t)(val & RXDATA_MASK);
 	}
 
 	return i;
@@ -272,7 +376,7 @@ static int uart_shakti_irq_tx_complete(struct device *dev)
 	 * No TX EMTPY flag for this controller,
 	 * just check if TX FIFO is not full
 	 */
-	return !(uart->tx & TXDATA_FULL);
+	return !(uart->TX_REG & TXDATA_FULL);
 }
 
 /**
@@ -389,8 +493,12 @@ static int uart_shakti_init(struct device *dev)
 	//uart->rxctrl = RXCTRL_RXEN | CTRL_CNT(cfg->txcnt_irq);
 
 	/* Set baud rate */
-	uart->div = (cfg->sys_clk_freq / cfg->baud_rate) / 16;
+	((UART_Type*)(0x11300))->BAUD_REG = 16; //(cfg->sys_clk_freq / cfg->baud_rate) / 16;
 
+	// // uart->CTRL = (STOP_BITS(cfg->stop_bits) | PARITY(cfg->parity) | UART_TX_RX_LEN(cfg->char_size));
+	// uart->control = (STOP_BITS(2) | PARITY(2) | UART_TX_RX_LEN(6));
+	// // uart->delay = cfg->delay;
+	// uart->delay = 0;
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	/* Ensure that uart IRQ is disabled initially */
 	uart->ie = 0;
@@ -418,9 +526,6 @@ static const struct uart_driver_api uart_shakti_driver_api = {
 	.irq_rx_ready     = uart_shakti_irq_rx_ready,
 	.irq_err_enable   = uart_shakti_irq_err_enable,
 	.irq_err_disable  = uart_shakti_irq_err_disable,
-	.irq_is_pending   = uart_shakti_irq_is_pending,
-	.irq_update       = uart_shakti_irq_update,
-	.irq_callback_set = uart_shakti_irq_callback_set,
 #endif
 };
 
@@ -503,4 +608,4 @@ static void uart_shakti_irq_cfg_func_1(void)
 }
 #endif
 
-#endif /* CONFIG_UART_SHAKTI_PORT_1 */
+#endif
