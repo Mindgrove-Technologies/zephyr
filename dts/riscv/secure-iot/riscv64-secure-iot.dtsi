@@ -85,12 +85,12 @@
     //        reg = <0x0 0x20100 0x0 0x100>;
     // };
 
-    // spi2: spi@20200 {
-    //   #address-cells = <1>;
-    //   #size-cells = <0>;
-    //   compatible = "shakti,spi";
-    //   reg = <0x0 0x20200 0x0 0x100>;
-    // };
+    spi2: spi@20200 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      compatible = "shakti,spi";
+      reg = <0x0 0x20200 0x0 0x100>;
+    };
 
     spi3: spi@20300 {
       #address-cells = <1>;
