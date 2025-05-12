@@ -93,7 +93,7 @@ chosen {
 	clock-frequency = <10000000>;
 	cs-gpios = <&gpio0 10 0>;
 
-// };
+};
 
 &spi3 {
 	status = "okay";
