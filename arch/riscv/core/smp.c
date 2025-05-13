@@ -18,6 +18,8 @@ volatile struct {
 volatile uintptr_t riscv_cpu_wake_flag;
 volatile void *riscv_cpu_sp;
 
+static struct k_spinlock print_lock;
+
 void arch_start_cpu(int cpu_num, k_thread_stack_t *stack, int sz,
 		    arch_cpustart_t fn, void *arg)
 {
@@ -27,8 +29,19 @@ void arch_start_cpu(int cpu_num, k_thread_stack_t *stack, int sz,
 	riscv_cpu_sp = Z_KERNEL_STACK_BUFFER(stack) + sz;
 	riscv_cpu_wake_flag = _kernel.cpus[cpu_num].arch.hartid;
 
+	k_spinlock_key_t key = k_spin_lock(&print_lock);
+
+	printk("arch_start_cpu: WAKE_FLAG=%ld, HART_ID=%ld\n",riscv_cpu_wake_flag,_kernel.cpus[cpu_num].arch.hartid);
+
+	k_spin_unlock(&print_lock, key);
+
 	while (riscv_cpu_wake_flag != 0U) {
-		;
+		// ;
+		k_spinlock_key_t key = k_spin_lock(&print_lock);
+
+		printk("arch_start_cpu: while: WAKE_FLAG=%ld, HART_ID=%ld\n",riscv_cpu_wake_flag,_kernel.cpus[cpu_num].arch.hartid);
+
+		k_spin_unlock(&print_lock, key);
 	}
 }
 
@@ -40,9 +53,17 @@ void z_riscv_secondary_cpu_init(int hartid)
 	for (i = 0; i < CONFIG_MP_MAX_NUM_CPUS; i++) {
 		if (_kernel.cpus[i].arch.hartid == hartid) {
 			cpu_num = i;
+			printk("z_riscv_secondary_cpu_init: IF: CPU_NUM:%d kernel_hartid=%ld, hart_id=%d\n", cpu_num, _kernel.cpus[i].arch.hartid, hartid);
 		}
+
+		printk("z_riscv_secondary_cpu_init: CPU%d, kernel_hartid=%ld, hartid=%d\n", i, _kernel.cpus[i].arch.hartid, hartid);
+
 	}
 	csr_write(mscratch, &_kernel.cpus[cpu_num]);
+	struct _cpu *scratch;
+	scratch = (struct _cpu_t *)csr_read(mscratch);
+	printk("MSCRATCH Value: 0x%x\n", scratch->id);
+
 #ifdef CONFIG_SMP
 	_kernel.cpus[cpu_num].arch.online = true;
 #endif

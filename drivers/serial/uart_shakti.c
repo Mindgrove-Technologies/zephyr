@@ -33,6 +33,15 @@
 
 #endif
 
+#ifdef CONFIG_BOARD_VISION_SOC
+
+#define SHAKTI_NEXYS_FREQUENCY 1000000000 // Change to 40000000 for nexys video board and 100 * 10^6 for vcu118 FPGA
+#define SHAKTI_UART_1_CLK_FREQUENCY 1000000000
+#define SECIOT_NEXYS_UART_BAUD 12500000
+#define SECIOT_VCU118_UART_BAUD 125000000
+
+#endif
+
 #define RXDATA_EMPTY   (1 << 31)   /* Receive FIFO Empty */
 #define RXDATA_MASK    0xFF        /* Receive Data Mask */
 
@@ -467,8 +476,8 @@ static void uart_shakti_irq_cfg_func_2 (void){
 #define UART_SHAKTI_INIT(n) \
 	static struct uart_shakti_device_config uart_shakti_dev_cfg_##n = { \
 	.port         = DT_INST_PROP(n, base),							\
-	.sys_clk_freq = 700000000,							\
-	.baud_rate    = 115200,					\
+	.sys_clk_freq = 1000000000,							\
+	.baud_rate    = 12500000,					\
 	.cfg_func     =	 &uart_shakti_irq_cfg_func_##n,                   \
 	.rxcnt_irq    = 0,                                              \	
 	.txcnt_irq    = 0,		                                        \

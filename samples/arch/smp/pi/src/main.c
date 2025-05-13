@@ -82,8 +82,8 @@ int main(void)
 	uint32_t start_time, stop_time, cycles_spent, nanoseconds_spent;
 	int i;
 
-	printk("Calculate first %d digits of Pi independently by %d threads.\n",
-	       DIGITS_NUM, THREADS_NUM);
+	printk("Calculate first %d digits of Pi independently by %d threads, on %d cores.\n",
+	       DIGITS_NUM, THREADS_NUM, CORES_NUM);
 
 	/* Capture initial time stamp */
 	start_time = k_cycle_get_32();
