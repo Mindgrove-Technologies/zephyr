@@ -30,5 +30,5 @@ properties:
     type: int
     required: true
   
-  cs-gpios:
-    required: true
+  # cs-gpios:
+  #   required: false

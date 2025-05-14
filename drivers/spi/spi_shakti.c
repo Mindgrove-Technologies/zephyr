@@ -47,9 +47,9 @@ sspi_struct *sspi_instance[SSPI_MAX_COUNT];
 /* variables used to configure spi */
 int pol;
 int pha;
-int prescale = 0x01;
-int setup_time = 0x0;
-int hold_time = 0x0;
+int prescale = 30;
+int setup_time = 0;
+int hold_time = 0;
 int master_mode;
 int lsb_first;
 int comm_mode;
@@ -79,17 +79,6 @@ static int spi_shakti_transceive(const struct device *dev,
   uint32_t len;
   volatile uint32_t temp = 0;
 
-  // sspi_shakti_init(dev);
-
-  while (1){
-    temp =  sspi_instance[spi_number]->comm_status;
-    temp = temp & SPI_BUSY;
-    if (temp != SPI_BUSY){
-        temp =0;
-        break;
-    }
-  }
-
   if ((config->operation & 0x1) == 0)
   {
     printk("master is supported\n");
@@ -115,7 +104,7 @@ static int spi_shakti_transceive(const struct device *dev,
     printk("Invalid pol and pha combination \n");
     return 0;
   }
-
+  printk("Prescale = %d\n", prescale);
   // If lsb is set, then 4th bit in the operation is set to 1 or if msb is set the 4th bit in the operation is set to 0.
   if((config -> operation & SPI_TRANSFER_LSB) == SPI_TRANSFER_MSB){
     printk("MSB FIRST \n");   
@@ -182,20 +171,40 @@ static int spi_shakti_transceive(const struct device *dev,
 
   if ((pol == 0 && pha == 1)||(pol == 1 && pha == 0)) return 1;
 
-  k_mutex_lock(&(((struct spi_shakti_cfg*)(dev->config))->mutex),K_FOREVER);
+  // k_mutex_lock(&(((struct spi_shakti_cfg*)(dev->config))->mutex),K_FOREVER);
   sspi_instance[spi_number]->clk_control = CLEAR_MASK;
-  sspi_instance[spi_number]->clk_control = SPI_CLK_POLARITY(pol) | SPI_CLK_PHASE(pha) | SPI_PRESCALE(prescale) | SPI_SS2TX_DELAY(setup_time) | SPI_TX2SS_DELAY(hold_time);
+  sspi_instance[spi_number]->clk_control = SPI_TX2SS_DELAY(hold_time) | SPI_SS2TX_DELAY(setup_time) | SPI_PRESCALE(prescale) | SPI_CLK_POLARITY(pol) | SPI_CLK_PHASE(pha);
+
+  // spi_context_cs_control(&SPI_DATA(dev)->ctx, false);
+  sspi_instance[spi_number]->ncs_ctrl = SPI_NCS_SW(1) | SPI_NCS_SELECT((0 & 0x1));
 
   sspi_instance[spi_number]->comm_control = CLEAR_MASK;
+  int out_en = 0;
   if (master_mode == MASTER)
   {
-    sspi_instance[spi_number]->comm_control = SPI_MASTER(master_mode) | SPI_LSB_FIRST(lsb_first) | SPI_COMM_MODE(comm_mode) | SPI_TOTAL_BITS_TX(spi_size) | SPI_TOTAL_BITS_RX(spi_size) | SPI_OUT_EN_SCLK(1) | SPI_OUT_EN_NCS(1) | SPI_OUT_EN_MOSI(1) | SPI_OUT_EN_MISO(0);
+    out_en = SPI_OUT_EN_SCLK | SPI_OUT_EN_NCS | SPI_OUT_EN_MOSI;
+    // sspi_instance[spi_number]->comm_control = SPI_MODE(master_mode) | SPI_LSB_FIRST(lsb_first) | SPI_COMM_MODE(comm_mode) | SPI_TOTAL_BITS_TX(spi_size) | SPI_TOTAL_BITS_RX(spi_size) | SPI_OUT_EN_SCLK(1) | SPI_OUT_EN_NCS(1) | SPI_OUT_EN_MOSI(1) | SPI_OUT_EN_MISO(0);
+    printk("master mode = %d\n", master_mode);
   }
   else
   {
-    sspi_instance[spi_number]->comm_control = SPI_MASTER(master_mode) | SPI_LSB_FIRST(lsb_first) | SPI_COMM_MODE(comm_mode) | SPI_TOTAL_BITS_TX(spi_size) | SPI_TOTAL_BITS_RX(spi_size) | SPI_OUT_EN_SCLK(0) | SPI_OUT_EN_NCS(0) | SPI_OUT_EN_MOSI(0) | SPI_OUT_EN_MISO(1);
+    out_en = SPI_OUT_EN_MISO;
+    printk("Slave mode = %d\n", master_mode);
+    // sspi_instance[spi_number]->comm_control = SPI_MASTER(master_mode) | SPI_LSB_FIRST(lsb_first) | SPI_COMM_MODE(comm_mode) | SPI_TOTAL_BITS_TX(spi_size) | SPI_TOTAL_BITS_RX(spi_size) | SPI_OUT_EN_SCLK(0) | SPI_OUT_EN_NCS(0) | SPI_OUT_EN_MOSI(0) | SPI_OUT_EN_MISO(1);
   }
-  
+  sspi_instance[spi_number]->comm_control = SPI_MODE(master_mode) | SPI_LSB_FIRST(lsb_first) | SPI_COMM_MODE(comm_mode) | SPI_TOTAL_BITS_TX(spi_size) | SPI_TOTAL_BITS_RX(spi_size) | out_en;
+
+  uint32_t temp1 = sspi_instance[spi_number]->comm_control;
+  while (1){
+    temp =  sspi_instance[spi_number]->comm_status;
+    temp = temp & SPI_BUSY;
+    if (temp != SPI_BUSY){
+        temp =0;
+        break;
+    }
+  }
+  sspi_instance[spi_number]->comm_control = temp1 | SPI_ENABLE(ENABLE);
+
   if (tx_bufs == NULL && rx_bufs == NULL) return 1;
   spi_context_buffers_setup(&SPI_DATA(dev)->ctx, tx_bufs, rx_bufs, 1);
   len = tx_bufs ? tx_bufs->buffers->len : rx_bufs->buffers->len;
@@ -239,7 +248,7 @@ static int spi_shakti_transceive(const struct device *dev,
             break;
           }          
         }
-        sspi_instance[spi_number]->comm_control |= SPI_ENABLE(ENABLE);
+        // sspi_instance[spi_number]->comm_control |= SPI_ENABLE(ENABLE);
       }      
     }    
   }
@@ -259,7 +268,7 @@ static int spi_shakti_transceive(const struct device *dev,
             break;
           }          
         }
-        sspi_instance[spi_number]->comm_control |= SPI_ENABLE(ENABLE);
+        // sspi_instance[spi_number]->comm_control |= SPI_ENABLE(ENABLE);
       }
       if (spi_size == DATA_SIZE_8)
       {
@@ -308,95 +317,105 @@ static int spi_shakti_transceive(const struct device *dev,
   
   else if (comm_mode == FULL_DUPLEX || comm_mode == HALF_DUPLEX)
   {
+    // sspi_instance[spi_number]->comm_control |= SPI_ENABLE(ENABLE);
     printk("mode = %d\n", comm_mode);
     for (int i = 0; i < len; i++)
     {
+      // sspi_instance[spi_number]->data_tx.data_8 = 55;
       if ((spi_size == DATA_SIZE_8) && ((sspi_instance[spi_number]->fifo_status & SPI_TX_FULL) != SPI_TX_FULL))
       {
-        // k_busy_wait(1000);
-        // printk("tx_data= %d\n", sspi_instance[spi_number]->data_tx.data_8);
+        k_busy_wait(5000);
         sspi_instance[spi_number]->data_tx.data_8 = ((uint8_t*)(tx_bufs->buffers->buf))[i];
-        // k_busy_wait(1000);
+        printk("tx_data= %d\n", ((uint8_t*)(tx_bufs->buffers->buf))[i]);
+        k_busy_wait(5000);
       }
       else if ((spi_size == DATA_SIZE_16) && (((sspi_instance[spi_number]->fifo_status & SPI_TX_30 == SPI_TX_30) && ((sspi_instance[spi_number]->comm_status & SPI_TX_FIFO(7)) == SPI_TX_FIFO(7))) || ((sspi_instance[spi_number]->comm_status & SPI_TX_FIFO(7)) < SPI_TX_FIFO(7))))
       {
-        // k_busy_wait(1000);
+        // k_busy_wait(5000);
         printk("tx_data= %d\n", sspi_instance[spi_number]->data_tx.data_16);
         sspi_instance[spi_number]->data_tx.data_16 = ((uint16_t*)(tx_bufs->buffers->buf))[i];
-        // k_busy_wait(1000);
+        // k_busy_wait(5000);
       }
       else if ((spi_size == DATA_SIZE_32) && (((sspi_instance[spi_number]->fifo_status & SPI_TX_28 == SPI_TX_28) && ((sspi_instance[spi_number]->comm_status & SPI_TX_FIFO(7)) == SPI_TX_FIFO(6))) || ((sspi_instance[spi_number]->comm_status & SPI_TX_FIFO(7)) < SPI_TX_FIFO(6))))
       {
-        // k_busy_wait(1000);
+        // k_busy_wait(5000);
         printk("tx_data= %d\n", sspi_instance[spi_number]->data_tx.data_32);
         sspi_instance[spi_number]->data_tx.data_16 = ((uint16_t*)(tx_bufs->buffers->buf))[i];
-        // k_busy_wait(1000);
+        // k_busy_wait(5000);
       }
-      while (1)
-      {
-        temp = sspi_instance[spi_number]->comm_status & SPI_TX_EN;
-        if (temp != SPI_TX_EN)
-        {
-          temp = 0;
-          break;
-        }        
-      }
-      if(((sspi_instance[spi_number]->fifo_status & SPI_TX_EMPTY) != SPI_TX_EMPTY) || ((sspi_instance[spi_number]->comm_control & SPI_COMM_MODE(3)) == SPI_COMM_MODE(1)))
-      {
-        while (1)
-        {
-          temp = sspi_instance[spi_number]->comm_status & SPI_BUSY;
-          if (temp != SPI_BUSY)
-          {
-            temp = 0;
-            break;
-          }          
-        }
-        sspi_instance[spi_number]->comm_control |= SPI_ENABLE(ENABLE);
-      }
+      // while (1)
+      // {
+      //   temp = sspi_instance[spi_number]->comm_status & SPI_TX_EN;
+      //   if (temp != SPI_TX_EN)
+      //   {
+      //     temp = 0;
+      //     break;
+      //   }        
+      // }
+      // if(((sspi_instance[spi_number]->fifo_status & SPI_TX_EMPTY) != SPI_TX_EMPTY) || ((sspi_instance[spi_number]->comm_control & SPI_COMM_MODE(3)) == SPI_COMM_MODE(1)))
+      // {
+      //   while (1)
+      //   {
+      //     temp = sspi_instance[spi_number]->comm_status & SPI_BUSY;
+      //     if (temp != SPI_BUSY)
+      //     {
+      //       temp = 0;
+      //       break;
+      //     }          
+      //   }
+      //   sspi_instance[spi_number]->comm_control |= SPI_ENABLE(ENABLE);
+      // }
       if (spi_size == DATA_SIZE_8)
       {
         while (1)
         {
-          temp = sspi_instance[spi_number]->fifo_status & SPI_RX_EMPTY;
-          if (temp != SPI_RX_EMPTY)
+          // sspi_instance[spi_number]->fifo_status & CLEAR_MASK;
+          temp = sspi_instance[spi_number]->fifo_status;
+          temp = temp & SPI_RX_EMPTY;
+          if (temp == 0)
           {
-            temp = 0;
+            // temp = 0;
+            printf("RX fifo is not empty\n");
+            break;
+          }
+          else
+          {
+            printf("RX FIFO is empty\n");
             break;
           }
         }        
-        // k_busy_wait(1000);
-        // printk("rx_data= %d\n", ((uint8_t*)(rx_bufs->buffers->buf))[i]);
+        k_busy_wait(5000);
+        printk("rx_data= %d\n", ((uint8_t*)(rx_bufs->buffers->buf))[i]);
         ((uint8_t*)(rx_bufs->buffers->buf))[i] = sspi_instance[spi_number]->data_rx.data_8;
-        // k_busy_wait(1000);
+        k_busy_wait(5000);
       }
       else if (spi_size == DATA_SIZE_16)
       {
-        while (1)
-        {
-          temp = sspi_instance[spi_number]-> comm_status & SPI_RX_FIFO(7);
-          if (temp >= SPI_RX_FIFO(1))
-          {
-            temp = 0;
-            break;
-          }          
-        }
-        // k_busy_wait(1000);
+        // while (1)
+        // {
+        //   temp = sspi_instance[spi_number]-> comm_status & SPI_RX_FIFO(7);
+        //   if (temp >= SPI_RX_FIFO(1))
+        //   {
+        //     temp = 0;
+        //     break;
+        //   }          
+        // }
+        // k_busy_wait(5000);
         printk("rx_data= %d\n", ((uint8_t*)(rx_bufs->buffers->buf))[i]);
         ((uint16_t*)(rx_bufs->buffers->buf))[i] = sspi_instance[spi_number]->data_rx.data_16;
         // k_busy_wait(1000);
       }
       else if (spi_size == DATA_SIZE_32)
       {
-        while (1)
-        {
-          temp = sspi_instance[spi_number]-> comm_status & SPI_RX_FIFO(7);
-          if (temp >= SPI_RX_FIFO(2))
-          {
-            temp = 0;
-            break;
-          }          
-        }
+        // while (1)
+        // {
+        //   temp = sspi_instance[spi_number]-> comm_status & SPI_RX_FIFO(7);
+        //   if (temp >= SPI_RX_FIFO(2))
+        //   {
+        //     temp = 0;
+        //     break;
+        //   }          
+        // }
         // k_busy_wait(1000);
         printk("rx_data= %d\n", ((uint8_t*)(rx_bufs->buffers->buf))[i]);
         ((uint32_t*)(rx_bufs->buffers->buf))[i] = sspi_instance[spi_number]->data_rx.data_32;
@@ -404,7 +423,7 @@ static int spi_shakti_transceive(const struct device *dev,
       }
     }    
   }
-  k_mutex_unlock(&(((struct spi_shakti_cfg*)(dev->config))->mutex));
+  // k_mutex_unlock(&(((struct spi_shakti_cfg*)(dev->config))->mutex));
   return 0;  
 }
 
@@ -417,9 +436,13 @@ int sspi_shakti_init(const struct device *dev)
   struct spi_shakti_cfg *confg = (struct spi_shakti_cfg *)dev->config;
   printk("SPI: %s\n", spi_inst);
   spi_number = spi_inst[6] - '0';
-  gpio_pin_configure_dt(&(((struct spi_shakti_cfg*)(dev->config))->ncs),1);
+  // gpio_pin_configure_dt(&(((struct spi_shakti_cfg*)(dev->config))->ncs),0);
+  // sspi_instance[spi_number]->ncs_ctrl = SPI_NCS_SW(1) | SPI_NCS_SELECT((0 & 0x1));
+  // sys_write32(SPI_NCS_SW(1) | SPI_NCS_SELECT((0 & 0x1)), sspi_instance[spi_number]->ncs_ctrl);
+  // sys_write32(config->slave, SPI_REG(dev, REG_CSID));
+	// sys_write32(SF_CSMODE_OFF, SPI_REG(dev, REG_CSMODE));
   printk("SPI NUMBER: %d\n", spi_number);
-  k_mutex_init(&(confg->mutex));
+  // k_mutex_init(&(confg->mutex));
   if (spi_number < SSPI_MAX_COUNT & spi_number >= 0){
     sspi_instance[spi_number] = (sspi_struct*) ( (SSPI0_BASE_ADDRESS + ( spi_number * SSPI_BASE_OFFSET) ) );
     spi_base = sspi_instance[spi_number];
@@ -451,10 +474,9 @@ static struct spi_driver_api spi_shakti_api = {
   static struct spi_shakti_data spi_shakti_data_##n = { \
     SPI_CONTEXT_INIT_LOCK(spi_shakti_data_##n, ctx), \
     SPI_CONTEXT_INIT_SYNC(spi_shakti_data_##n, ctx), \
-    SPI_CONTEXT_CS_GPIOS_INITIALIZE(DT_DRV_INST(n), ctx)	\
   }; \
   static struct spi_shakti_cfg spi_shakti_cfg_##n = { \
-    .ncs = GPIO_DT_SPEC_INST_GET(n, cs_gpios),\
+    .ncs = NULL,\
     .base = SPI_START_##n , \ 
     .f_sys = CLOCK_FREQUENCY, \
   }; \
