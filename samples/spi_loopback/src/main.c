@@ -23,14 +23,14 @@ int main()
     // uint8_t rx_buff[3];
     // uint16_t rx_buff[3];
     //uint32_t rx_buff[3];
-    uint8_t tx_buff[4];
+    uint8_t tx_buff[4] = {0x12, 0x34, 0x56, 0x78};
     uint8_t rx_buff[4];
 	int len = sizeof(tx_buff) / sizeof(tx_buff[0]);
 
-    for(int i = 1;i<5;i++){
-        tx_buff[i] = i;
-        printf("\nTransmitted Data [%d] = %d", i, tx_buff[i]);
-    }
+    // for(int i = 1;i<5;i++){
+    //     tx_buff[i] = i;
+    //     printf("\nTransmitted Data [%d] = %d", i, tx_buff[i]);
+    // }
     printf("\nlen :%d", len);
     k_busy_wait(100);
     struct spi_buf tx_buf = { .buf = tx_buff, .len = len };
