@@ -133,8 +133,9 @@ static int char_out(uint8_t *data, size_t length, void *ctx)
 	if (mtrace_active && mtrace_hook) {
 
 		/* if we are in panic mode, need to flush out asap */
-		if (unlikely(mtrace_panic_mode))
+		if (unlikely(mtrace_panic_mode)) {
 			space_left = 0;
+		}
 
 		mtrace_hook(out, space_left);
 	}
@@ -220,7 +221,7 @@ void adsp_mtrace_log_init(adsp_mtrace_log_hook_t hook)
 	mtrace_init();
 
 	mtrace_hook = hook;
-	mtrace_active = true;
+	mtrace_active = !!hook;
 }
 
 const struct log_backend *log_backend_adsp_mtrace_get(void)

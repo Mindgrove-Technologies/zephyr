@@ -19,7 +19,7 @@ LOG_MODULE_REGISTER(net_test, CONFIG_DNS_RESOLVER_LOG_LEVEL);
 
 #include <zephyr/net/ethernet.h>
 #include <zephyr/net/dummy.h>
-#include <zephyr/net/buf.h>
+#include <zephyr/net_buf.h>
 #include <zephyr/net/net_ip.h>
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/dns_resolve.h>
@@ -91,7 +91,7 @@ static uint8_t *net_iface_get_mac(const struct device *dev)
 		data->mac_addr[2] = 0x5E;
 		data->mac_addr[3] = 0x00;
 		data->mac_addr[4] = 0x53;
-		data->mac_addr[5] = sys_rand32_get();
+		data->mac_addr[5] = sys_rand8_get();
 	}
 
 	return data->mac_addr;

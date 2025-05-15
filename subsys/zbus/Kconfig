@@ -3,6 +3,7 @@
 
 menuconfig ZBUS
 	bool "Zbus support"
+	depends on MULTITHREADING
 	help
 	  Enables support for Zephyr message bus.
 
@@ -15,8 +16,14 @@ config ZBUS_CHANNELS_SYS_INIT_PRIORITY
 config ZBUS_CHANNEL_NAME
 	bool "Channel name field"
 
+config ZBUS_CHANNEL_ID
+	bool "Channel identifier field"
+
 config ZBUS_OBSERVER_NAME
 	bool "Observer name field"
+
+config ZBUS_CHANNEL_PUBLISH_STATS
+	bool "Channel publishing statistics (Timestamp and count)"
 
 config ZBUS_MSG_SUBSCRIBER
 	select NET_BUF
@@ -24,33 +31,44 @@ config ZBUS_MSG_SUBSCRIBER
 
 if ZBUS_MSG_SUBSCRIBER
 
-choice
+choice ZBUS_MSG_SUBSCRIBER_BUF_ALLOC
 	prompt "ZBus msg_subscribers buffer allocation"
+	default ZBUS_MSG_SUBSCRIBER_BUF_ALLOC_DYNAMIC
 
-config ZBUS_MSG_SUBSCRIBER_NET_BUF_DYNAMIC
+config ZBUS_MSG_SUBSCRIBER_BUF_ALLOC_DYNAMIC
 	bool "Use heap to allocate msg_subscriber buffers data"
 
-config ZBUS_MSG_SUBSCRIBER_NET_BUF_STATIC
+config ZBUS_MSG_SUBSCRIBER_BUF_ALLOC_STATIC
 	bool "Use fixed data size for msg_subscriber buffers pool"
 
 endchoice
+
+config ZBUS_MSG_SUBSCRIBER_NET_BUF_POOL_ISOLATION
+	default n
+	bool "Use isolated pools instead of only using the global pool."
 
 config ZBUS_MSG_SUBSCRIBER_NET_BUF_POOL_SIZE
 	default 16
 	int "The count of net_buf available to be used simutaneously."
 
-if ZBUS_MSG_SUBSCRIBER_NET_BUF_STATIC
+if ZBUS_MSG_SUBSCRIBER_BUF_ALLOC_STATIC
 
 config ZBUS_MSG_SUBSCRIBER_NET_BUF_STATIC_DATA_SIZE
 	int "The size of the biggest message used with ZBus."
 
-endif # ZBUS_MSG_SUBSCRIBER_NET_BUF_STATIC
+endif # ZBUS_MSG_SUBSCRIBER_BUF_ALLOC_STATIC
 
 endif # ZBUS_MSG_SUBSCRIBER
 
 config ZBUS_RUNTIME_OBSERVERS
 	bool "Runtime observers support."
-	default n
+
+config ZBUS_PRIORITY_BOOST
+	bool "ZBus priority boost algorithm"
+	default y
+	help
+	  ZBus implements the Highest Locker Protocol that relies on the observers’ thread priority
+	  to determine a temporary publisher priority.
 
 config ZBUS_ASSERT_MOCK
 	bool "Zbus assert mock for test purposes."
@@ -58,6 +76,13 @@ config ZBUS_ASSERT_MOCK
 	  This configuration enables the developer to change the _ZBUS_ASSERT behavior. When this configuration is
 	  enabled, _ZBUS_ASSERT returns -EFAULT instead of assert. It makes it more straightforward to test invalid
 	  parameters.
+
+
+config HEAP_MEM_POOL_ADD_SIZE_ZBUS
+	int
+	default 2048 if ZBUS_MSG_SUBSCRIBER_BUF_ALLOC_DYNAMIC && !ZBUS_RUNTIME_OBSERVERS
+	default 1024 if !ZBUS_MSG_SUBSCRIBER_BUF_ALLOC_DYNAMIC && ZBUS_RUNTIME_OBSERVERS
+	default 3072 if ZBUS_MSG_SUBSCRIBER_BUF_ALLOC_DYNAMIC && ZBUS_RUNTIME_OBSERVERS
 
 
 module = ZBUS

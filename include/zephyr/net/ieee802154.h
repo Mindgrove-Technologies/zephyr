@@ -26,6 +26,8 @@ extern "C" {
 
 /**
  * @defgroup ieee802154 IEEE 802.15.4 and Thread APIs
+ * @since 1.0
+ * @version 0.8.0
  * @ingroup connectivity
  *
  * @brief IEEE 802.15.4 native and OpenThread L2, configuration, management and
@@ -76,6 +78,8 @@ extern "C" {
 
 /**
  * @defgroup ieee802154_l2 IEEE 802.15.4 L2
+ * @since 1.0
+ * @version 0.8.0
  * @ingroup ieee802154
  *
  * @brief IEEE 802.15.4 L2 APIs
@@ -237,10 +241,11 @@ struct ieee802154_security_ctx {
 	/** INTERNAL_HIDDEN @endcond */
 };
 
+/** @brief IEEE 802.15.4 device role */
 enum ieee802154_device_role {
-	IEEE802154_DEVICE_ROLE_ENDDEVICE,
-	IEEE802154_DEVICE_ROLE_COORDINATOR,
-	IEEE802154_DEVICE_ROLE_PAN_COORDINATOR,
+	IEEE802154_DEVICE_ROLE_ENDDEVICE,       /**< End device */
+	IEEE802154_DEVICE_ROLE_COORDINATOR,     /**< Coordinator */
+	IEEE802154_DEVICE_ROLE_PAN_COORDINATOR, /**< PAN coordinator */
 };
 
 /** IEEE 802.15.4 L2 context. */
@@ -291,7 +296,7 @@ struct ieee802154_context {
 	uint8_t ext_addr[IEEE802154_MAX_ADDR_LENGTH];
 
 	/** Link layer address (in big endian) */
-	struct net_linkaddr_storage linkaddr;
+	struct net_linkaddr linkaddr;
 
 #ifdef CONFIG_NET_L2_IEEE802154_SECURITY
 	/** Security context */

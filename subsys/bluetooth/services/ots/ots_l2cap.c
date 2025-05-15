@@ -13,7 +13,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/init.h>
 
-#include <zephyr/net/buf.h>
+#include <zephyr/net_buf.h>
 
 #include "ots_l2cap_internal.h"
 
@@ -24,19 +24,18 @@
  */
 #if defined(CONFIG_BT_OTS)
 LOG_MODULE_DECLARE(bt_ots, CONFIG_BT_OTS_LOG_LEVEL);
-#elif IS_ENABLED(CONFIG_BT_OTS_CLIENT)
-LOG_MODULE_REGISTER(bt_ots, CONFIG_BT_OTS_LOG_LEVEL);
+#elif defined(CONFIG_BT_OTS_CLIENT)
+LOG_MODULE_REGISTER(bt_ots, CONFIG_BT_OTS_CLIENT_LOG_LEVEL);
 #endif
 
-/* According to BLE specification Assigned Numbers that are used in the
+/* According to Bluetooth specification Assigned Numbers that are used in the
  * Logical Link Control for protocol/service multiplexers.
  */
 #define BT_GATT_OTS_L2CAP_PSM	0x0025
 
-
 NET_BUF_POOL_FIXED_DEFINE(ot_chan_tx_pool, 1,
-			  BT_L2CAP_SDU_BUF_SIZE(CONFIG_BT_OTS_L2CAP_CHAN_TX_MTU), 8,
-			  NULL);
+			  BT_L2CAP_SDU_BUF_SIZE(CONFIG_BT_OTS_L2CAP_CHAN_TX_MTU),
+			  CONFIG_BT_CONN_TX_USER_DATA_SIZE, NULL);
 
 #if (CONFIG_BT_OTS_L2CAP_CHAN_RX_MTU > BT_L2CAP_SDU_RX_MTU)
 NET_BUF_POOL_FIXED_DEFINE(ot_chan_rx_pool, 1, CONFIG_BT_OTS_L2CAP_CHAN_RX_MTU, 8,

@@ -7,7 +7,7 @@
 
 menuconfig UART_SHAKTI
 	bool "shakti serial driver"
-	depends on SOC_RISCV64_SHAKTI
+	depends on SOC_FAMILY_MINDGROVE
 	select SERIAL_HAS_DRIVER
 	select SERIAL_SUPPORT_INTERRUPT
 	help

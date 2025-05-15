@@ -19,7 +19,7 @@
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(i2c_ite_enhance, CONFIG_I2C_LOG_LEVEL);
-
+#include "i2c_bitbang.h"
 #include "i2c-priv.h"
 
 /* Start smbus session from idle state */
@@ -53,7 +53,7 @@ struct i2c_cq_packet {
 	uint8_t id;
 	uint8_t cmd_l;
 	uint8_t cmd_h;
-	uint8_t wdata[0];
+	FLEXIBLE_ARRAY_DECLARE(uint8_t, wdata);
 };
 #endif /* CONFIG_I2C_IT8XXX2_CQ_MODE */
 
@@ -63,6 +63,7 @@ struct i2c_enhance_config {
 	uint8_t *base;
 	uint8_t i2c_irq_base;
 	uint8_t port;
+	uint8_t channel_switch_sel;
 	/* SCL GPIO cells */
 	struct gpio_dt_spec scl_gpios;
 	/* SDA GPIO cells */
@@ -70,9 +71,12 @@ struct i2c_enhance_config {
 	/* I2C alternate configuration */
 	const struct pinctrl_dev_config *pcfg;
 	uint8_t prescale_scl_low;
+	uint8_t data_hold_time;
 	uint32_t clock_gate_offset;
+	int transfer_timeout_ms;
 	bool target_enable;
 	bool target_pio_mode;
+	bool push_pull_recovery;
 };
 
 enum i2c_pin_fun {
@@ -117,6 +121,7 @@ struct i2c_enhance_data {
 	struct i2c_msg *active_msg;
 	struct k_mutex mutex;
 	struct k_sem device_sync_sem;
+	struct i2c_bitbang bitbang;
 	/* Index into output data */
 	size_t widx;
 	/* Index into input data */
@@ -292,8 +297,9 @@ static void i2c_enhanced_port_set_frequency(const struct device *dev,
 					    int freq_hz)
 {
 	const struct i2c_enhance_config *config = dev->config;
-	uint32_t clk_div, psr, pll_clock;
+	uint32_t clk_div, psr, pll_clock, psr_h, psr_l;
 	uint8_t *base = config->base;
+	uint8_t prescale_scl = config->prescale_scl_low;
 
 	pll_clock = chip_get_pll_freq();
 	/*
@@ -316,11 +322,28 @@ static void i2c_enhanced_port_set_frequency(const struct device *dev,
 		}
 
 		/* Adjust SCL low period prescale */
-		psr += config->prescale_scl_low;
+		psr_l = psr + prescale_scl;
+		if (psr_l > 0xFD) {
+			psr_l = 0xFD;
+			LOG_WRN("(psr + prescale_scl) can not be greater than 0xfd.");
+		}
 
-		/* Set I2C Speed */
-		IT8XXX2_I2C_PSR(base) = psr & 0xFF;
-		IT8XXX2_I2C_HSPR(base) = psr & 0xFF;
+		/*
+		 * Adjust SCL high period prescale
+		 * The property setting prescale_scl must be less than psr and
+		 * the minimum value of psr_h is 2.
+		 */
+		if (psr > (prescale_scl + 2)) {
+			psr_h = psr - prescale_scl;
+		} else {
+			psr_h = 2;
+			LOG_WRN("prescale_scl_low should be less than (psr - 2).");
+		}
+
+		/* Set I2C Speed for SCL low period. */
+		IT8XXX2_I2C_PSR(base) = psr_l & 0xFF;
+		/* Set I2C Speed for SCL high period. */
+		IT8XXX2_I2C_HSPR(base) = psr_h & 0xFF;
 	}
 
 }
@@ -605,8 +628,7 @@ static int i2c_enhance_pio_transfer(const struct device *dev,
 			irq_enable(config->i2c_irq_base);
 		}
 		/* Wait for the transfer to complete */
-		/* TODO: the timeout should be adjustable */
-		res = k_sem_take(&data->device_sync_sem, K_MSEC(100));
+		res = k_sem_take(&data->device_sync_sem, K_MSEC(config->transfer_timeout_ms));
 		/*
 		 * The irq will be enabled at the condition of start or
 		 * repeat start of I2C. If timeout occurs without being
@@ -735,9 +757,11 @@ static int enhanced_i2c_cq_isr(const struct device *dev)
 		uint8_t msgs_idx = data->num_msgs - 1;
 
 		/* Get data if this is a read transaction. */
-		for (int i = 0; i < data->cq_msgs[msgs_idx].len; i++) {
-			data->cq_msgs[msgs_idx].buf[i] =
-			host_buffer->i2c_cq_mode_rx_dlm[i];
+		if (data->cq_msgs[msgs_idx].flags & I2C_MSG_READ) {
+			for (int i = 0; i < data->cq_msgs[msgs_idx].len; i++) {
+				data->cq_msgs[msgs_idx].buf[i] =
+				host_buffer->i2c_cq_mode_rx_dlm[i];
+			}
 		}
 	} else {
 		/* Device 1 error have occurred. eg. nack, timeout... */
@@ -815,7 +839,7 @@ static int i2c_enhance_cq_transfer(const struct device *dev,
 		irq_enable(config->i2c_irq_base);
 	}
 	/* Wait for the transfer to complete */
-	res = k_sem_take(&data->device_sync_sem, K_MSEC(100));
+	res = k_sem_take(&data->device_sync_sem, K_MSEC(config->transfer_timeout_ms));
 
 	irq_disable(config->i2c_irq_base);
 
@@ -994,6 +1018,11 @@ static void target_i2c_isr_dma(const struct device *dev,
 		target_cb->buf_write_received(data->target_cfg,
 			target_buffer->in_buffer, data->buffer_size);
 	}
+	/* Peripheral finish */
+	if (interrupt_status & IT8XXX2_I2C_P_CLR) {
+		/* Transfer done callback function */
+		target_cb->stop(data->target_cfg);
+	}
 	/* Controller to read data */
 	if (interrupt_status & IT8XXX2_I2C_IDR_CLR) {
 		uint32_t len;
@@ -1008,13 +1037,16 @@ static void target_i2c_isr_dma(const struct device *dev,
 			&rdata, &len);
 
 		if (len > CONFIG_I2C_TARGET_IT8XXX2_MAX_BUF_SIZE) {
-			LOG_ERR("The bufffer size exceeds "
+			LOG_ERR("The buffer size exceeds "
 				"I2C_TARGET_IT8XXX2_MAX_BUF_SIZE: len=%d",
 				len);
 		} else {
 			memcpy(target_buffer->out_buffer, rdata, len);
 		}
 	}
+
+	/* Write clear the peripheral status */
+	IT8XXX2_I2C_IRQ_ST(base) = interrupt_status;
 }
 
 static int target_i2c_isr_pio(const struct device *dev,
@@ -1066,7 +1098,9 @@ static void target_i2c_isr(const struct device *dev)
 
 	/* Any error */
 	if (target_status & E_TARGET_ANY_ERROR) {
-		goto end;
+		/* Hardware reset */
+		IT8XXX2_I2C_CTR(base) |= IT8XXX2_I2C_HALT;
+		return;
 	}
 
 	/* Interrupt pending */
@@ -1081,26 +1115,26 @@ static void target_i2c_isr(const struct device *dev)
 				IT8XXX2_I2C_CTR(base) |= IT8XXX2_I2C_HALT;
 				data->target_nack = 1;
 			}
+			/* Peripheral finish */
+			if (interrupt_status & IT8XXX2_I2C_P_CLR) {
+				/* Transfer done callback function */
+				target_cb->stop(data->target_cfg);
+
+				if (data->target_nack) {
+					/* Set acknowledge */
+					IT8XXX2_I2C_CTR(base) |=
+						IT8XXX2_I2C_ACK;
+					data->target_nack = 0;
+				}
+			}
+			/* Write clear the peripheral status */
+			IT8XXX2_I2C_IRQ_ST(base) = interrupt_status;
+			/* Hardware reset */
+			IT8XXX2_I2C_CTR(base) |= IT8XXX2_I2C_HALT;
 		} else {
 			target_i2c_isr_dma(dev, interrupt_status);
 		}
-		/* Peripheral finish */
-		if (interrupt_status & IT8XXX2_I2C_P_CLR) {
-			/* Transfer done callback function */
-			target_cb->stop(data->target_cfg);
-
-			if (data->target_nack) {
-				/* Set acknowledge */
-				IT8XXX2_I2C_CTR(base) |= IT8XXX2_I2C_ACK;
-				data->target_nack = 0;
-			}
-		}
-		/* Write clear the peripheral status */
-		IT8XXX2_I2C_IRQ_ST(base) = interrupt_status;
 	}
-end:
-	/* Hardware reset */
-	IT8XXX2_I2C_CTR(base) |= IT8XXX2_I2C_HALT;
 }
 #endif
 
@@ -1142,6 +1176,7 @@ static int i2c_enhance_init(const struct device *dev)
 	struct i2c_enhance_data *data = dev->data;
 	const struct i2c_enhance_config *config = dev->config;
 	uint8_t *base = config->base;
+	uint8_t data_hold_time = config->data_hold_time;
 	uint32_t bitrate_cfg;
 	int error, status;
 
@@ -1171,6 +1206,31 @@ static int i2c_enhance_init(const struct device *dev)
 		/* Set command address registers. */
 		enhanced_i2c_set_cmd_addr_regs(dev);
 #endif
+
+		/* ChannelA-F switch selection of I2C pin */
+		if (config->port == SMB_CHANNEL_A) {
+			IT8XXX2_SMB_SMB01CHS = (IT8XXX2_SMB_SMB01CHS &= ~GENMASK(2, 0)) |
+				config->channel_switch_sel;
+		} else if (config->port == SMB_CHANNEL_B) {
+			IT8XXX2_SMB_SMB01CHS = (config->channel_switch_sel << 4) |
+				(IT8XXX2_SMB_SMB01CHS &= ~GENMASK(6, 4));
+		} else if (config->port == SMB_CHANNEL_C) {
+			IT8XXX2_SMB_SMB23CHS = (IT8XXX2_SMB_SMB23CHS &= ~GENMASK(2, 0)) |
+				config->channel_switch_sel;
+		} else if (config->port == I2C_CHANNEL_D) {
+			IT8XXX2_SMB_SMB23CHS = (config->channel_switch_sel << 4) |
+				(IT8XXX2_SMB_SMB23CHS &= ~GENMASK(6, 4));
+		} else if (config->port == I2C_CHANNEL_E) {
+			IT8XXX2_SMB_SMB45CHS = (IT8XXX2_SMB_SMB45CHS &= ~GENMASK(2, 0)) |
+				config->channel_switch_sel;
+		} else if (config->port == I2C_CHANNEL_F) {
+			IT8XXX2_SMB_SMB45CHS = (config->channel_switch_sel << 4) |
+				(IT8XXX2_SMB_SMB45CHS &= ~GENMASK(6, 4));
+		}
+
+		/* Set I2C data hold time. */
+		IT8XXX2_I2C_DHTR(base) = (IT8XXX2_I2C_DHTR(base) & ~GENMASK(2, 0)) |
+			(data_hold_time - 3);
 
 		/* Set clock frequency for I2C ports */
 		if (config->bitrate == I2C_BITRATE_STANDARD ||
@@ -1204,52 +1264,54 @@ static int i2c_enhance_init(const struct device *dev)
 	return 0;
 }
 
+static void i2c_enhance_set_scl(void *io_context, int state)
+{
+	const struct i2c_enhance_config *config = io_context;
+
+	gpio_pin_set_dt(&config->scl_gpios, state);
+}
+
+static void i2c_enhance_set_sda(void *io_context, int state)
+{
+	const struct i2c_enhance_config *config = io_context;
+
+	gpio_pin_set_dt(&config->sda_gpios, state);
+}
+
+static int i2c_enhance_get_sda(void *io_context)
+{
+	const struct i2c_enhance_config *config = io_context;
+	int ret = gpio_pin_get_dt(&config->sda_gpios);
+
+	/* Default high as that would be a NACK */
+	return ret != 0;
+}
+
+static const struct i2c_bitbang_io i2c_enhance_bitbang_io = {
+	.set_scl = i2c_enhance_set_scl,
+	.set_sda = i2c_enhance_set_sda,
+	.get_sda = i2c_enhance_get_sda,
+};
+
 static int i2c_enhance_recover_bus(const struct device *dev)
 {
 	const struct i2c_enhance_config *config = dev->config;
-	int i, status;
+	struct i2c_enhance_data *data = dev->data;
+	int status, ret;
 
+	/* Output type selection */
+	gpio_flags_t flags = GPIO_OUTPUT | (config->push_pull_recovery ? 0 : GPIO_OPEN_DRAIN);
 	/* Set SCL of I2C as GPIO pin */
-	gpio_pin_configure_dt(&config->scl_gpios, GPIO_OUTPUT);
+	gpio_pin_configure_dt(&config->scl_gpios, flags);
 	/* Set SDA of I2C as GPIO pin */
-	gpio_pin_configure_dt(&config->sda_gpios, GPIO_OUTPUT);
+	gpio_pin_configure_dt(&config->sda_gpios, flags);
 
-	/*
-	 * In I2C recovery bus, 1ms sleep interval for bitbanging i2c
-	 * is mainly to ensure that gpio has enough time to go from
-	 * low to high or high to low.
-	 */
-	/* Pull SCL and SDA pin to high */
-	gpio_pin_set_dt(&config->scl_gpios, 1);
-	gpio_pin_set_dt(&config->sda_gpios, 1);
-	k_msleep(1);
+	i2c_bitbang_init(&data->bitbang, &i2c_enhance_bitbang_io, (void *)config);
 
-	/* Start condition */
-	gpio_pin_set_dt(&config->sda_gpios, 0);
-	k_msleep(1);
-	gpio_pin_set_dt(&config->scl_gpios, 0);
-	k_msleep(1);
-
-	/* 9 cycles of SCL with SDA held high */
-	for (i = 0; i < 9; i++) {
-		/* SDA */
-		gpio_pin_set_dt(&config->sda_gpios, 1);
-		/* SCL */
-		gpio_pin_set_dt(&config->scl_gpios, 1);
-		k_msleep(1);
-		/* SCL */
-		gpio_pin_set_dt(&config->scl_gpios, 0);
-		k_msleep(1);
+	ret = i2c_bitbang_recover_bus(&data->bitbang);
+	if (ret != 0) {
+		LOG_ERR("%s: Failed to recover bus (err %d)", dev->name, ret);
 	}
-	/* SDA */
-	gpio_pin_set_dt(&config->sda_gpios, 0);
-	k_msleep(1);
-
-	/* Stop condition */
-	gpio_pin_set_dt(&config->scl_gpios, 1);
-	k_msleep(1);
-	gpio_pin_set_dt(&config->sda_gpios, 1);
-	k_msleep(1);
 
 	/* Set GPIO back to I2C alternate function */
 	status = pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
@@ -1391,7 +1453,7 @@ static int i2c_enhance_target_unregister(const struct device *dev,
 }
 #endif
 
-static const struct i2c_driver_api i2c_enhance_driver_api = {
+static DEVICE_API(i2c, i2c_enhance_driver_api) = {
 	.configure = i2c_enhance_configure,
 	.get_config = i2c_enhance_get_config,
 	.transfer = i2c_enhance_transfer,
@@ -1399,6 +1461,9 @@ static const struct i2c_driver_api i2c_enhance_driver_api = {
 #ifdef CONFIG_I2C_TARGET
 	.target_register = i2c_enhance_target_register,
 	.target_unregister = i2c_enhance_target_unregister,
+#endif
+#ifdef CONFIG_I2C_RTIO
+	.iodev_submit = i2c_iodev_submit_fallback,
 #endif
 };
 
@@ -1425,13 +1490,17 @@ BUILD_ASSERT(IS_ENABLED(CONFIG_I2C_TARGET_BUFFER_MODE),
 		.bitrate = DT_INST_PROP(inst, clock_frequency),                 \
 		.i2c_irq_base = DT_INST_IRQN(inst),                             \
 		.port = DT_INST_PROP(inst, port_num),                           \
+		.channel_switch_sel = DT_INST_PROP(inst, channel_switch_sel),   \
 		.scl_gpios = GPIO_DT_SPEC_INST_GET(inst, scl_gpios),            \
 		.sda_gpios = GPIO_DT_SPEC_INST_GET(inst, sda_gpios),            \
 		.prescale_scl_low = DT_INST_PROP_OR(inst, prescale_scl_low, 0), \
+		.data_hold_time = DT_INST_PROP_OR(inst, data_hold_time, 0),     \
 		.clock_gate_offset = DT_INST_PROP(inst, clock_gate_offset),     \
+		.transfer_timeout_ms = DT_INST_PROP(inst, transfer_timeout_ms), \
 		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(inst),                   \
 		.target_enable = DT_INST_PROP(inst, target_enable),             \
 		.target_pio_mode = DT_INST_PROP(inst, target_pio_mode),         \
+		.push_pull_recovery = DT_INST_PROP(inst, push_pull_recovery),   \
 	};                                                                      \
 										\
 	static struct i2c_enhance_data i2c_enhance_data_##inst;                 \

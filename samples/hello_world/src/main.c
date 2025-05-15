@@ -1,7 +1,7 @@
 #include <stdio.h>
 int main(void)
 {
-	uint8_t local=90;
-	printf("Hello World! %s\n", CONFIG_BOARD);
+	printf("Hello World! %s\n", CONFIG_BOARD_TARGET);
+
 	return 0;
 }

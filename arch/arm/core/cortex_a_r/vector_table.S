@@ -13,6 +13,8 @@
 #include <zephyr/toolchain.h>
 #include <zephyr/linker/sections.h>
 #include "vector_table.h"
+#include "offsets_short.h"
+#include "macro_priv.inc"
 
 _ASM_FILE_PROLOGUE
 
@@ -28,4 +30,8 @@ SECTION_SUBSEC_FUNC(exc_vector_table,_vector_table_section,_vector_table)
 #else
 	ldr pc, =z_irq_spurious
 #endif
+#ifndef CONFIG_USE_SWITCH
 	ldr pc, =z_arm_nmi               /* FIQ            offset 0x1c */
+#else
+	ldr pc,=z_irq_spurious
+#endif

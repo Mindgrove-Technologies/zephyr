@@ -168,16 +168,16 @@ static inline void adc_npcx_enable_threshold_detect(const struct device *dev, ui
 	const struct adc_npcx_config *config = dev->config;
 
 	if (enable) {
-#ifdef CONFIG_SOC_SERIES_NPCX4
+#ifdef CONFIG_ADC_NPCX_CMP_V2
 		THEN(config->base) |= BIT(th_sel);
-#else
+#else /* CONFIG_ADC_NPCX_CMP_V1 */
 		THRCTL(config->base, th_sel) |= BIT(NPCX_THRCTL_THEN);
 #endif
 
 	} else {
-#ifdef CONFIG_SOC_SERIES_NPCX4
+#ifdef CONFIG_ADC_NPCX_CMP_V2
 		THEN(config->base) &= ~BIT(th_sel);
-#else
+#else /* CONFIG_ADC_NPCX_CMP_V1 */
 		THRCTL(config->base, th_sel) &= ~BIT(NPCX_THRCTL_THEN);
 #endif
 	}
@@ -841,7 +841,7 @@ static int adc_npcx_init(const struct device *dev)
 		irq_enable(DT_INST_IRQN(n));					\
 	}									\
 										\
-	static const struct adc_driver_api adc_npcx_driver_api_##n = {		\
+	static DEVICE_API(adc, adc_npcx_driver_api_##n) = {			\
 		.channel_setup = adc_npcx_channel_setup,			\
 		.read = adc_npcx_read,						\
 		.ref_internal = DT_INST_PROP(n, vref_mv),			\

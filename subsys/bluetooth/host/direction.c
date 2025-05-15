@@ -3,24 +3,29 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <errno.h>
+#include <stdbool.h>
 #include <stdint.h>
-#include <assert.h>
-#include <zephyr/sys/check.h>
-#include <zephyr/sys/byteorder.h>
+#include <string.h>
 
+#include <zephyr/autoconf.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
-#include <zephyr/bluetooth/l2cap.h>
-#include <zephyr/bluetooth/hci.h>
-#include <zephyr/bluetooth/hci_vs.h>
 #include <zephyr/bluetooth/direction.h>
+#include <zephyr/bluetooth/hci.h>
+#include <zephyr/bluetooth/hci_types.h>
+#include <zephyr/bluetooth/hci_vs.h>
+#include <zephyr/bluetooth/l2cap.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/net_buf.h>
+#include <zephyr/sys/__assert.h>
+#include <zephyr/sys/atomic.h>
+#include <zephyr/sys/byteorder.h>
+#include <zephyr/sys/check.h>
 
 #include "hci_core.h"
-#include "scan.h"
 #include "conn_internal.h"
 #include "direction_internal.h"
-
-#include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(bt_df, CONFIG_BT_DF_LOG_LEVEL);
 
@@ -182,9 +187,9 @@ static int hci_df_read_ant_info(uint8_t *switch_sample_rates,
 
 	rp = (void *)rsp->data;
 
-	LOG_DBG("DF: sw. sampl rates: %x ant num: %u , max sw. pattern len: %u,"
-	       "max CTE len %d", rp->switch_sample_rates, rp->num_ant,
-	       rp->max_switch_pattern_len, rp->max_cte_len);
+	LOG_DBG("DF: sw. sample rates: %x ant num: %u , max sw. pattern len: %u,"
+		"max CTE len %d",
+		rp->switch_sample_rates, rp->num_ant, rp->max_switch_pattern_len, rp->max_cte_len);
 
 	*switch_sample_rates = rp->switch_sample_rates;
 	*num_ant = rp->num_ant;
@@ -383,7 +388,7 @@ int hci_df_prepare_connectionless_iq_report(struct net_buf *buf,
 
 	evt = net_buf_pull_mem(buf, sizeof(*evt));
 
-	per_adv_sync = bt_hci_get_per_adv_sync(sys_le16_to_cpu(evt->sync_handle));
+	per_adv_sync = bt_hci_per_adv_sync_lookup_handle(sys_le16_to_cpu(evt->sync_handle));
 
 	if (!per_adv_sync) {
 		LOG_ERR("Unknown handle 0x%04X for iq samples report",
@@ -431,7 +436,7 @@ int hci_df_vs_prepare_connectionless_iq_report(struct net_buf *buf,
 
 	evt = net_buf_pull_mem(buf, sizeof(*evt));
 
-	per_adv_sync = bt_hci_get_per_adv_sync(sys_le16_to_cpu(evt->sync_handle));
+	per_adv_sync = bt_hci_per_adv_sync_lookup_handle(sys_le16_to_cpu(evt->sync_handle));
 
 	if (!per_adv_sync) {
 		LOG_ERR("Unknown handle 0x%04X for iq samples report",
@@ -1144,7 +1149,7 @@ static int bt_df_set_conn_cte_req_enable(struct bt_conn *conn, bool enable,
 	}
 
 	if (!atomic_test_bit(conn->flags, BT_CONN_CTE_RX_PARAMS_SET)) {
-		LOG_ERR("Can't start CTE requres procedure before CTE RX params setup");
+		LOG_ERR("Can't start CTE request procedure before CTE RX params setup");
 		return -EINVAL;
 	}
 

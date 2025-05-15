@@ -5,7 +5,7 @@ Binary Descriptors
 
 Binary Descriptors are constant data objects storing information about the binary executable.
 Unlike "regular" constants, binary descriptors are linked to a known offset in the binary, making
-them accesible to other programs, such as a different image running on the same device or a host tool.
+them accessible to other programs, such as a different image running on the same device or a host tool.
 A few examples of constants that would make useful binary descriptors are: kernel version, app version,
 build time, compiler version, environment variables, compiling host name, etc.
 
@@ -62,8 +62,8 @@ Putting it all together, here is what the example above would look like in memor
 
 .. code-block::
 
-    46 60 a4 7e 5a 3e 86 b9 02 10  0d 00  48 65 6c 6c 6f 20 77 6f 72 6c 64 21 00 00 00 00 ff ff
-   |         magic         | tag |length| H  e  l  l  o     w  o  r  l  d  !    |   pad  | end |
+    46 60 a4 7e 5a 3e 86 b9 02 10  0d 00  48 65 6c 6c 6f 20 77 6f 72 6c 64 21 00 00 00 00 ff ff 00 00
+   |         magic         | tag |length| H  e  l  l  o     w  o  r  l  d  !    |   pad  |    end    |
 
 Usage
 *****
@@ -105,13 +105,54 @@ configs should be enabled:
    CONFIG_BINDESC_DEFINE_BUILD_TIME=y
    CONFIG_BINDESC_BUILD_DATE_TIME_STRING=y
 
-To avoid collisions with user defined descriptors, the standard descriptors were alloted
+To avoid collisions with user defined descriptors, the standard descriptors were allotted
 the range between ``0x800-0xfff``. This leaves ``0x000-0x7ff`` to users.
 For more information read the ``help`` sections of these Kconfig symbols.
 By convention, each Kconfig symbol corresponds to a binary descriptor whose
 name is the Kconfig name (with ``CONFIG_BINDESC_`` removed) in lower case. For example,
 ``CONFIG_BINDESC_KERNEL_VERSION_STRING`` creates a descriptor that can be
 accessed using ``BINDESC_GET_STR(kernel_version_string)``.
+
+Reading Descriptors
+===================
+It's also possible to read and parse binary descriptors from an application.
+This can be useful both for an image trying to read its own descriptors, and for
+an image trying to read another image's descriptors. Reading can be performed through
+one of three backends:
+
+ #. RAM - assuming the descriptors have been copied to RAM (e.g. by a bootloader), they
+    can be read from the buffer they reside in.
+
+ #. Memory mapped flash - If the flash where the image to be read resides in flash and is
+    accessible through the program's address space, it can be read directly from flash.
+    This option uses the least amount of RAM, but will not work if the flash is not memory mapped,
+    and is not recommended to read a bootloader's descriptors for security concerns.
+
+ #. Flash - Using an internal buffer, the descriptors are read one by one using the flash API,
+    and given to the user while they're in the buffer.
+
+To enable reading descriptors, enable :kconfig:option:`CONFIG_BINDESC_READ`. The three backends are
+enabled by these Kconfig symbols, respectively: :kconfig:option:`CONFIG_BINDESC_READ_RAM`,
+:kconfig:option:`CONFIG_BINDESC_READ_MEMORY_MAPPED_FLASH`, and :kconfig:option:`CONFIG_BINDESC_READ_FLASH`.
+
+To read the descriptors, a handle to the descriptors should first be initialized:
+
+.. code-block:: c
+
+   struct bindesc_handle handle;
+
+   /* Assume buffer holds a copy of the descriptors */
+   bindesc_open_ram(&handle, buffer);
+
+The ``bindesc_open_*`` functions are the only functions concerned with the backend used.
+The rest of the API is agnostic to where the data is. After the handle has been initialized,
+it can be used with the rest of the API:
+
+.. code-block:: c
+
+   char *version;
+   bindesc_find_str(&handle, BINDESC_ID_KERNEL_VERSION_STRING, &version);
+   printk("Kernel version: %s\n", version);
 
 west bindesc tool
 =================
@@ -123,3 +164,5 @@ API Reference
 *************
 
 .. doxygengroup:: bindesc_define
+
+.. doxygengroup:: bindesc_read

@@ -1,0 +1,7 @@
+config BOARD_VISION_SOC
+	bool "Vision SoC target"
+        select SOC_FAMILY_MINDGROVE
+	select SOC_VISION_SOC
+        select HAS_DTS
+        select RISCV_HAS_FPU
+        select CPU_HAS_FPU

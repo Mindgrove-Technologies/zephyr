@@ -53,6 +53,13 @@
 			#include "adc.dtsi"
 		};
 
+		test_dac: dac@dac0dac0 {
+			compatible = "vnd,dac";
+			reg = <0xdac0dac0 0x1000>;
+			status = "okay";
+			#io-channel-cells = <1>;
+		};
+
 		test_gpio: gpio@deadbeef {
 			compatible = "vnd,gpio";
 			gpio-controller;
@@ -72,6 +79,15 @@
 			clock-frequency = <100000>;
 
 			#include "i2c.dtsi"
+		};
+
+		test_pwm: pwm@12341234 {
+			compatible = "vnd,pwm";
+			reg = <0x12341234 0x1000>;
+			#pwm-cells = <3>;
+			status = "okay";
+
+			#include "pwm.dtsi"
 		};
 
 		test_spi: spi@33334444 {
@@ -120,8 +136,22 @@
 				   <&test_gpio 0 0>,
 				   <&test_gpio 0 0>,
 				   <&test_gpio 0 0>,
-				   <&test_gpio 0 0>;	/* 0x25 */
-
+				   <&test_gpio 0 0>,
+				   <&test_gpio 0 0>,
+				   <&test_gpio 0 0>,
+				   <&test_gpio 0 0>,
+				   <&test_gpio 0 0>,
+				   <&test_gpio 0 0>,
+				   <&test_gpio 0 0>,
+				   <&test_gpio 0 0>,
+				   <&test_gpio 0 0>,
+				   <&test_gpio 0 0>,
+				   <&test_gpio 0 0>,
+				   <&test_gpio 0 0>,	/* 0x30 */
+				   <&test_gpio 0 0>,
+				   <&test_gpio 0 0>,
+				   <&test_gpio 0 0>,
+				   <&test_gpio 0 0>;	/* 0x34 */
 			#include "spi.dtsi"
 		};
 
@@ -142,6 +172,17 @@
 
 			#include "w1.dtsi"
 		};
+
+		test_i3c: i3c@f0cacc1a {
+			#address-cells = <3>;
+			#size-cells = <0>;
+			compatible = "vnd,i3c";
+			reg = <0xf0cacc1a 0x1000>;
+			status = "okay";
+
+			#include "i3c.dtsi"
+		};
+
 	};
 };
 

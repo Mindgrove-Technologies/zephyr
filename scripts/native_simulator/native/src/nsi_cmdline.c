@@ -18,6 +18,10 @@
 static int s_argc, test_argc;
 static char **s_argv, **test_argv;
 
+/* Extra "command line options" provided programmatically: */
+static int extra_argc;
+static char **extra_argv;
+
 static struct args_struct_t *args_struct;
 static int used_args;
 static int args_aval;
@@ -110,8 +114,6 @@ static void print_invalid_opt_error(char *argv)
  */
 void nsi_handle_cmd_line(int argc, char *argv[])
 {
-	int i;
-
 	nsi_add_testargs_option();
 
 	s_argv = argv;
@@ -119,9 +121,16 @@ void nsi_handle_cmd_line(int argc, char *argv[])
 
 	nsi_cmd_args_set_defaults(args_struct);
 
-	for (i = 1; i < argc; i++) {
+	for (int i = 0; i < extra_argc; i++) {
+		if (!nsi_cmd_parse_one_arg(extra_argv[i], args_struct)) {
+			nsi_cmd_print_switches_help(args_struct);
+			print_invalid_opt_error(extra_argv[i]);
+		}
+	}
 
-		if ((nsi_cmd_is_option(argv[i], "testargs", 0))) {
+	for (int i = 1; i < argc; i++) {
+
+		if (nsi_cmd_is_option(argv[i], "testargs", 0)) {
 			test_argc = argc - i - 1;
 			test_argv = &argv[i+1];
 			break;
@@ -133,6 +142,24 @@ void nsi_handle_cmd_line(int argc, char *argv[])
 		}
 	}
 }
+
+void nsi_register_extra_args(int argc, char *argv[])
+{
+	int new_size = extra_argc + argc;
+
+	extra_argv = realloc(extra_argv, new_size*sizeof(char *));
+	for (int i = 0; i < argc; i++) {
+		memcpy(&extra_argv[extra_argc], argv, argc*sizeof(char *));
+	}
+	extra_argc += argc;
+}
+
+static void clear_extra_args(void)
+{
+	free(extra_argv);
+}
+
+NSI_TASK(clear_extra_args, ON_EXIT_PRE, 100);
 
 /**
  * The application/test can use this function to inspect all the command line

@@ -5,8 +5,12 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+
+#include <zephyr/autoconf.h>
 #include <zephyr/kernel.h>
 #include <zephyr/init.h>
+#include <zephyr/kernel/thread_stack.h>
+#include <zephyr/sys_clock.h>
 
 K_THREAD_STACK_DEFINE(bt_lw_stack_area, CONFIG_BT_LONG_WQ_STACK_SIZE);
 static struct k_work_q bt_long_wq;
@@ -29,7 +33,7 @@ int bt_long_wq_submit(struct k_work *work)
 static int long_wq_init(void)
 {
 
-	const struct k_work_queue_config cfg = {.name = "BT_LW_WQ"};
+	const struct k_work_queue_config cfg = {.name = "BT LW WQ"};
 
 	k_work_queue_init(&bt_long_wq);
 

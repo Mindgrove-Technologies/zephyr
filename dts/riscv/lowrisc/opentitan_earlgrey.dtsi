@@ -12,13 +12,12 @@
 	cpus {
 		#address-cells = <0x01>;
 		#size-cells = <0x00>;
-		timebase-frequency = <10000000>;
 
 		cpu@0 {
 			device_type = "cpu";
 			reg = <0x00>;
 			status = "okay";
-			compatible = "riscv";
+			compatible = "lowrisc,ibex", "riscv";
 			riscv,isa = "rv32imcb_zicsr_zifencei";
 
 			hlic: interrupt-controller {
@@ -45,12 +44,11 @@
 			reg = <0x10000000 0x10000>;
 		};
 
-		mtimer: timer@40100000 {
-			compatible = "lowrisc,machine-timer";
-			reg = <0x40100000 0x200>;
-			interrupts = <7 0>;
-			interrupt-parent = <&hlic>;
-			status = "disabled";
+		mtimer: timer@40100110 {
+			compatible = "riscv,machine-timer";
+			reg = <0x40100110 0x8 0x40100118 0x8>;
+			reg-names = "mtime", "mtimecmp";
+			interrupts-extended = <&hlic 7>;
 		};
 
 		aontimer: aontimer@40470000 {
@@ -77,7 +75,7 @@
 			interrupts-extended = <&hlic 11>;
 			reg = <0x48000000 0x04000000>;
 			riscv,max-priority = <7>;
-			riscv,ndev = <184>;
+			riscv,ndev = <182>;
 			status = "okay";
 		};
 

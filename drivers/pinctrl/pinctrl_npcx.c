@@ -38,17 +38,10 @@ static const struct npcx_pwm_pinctrl_config pwm_pinctrl_cfg[] = {
 /* Pin-control local functions for peripheral devices */
 static bool npcx_periph_pinmux_has_lock(int group)
 {
-#if defined(CONFIG_SOC_SERIES_NPCX7)
-	if (group == 0x00 || (group >= 0x02 && group <= 0x04) || group == 0x06 ||
-		group == 0x0b || group == 0x0f) {
+	if ((BIT(group) & NPCX_DEVALT_LK_GROUP_MASK) != 0) {
 		return true;
 	}
-#elif defined(CONFIG_SOC_SERIES_NPCX9)
-	if (group == 0x00 || (group >= 0x02 && group <= 0x06) || group == 0x0b ||
-		group == 0x0d || (group >= 0x0f && group <= 0x12)) {
-		return true;
-	}
-#endif
+
 	return false;
 }
 
@@ -146,11 +139,24 @@ static void npcx_psl_input_detection_configure(const pinctrl_soc_pin_t *pin)
 	}
 
 	/* Configure detection mode of PSL input pads */
+#if defined(CONFIG_PINCTRL_NPCX_EX)
+	if (pin->flags.psl_in_mode == NPCX_PSL_IN_MODE_EDGE) {
+		inst_glue->PSL_CTS3 |= BIT(psl_in->port);
+	} else {
+		inst_glue->PSL_CTS3 &= ~BIT(psl_in->port);
+	}
+
+	/* Clear event bits */
+	inst_glue->PSL_CTS |= BIT(psl_in->port);
+	inst_glue->PSL_IN_POS |= BIT(psl_in->port);
+	inst_glue->PSL_IN_NEG |= BIT(psl_in->port);
+#else
 	if (pin->flags.psl_in_mode == NPCX_PSL_IN_MODE_EDGE) {
 		inst_glue->PSL_CTS |= NPCX_PSL_CTS_MODE_BIT(psl_in->port);
 	} else {
 		inst_glue->PSL_CTS &= ~NPCX_PSL_CTS_MODE_BIT(psl_in->port);
 	}
+#endif /* CONFIG_PINCTRL_NPCX_EX */
 }
 
 static void npcx_device_control_configure(const pinctrl_soc_pin_t *pin)

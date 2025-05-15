@@ -11,7 +11,7 @@
 #include <stdlib.h>
 
 #include <zephyr/settings/settings.h>
-#include <zephyr/net/buf.h>
+#include <zephyr/net_buf.h>
 
 #include <zephyr/bluetooth/mesh.h>
 
@@ -305,6 +305,10 @@ void bt_mesh_va_pending_store(void)
 void bt_mesh_va_clear(void)
 {
 	int i;
+
+	if (CONFIG_BT_MESH_LABEL_COUNT == 0) {
+		return;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(virtual_addrs); i++) {
 		if (virtual_addrs[i].ref) {

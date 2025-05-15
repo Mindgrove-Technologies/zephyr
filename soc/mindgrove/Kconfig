@@ -1,0 +1,11 @@
+#
+# Copyright 2025 Mindgrove Technologies
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+if SOC_FAMILY_MINDGROVE
+
+rsource "*/Kconfig"
+
+endif # SOC_FAMILY_MINDGROVE

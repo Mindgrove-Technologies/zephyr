@@ -1,7 +1,7 @@
 # Copyright (c) 2018, marc-cpdesign
 # SPDX-License-Identifier: Apache-2.0
 
-description: NRF5 GPIO node
+description: NRF5 GPIO
 
 compatible: "nordic,nrf-gpio"
 
@@ -10,6 +10,11 @@ include: [gpio-controller.yaml, base.yaml]
 properties:
   reg:
     required: true
+
+  gpiote-instance:
+    type: phandle
+    description: |
+      GPIOTE instance that can be used with this GPIO port.
 
   "#gpio-cells":
     const: 2

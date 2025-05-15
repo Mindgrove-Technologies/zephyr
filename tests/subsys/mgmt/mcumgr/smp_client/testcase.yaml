@@ -5,7 +5,10 @@
 #
 tests:
   mgmt.mcumgr.smp.client:
-    platform_allow: native_posix
+    platform_allow:
+      - native_sim
+    integration_platforms:
+      - native_sim
     tags:
       - mcumgr
       - smp_client

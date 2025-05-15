@@ -25,13 +25,14 @@ static void thread_entry_abort(void *p1, void *p2, void *p3)
 	/**TESTPOINT: abort current thread*/
 	execute_flag = 1;
 	k_thread_abort(k_current_get());
+	CODE_UNREACHABLE;
 	/*unreachable*/
 	execute_flag = 2;
 	zassert_true(1 == 0);
 }
 /**
  * @ingroup kernel_thread_tests
- * @brief Validate k_thread_abort() when called by current thread
+ * @brief Validate aborting a thread when called by current thread
  *
  * @details Create a user thread and let the thread execute.
  * Then call k_thread_abort() and check if the thread is terminated.
@@ -51,7 +52,7 @@ ZTEST_USER(threads_lifecycle, test_threads_abort_self)
 
 /**
  * @ingroup kernel_thread_tests
- * @brief Validate k_thread_abort() when called by other thread
+ * @brief Validate aborting a thread when called by other thread
  *
  * @details Create a user thread and abort the thread before its
  * execution. Create a another user thread and abort the thread
@@ -84,7 +85,7 @@ ZTEST_USER(threads_lifecycle, test_threads_abort_others)
 
 /**
  * @ingroup kernel_thread_tests
- * @brief Test abort on a terminated thread
+ * @brief Test abort on an already terminated thread
  *
  * @see k_thread_abort()
  */
@@ -109,6 +110,10 @@ void *block;
 
 static void delayed_thread_entry(void *p1, void *p2, void *p3)
 {
+	ARG_UNUSED(p1);
+	ARG_UNUSED(p2);
+	ARG_UNUSED(p3);
+
 	execute_flag = 1;
 
 	zassert_unreachable("Delayed thread shouldn't be executed");
@@ -133,7 +138,7 @@ ZTEST(threads_lifecycle_1cpu, test_delayed_thread_abort)
 	 * current thread
 	 */
 	k_tid_t tid = k_thread_create(&tdata, tstack, STACK_SIZE,
-				      (k_thread_entry_t)delayed_thread_entry, NULL, NULL, NULL,
+				      delayed_thread_entry, NULL, NULL, NULL,
 				      K_PRIO_PREEMPT(1), 0, K_MSEC(100));
 
 	/* Give up CPU */
@@ -160,6 +165,11 @@ static void offload_func(const void *param)
 	struct k_thread *t = (struct k_thread *)param;
 
 	k_thread_abort(t);
+
+	/* Thread memory is unused now, validate that we can clobber it. */
+	if (!IS_ENABLED(CONFIG_ARCH_POSIX)) {
+		memset(t, 0, sizeof(*t));
+	}
 
 	/* k_thread_abort() in an isr shouldn't affect the ISR's execution */
 	isr_finished = true;
@@ -195,6 +205,19 @@ ZTEST(threads_lifecycle, test_abort_from_isr)
 
 	k_thread_join(&tdata, K_FOREVER);
 	zassert_true(isr_finished, "ISR did not complete");
+
+	/* Thread struct was cleared after the abort, make sure it is
+	 * still clear (i.e. that the arch layer didn't write to it
+	 * during interrupt exit).  Doesn't work on posix, which needs
+	 * the thread struct for its swap code.
+	 */
+	uint8_t *p = (uint8_t *)&tdata;
+
+	if (!IS_ENABLED(CONFIG_ARCH_POSIX)) {
+		for (int i = 0; i < sizeof(tdata); i++) {
+			zassert_true(p[i] == 0, "Free memory write to aborted thread");
+		}
+	}
 
 	/* Notice: Recover back the offload_sem: This is use for releasing
 	 * offload_sem which might be held when thread aborts itself in ISR
@@ -243,6 +266,5 @@ ZTEST(threads_lifecycle, test_abort_from_isr_not_self)
 	/* Simulate taking an interrupt which kills spwan thread */
 	irq_offload(offload_func, (void *)tid);
 
-	k_thread_join(&tdata, K_FOREVER);
 	zassert_true(isr_finished, "ISR did not complete");
 }

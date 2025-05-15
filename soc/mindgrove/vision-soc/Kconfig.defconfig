@@ -1,0 +1,67 @@
+if SOC_VISION_SOC
+
+config SYS_CLOCK_HW_CYCLES_PER_SEC
+    int
+    default 1000000000
+
+config SYS_CLOCK_TICKS_PER_SEC
+    int
+    default 1000       # 1 ms system tick interval
+
+config RISCV_SOC_INTERRUPT_INIT
+    bool
+    default y          # Enable custom SoC interrupt initialization
+
+config MULTI_LEVEL_INTERRUPTS
+    bool
+    default y          # Enable hierarchical interrupt handling
+
+config 2ND_LEVEL_INTERRUPT_BITS
+    int
+    default 6          # 6 bits = 64 IRQs (aligns with MAX_IRQ_PER_AGGREGATOR)
+
+config 2ND_LVL_ISR_TBL_OFFSET
+    int
+    default 12         # Second-level ISR table starts at index 12
+
+config 2ND_LVL_INTR_00_OFFSET
+    int
+    default 11
+
+config RISCV_HAS_CPU_IDLE
+    bool
+    default y          # Enable CPU idle states
+
+config MAX_IRQ_PER_AGGREGATOR
+    int
+    default 58         # Matches hardware capability (e.g., PLIC with 58 IRQs)
+
+config NUM_IRQS
+    int
+    default 58         # Total IRQs (matches hardware + software needs)
+
+config MP_MAX_NUM_CPUS
+    int
+    default 4          # Quad-core system
+
+config RISCV_RAM_BASE_ADDR
+    hex
+    default 0x80000000 # Standard RISC-V RAM base address
+
+config RISCV_RAM_SIZE
+    hex
+    default 0x10000000 # 256 MB RAM (adjust to hardware)
+
+config RISCV_HAS_PLIC
+    bool
+    default y          # SoC uses PLIC for external interrupts
+
+config PLIC
+    bool
+    default y          # Enable PLIC driver
+
+config RISCV_MACHINE_TIMER
+    bool
+    default y          # Use RISC-V machine-mode timer
+
+endif

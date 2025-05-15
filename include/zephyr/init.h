@@ -41,39 +41,13 @@ extern "C" {
  * - `SMP`: Only available if @kconfig{CONFIG_SMP} is enabled, specific for
  *   SMP.
  *
- * Initialization priority can take a value in the range of 0 to 99.
+ * Initialization priority can take a value in the range of 0 to 999.
  *
  * @note The same infrastructure is used by devices.
  * @{
  */
 
 struct device;
-
-/**
- * @brief Initialization function for init entries.
- *
- * Init entries support both the system initialization and the device
- * APIs. Each API has its own init function signature; hence, we have a
- * union to cover both.
- */
-union init_function {
-	/**
-	 * System initialization function.
-	 *
-	 * @retval 0 On success
-	 * @retval -errno If init fails.
-	 */
-	int (*sys)(void);
-	/**
-	 * Device initialization function.
-	 *
-	 * @param dev Device instance.
-	 *
-	 * @retval 0 On success
-	 * @retval -errno If device initialization fails.
-	 */
-	int (*dev)(const struct device *dev);
-};
 
 /**
  * @brief Structure to store initialization entry information.
@@ -90,8 +64,11 @@ union init_function {
  * @endinternal
  */
 struct init_entry {
-	/** Initialization function. */
-	union init_function init_fn;
+	/**
+	 * If the init function belongs to a SYS_INIT, this field stored the
+	 * initialization function, otherwise it is set to NULL.
+	 */
+	int (*init_fn)(void);
 	/**
 	 * If the init entry belongs to a device, this fields stores a
 	 * reference to it, otherwise it is set to NULL.
@@ -131,9 +108,9 @@ struct init_entry {
  * linker scripts to sort them according to the specified
  * level/priority/sub-priority.
  */
-#define Z_INIT_ENTRY_SECTION(level, prio, sub_prio)                           \
-	__attribute__((__section__(                                           \
-		".z_init_" #level STRINGIFY(prio)"_" STRINGIFY(sub_prio)"_")))
+#define Z_INIT_ENTRY_SECTION(level, prio, sub_prio)                                                \
+	__attribute__((__section__(                                                                \
+		".z_init_" #level "_P_" STRINGIFY(prio) "_SUB_" STRINGIFY(sub_prio)"_")))
 
 /** @endcond */
 
@@ -186,13 +163,10 @@ struct init_entry {
  *
  * @see SYS_INIT()
  */
-#define SYS_INIT_NAMED(name, init_fn_, level, prio)                            \
-	static const Z_DECL_ALIGN(struct init_entry)                           \
-		Z_INIT_ENTRY_SECTION(level, prio, 0) __used __noasan           \
-		Z_INIT_ENTRY_NAME(name) = {                                    \
-			.init_fn = {.sys = (init_fn_)},                        \
-			.dev = NULL,                                           \
-	}
+#define SYS_INIT_NAMED(name, init_fn_, level, prio)                                       \
+	static const Z_DECL_ALIGN(struct init_entry)                                      \
+		Z_INIT_ENTRY_SECTION(level, prio, 0) __used __noasan                      \
+		Z_INIT_ENTRY_NAME(name) = {.init_fn = (init_fn_), .dev = NULL}            \
 
 /** @} */
 

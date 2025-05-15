@@ -12,6 +12,7 @@ ExternalZephyrProject_Add(
 
 # This allows for MCUboot to be included.
 sysbuild_add_subdirectory(bootloader)
+sysbuild_add_subdirectory(firmware_loader)
 
 # Include zephyr modules generated sysbuild CMake file.
 foreach(SYSBUILD_CURRENT_MODULE_NAME ${SYSBUILD_MODULE_NAMES})
@@ -32,5 +33,6 @@ endforeach()
 set(SYSBUILD_CURRENT_MODULE_DIR)
 set(SYSBUILD_CURRENT_CMAKE_DIR)
 
-# This allows for board specific images to be included.
+# This allows for board and SoC specific images to be included.
 sysbuild_add_subdirectory(boards)
+sysbuild_add_subdirectory(soc)

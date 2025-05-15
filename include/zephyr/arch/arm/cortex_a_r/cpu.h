@@ -1,11 +1,12 @@
 /*
  * Copyright (c) 2018 Lexmark International, Inc.
+ * Copyright 2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef ZEPHYR_INCLUDE_ARCH_ARM_AARCH32_CORTEX_A_R_CPU_H_
-#define ZEPHYR_INCLUDE_ARCH_ARM_AARCH32_CORTEX_A_R_CPU_H_
+#ifndef ZEPHYR_INCLUDE_ARCH_ARM_CORTEX_A_R_CPU_H_
+#define ZEPHYR_INCLUDE_ARCH_ARM_CORTEX_A_R_CPU_H_
 
 #if defined(CONFIG_ARM_MPU)
 #include <zephyr/arch/arm/cortex_a_r/mpu.h>
@@ -26,6 +27,7 @@
 #define MODE_SYS	0x1f
 #define MODE_MASK	0x1f
 
+#define E_BIT	(1 << 9)
 #define A_BIT	(1 << 8)
 #define I_BIT	(1 << 7)
 #define F_BIT	(1 << 6)
@@ -53,6 +55,12 @@
 #define SCTLR_A_BIT		BIT(1)
 #define SCTLR_C_BIT		BIT(2)
 #define SCTLR_I_BIT		BIT(12)
+
+/* Armv8-R Cortex-R52 Cache Segregation Control Register */
+#define IMP_CSCTLR_DFLW_SHIFT	(0)
+#define IMP_CSCTLR_IFLW_SHIFT	(8)
+#define IMP_CSCTLR(iway, dway)  ((iway << IMP_CSCTLR_IFLW_SHIFT) | \
+				((dway << IMP_CSCTLR_DFLW_SHIFT)))
 
 /* Hyp System Control Register */
 #define HSCTLR_RES1		(BIT(29) | BIT(28) | BIT(23) | \
@@ -83,8 +91,8 @@
 #define ICC_SRE_ELx_DIB_BIT	BIT(2)
 #define ICC_SRE_EL3_EN_BIT	BIT(3)
 
-/* MPIDR */
-#define MPIDR_AFFLVL_MASK	(0xff)
+/* MPIDR mask to extract Aff0, Aff1, and Aff2 */
+#define MPIDR_AFFLVL_MASK (0xffffff)
 
 #define MPIDR_AFF0_SHIFT	(0)
 #define MPIDR_AFF1_SHIFT	(8)
@@ -116,4 +124,4 @@
 	 (((_aff1) & SGIR_AFF_MASK) << SGIR_AFF1_SHIFT) |		\
 	 ((_tgt) & SGIR_TGT_MASK))
 
-#endif /* ZEPHYR_INCLUDE_ARCH_ARM_AARCH32_CORTEX_A_R_CPU_H_ */
+#endif /* ZEPHYR_INCLUDE_ARCH_ARM_CORTEX_A_R_CPU_H_ */

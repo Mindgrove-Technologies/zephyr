@@ -21,6 +21,49 @@ struct ili9xxx_data {
 	enum display_orientation orientation;
 };
 
+#ifdef CONFIG_ILI9XXX_READ
+
+/* We set this LUT directly when reads are enabled,
+ * so that we can be sure the bitshift to convert GRAM data back
+ * to RGB565 will result in correct data
+ */
+const uint8_t ili9xxx_rgb_lut[] = {
+	0, 2, 4, 6,
+	8, 10, 12, 14,
+	16, 18, 20, 22,
+	24, 26, 28, 30,
+	32, 34, 36, 38,
+	40, 42, 44, 46,
+	48, 50, 52, 54,
+	56, 58, 60, 62,
+	0, 1, 2, 3,
+	4, 5, 6, 7,
+	8, 9, 10, 11,
+	12, 13, 14, 15,
+	16, 17, 18, 19,
+	20, 21, 22, 23,
+	24, 25, 26, 27,
+	28, 29, 30, 31,
+	32, 33, 34, 35,
+	36, 37, 38, 39,
+	40, 41, 42, 43,
+	44, 45, 46, 47,
+	48, 49, 50, 51,
+	52, 53, 54, 55,
+	56, 57, 58, 59,
+	60, 61, 62, 63,
+	0, 2, 4, 6,
+	8, 10, 12, 14,
+	16, 18, 20, 22,
+	24, 26, 28, 30,
+	32, 34, 36, 38,
+	40, 42, 44, 46,
+	48, 50, 52, 54,
+	56, 58, 60, 62
+};
+
+#endif
+
 int ili9xxx_transmit(const struct device *dev, uint8_t cmd, const void *tx_data,
 		     size_t tx_len)
 {
@@ -96,7 +139,7 @@ static int ili9xxx_write(const struct device *dev, const uint16_t x,
 	__ASSERT(desc->width <= desc->pitch, "Pitch is smaller than width");
 	__ASSERT((desc->pitch * data->bytes_per_pixel * desc->height) <=
 			 desc->buf_size,
-		 "Input buffer to small");
+		 "Input buffer too small");
 
 	LOG_DBG("Writing %dx%d (w,h) @ %dx%d (x,y)", desc->width, desc->height,
 		x, y);
@@ -321,6 +364,11 @@ static int ili9xxx_init(const struct device *dev)
 		return r;
 	}
 
+#ifdef CONFIG_ILI9XXX_READ
+	/* Set RGB LUT table to enable display read API */
+	ili9xxx_transmit(dev, ILI9XXX_RGBSET, ili9xxx_rgb_lut, sizeof(ili9xxx_rgb_lut));
+#endif
+
 	k_sleep(K_MSEC(ILI9XXX_RESET_WAIT_TIME));
 
 	ili9xxx_display_blanking_on(dev);
@@ -340,7 +388,7 @@ static int ili9xxx_init(const struct device *dev)
 	return 0;
 }
 
-static const struct display_driver_api ili9xxx_api = {
+static DEVICE_API(display, ili9xxx_api) = {
 	.blanking_on = ili9xxx_display_blanking_on,
 	.blanking_off = ili9xxx_display_blanking_off,
 	.write = ili9xxx_write,
@@ -378,7 +426,7 @@ static const struct ili9xxx_quirks ili9488_quirks = {
 #define ILI9XXX_INIT(n, t)                                                     \
 	ILI##t##_REGS_INIT(n);                                                 \
 									       \
-	static const struct ili9xxx_config ili9xxx_config_##n = {              \
+	static const struct ili9xxx_config ili9##t##_config_##n = {            \
 		.quirks = &ili##t##_quirks,                                    \
 		.mipi_dev = DEVICE_DT_GET(DT_PARENT(INST_DT_ILI9XXX(n, t))),   \
 		.dbi_config = {                                                \
@@ -394,15 +442,15 @@ static const struct ili9xxx_quirks ili9488_quirks = {
 		.x_resolution = ILI##t##_X_RES,                                \
 		.y_resolution = ILI##t##_Y_RES,                                \
 		.inversion = DT_PROP(INST_DT_ILI9XXX(n, t), display_inversion),\
-		.regs = &ili9xxx_regs_##n,                                     \
+		.regs = &ili##t##_regs_##n,                                    \
 		.regs_init_fn = ili##t##_regs_init,                            \
 	};                                                                     \
 									       \
-	static struct ili9xxx_data ili9xxx_data_##n;                           \
+	static struct ili9xxx_data ili9##t##_data_##n;                         \
 									       \
 	DEVICE_DT_DEFINE(INST_DT_ILI9XXX(n, t), ili9xxx_init,                  \
-			    NULL, &ili9xxx_data_##n,                           \
-			    &ili9xxx_config_##n, POST_KERNEL,                  \
+			    NULL, &ili9##t##_data_##n,                         \
+			    &ili9##t##_config_##n, POST_KERNEL,                \
 			    CONFIG_DISPLAY_INIT_PRIORITY, &ili9xxx_api)
 
 #define DT_INST_FOREACH_ILI9XXX_STATUS_OKAY(t)                                 \

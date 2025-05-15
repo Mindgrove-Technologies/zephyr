@@ -3,10 +3,8 @@ sample:
   name: OpenAMP example integration (remote)
 tests:
   sample.ipc.openamp.remote:
-    platform_allow:
-      - lpcxpresso54114_m0
-      - lpcxpresso55s69_cpu1
+    filter: dt_chosen_enabled("zephyr,ipc") and dt_chosen_enabled("zephyr,ipc_shm")
     integration_platforms:
-      - lpcxpresso54114_m0
+      - lpcxpresso54114/lpc54114/m0
     tags: ipm
     harness: remote

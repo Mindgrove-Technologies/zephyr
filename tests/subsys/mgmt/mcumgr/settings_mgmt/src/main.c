@@ -5,7 +5,7 @@
  */
 
 #include <zephyr/ztest.h>
-#include <zephyr/net/buf.h>
+#include <zephyr/net_buf.h>
 #include <zephyr/mgmt/mcumgr/mgmt/mgmt.h>
 #include <zephyr/mgmt/mcumgr/transport/smp_dummy.h>
 #include <zephyr/mgmt/mcumgr/mgmt/callbacks.h>
@@ -66,6 +66,12 @@ static const uint8_t test_response_error_data[8] = {
 	0xbf, 0x62, 0x72, 0x63, 0x19, 0x01, 0x00, 0xff
 };
 
+/*
+ * TODO: The contents of these structs are not used, which is why clang complains.
+ * The test should be updated to use these values. See discussion in
+ * https://github.com/zephyrproject-rtos/zephyr/pull/87592.
+ */
+TOOLCHAIN_DISABLE_CLANG_WARNING(TOOLCHAIN_WARNING_UNNEEDED_INTERNAL_DECLARATION)
 static const uint8_t test_response_read_data_start[5] = {
 	0xbf, 0x63, 0x76, 0x61, 0x6c
 };
@@ -73,6 +79,7 @@ static const uint8_t test_response_read_data_start[5] = {
 static const uint8_t test_response_read_data_end[1] = {
 	0xff
 };
+TOOLCHAIN_ENABLE_CLANG_WARNING(TOOLCHAIN_WARNING_UNNEEDED_INTERNAL_DECLARATION)
 
 static void cleanup_test(void *p)
 {
@@ -487,7 +494,7 @@ ZTEST(settings_mgmt, test_set_read)
 		zassert_equal(smp_header->nh_version, 1, "SMP header version mismatch");
 
 		/* Get the response value to compare */
-		zcbor_new_decode_state(zsd, 4, nb->data, nb->len, 1);
+		zcbor_new_decode_state(zsd, 4, nb->data, nb->len, 1, NULL, 0);
 		ok = zcbor_map_decode_bulk(zsd, output_decode, ARRAY_SIZE(output_decode),
 					   &decoded) == 0;
 		zassert_true(ok, "Expected decode to be successful");
@@ -590,7 +597,7 @@ ZTEST(settings_mgmt, test_read_max_size)
 	zassert_equal(smp_header->nh_version, 1, "SMP header version mismatch");
 
 	/* Get the response value to compare */
-	zcbor_new_decode_state(zsd, 4, nb->data, nb->len, 1);
+	zcbor_new_decode_state(zsd, 4, nb->data, nb->len, 1, NULL, 0);
 	ok = zcbor_map_decode_bulk(zsd, output_decode, ARRAY_SIZE(output_decode), &decoded) == 0;
 	zassert_true(ok, "Expected decode to be successful");
 	zassert_equal(decoded, 2, "Expected to receive 2 decoded zcbor elements");
@@ -745,7 +752,7 @@ ZTEST(settings_mgmt, test_set_disallowed)
 	zassert_equal(smp_header->nh_version, 1, "SMP header version mismatch");
 
 	/* Get the response value to compare */
-	zcbor_new_decode_state(zsd, 4, nb->data, nb->len, 1);
+	zcbor_new_decode_state(zsd, 4, nb->data, nb->len, 1, NULL, 0);
 	ok = zcbor_map_decode_bulk(zsd, output_decode, ARRAY_SIZE(output_decode), &decoded) == 0;
 	zassert_true(ok, "Expected decode to be successful");
 	zassert_equal(decoded, 1, "Expected to receive 1 decoded zcbor element");
@@ -875,7 +882,7 @@ ZTEST(settings_mgmt, test_set_disallowed)
 	zassert_equal(smp_header->nh_version, 1, "SMP header version mismatch");
 
 	/* Get the response value to compare */
-	zcbor_new_decode_state(zsd, 4, nb->data, nb->len, 1);
+	zcbor_new_decode_state(zsd, 4, nb->data, nb->len, 1, NULL, 0);
 	ok = zcbor_map_decode_bulk(zsd, output_decode, ARRAY_SIZE(output_decode), &decoded) == 0;
 	zassert_true(ok, "Expected decode to be successful");
 	zassert_equal(decoded, 1, "Expected to receive 1 decoded zcbor element");
@@ -1147,7 +1154,7 @@ ZTEST(settings_mgmt, test_delete)
 	zassert_equal(smp_header->nh_version, 1, "SMP header version mismatch");
 
 	/* Get the response value to compare */
-	zcbor_new_decode_state(zsd, 4, nb->data, nb->len, 1);
+	zcbor_new_decode_state(zsd, 4, nb->data, nb->len, 1, NULL, 0);
 	ok = zcbor_map_decode_bulk(zsd, output_decode, ARRAY_SIZE(output_decode), &decoded) == 0;
 	zassert_true(ok, "Expected decode to be successful");
 	zassert_equal(decoded, 1, "Expected to receive 1 decoded zcbor element");
@@ -1274,7 +1281,7 @@ ZTEST(settings_mgmt, test_delete)
 	zassert_equal(smp_header->nh_version, 1, "SMP header version mismatch");
 
 	/* Get the response value to compare */
-	zcbor_new_decode_state(zsd, 4, nb->data, nb->len, 1);
+	zcbor_new_decode_state(zsd, 4, nb->data, nb->len, 1, NULL, 0);
 	ok = zcbor_map_decode_bulk(zsd, output_decode, ARRAY_SIZE(output_decode), &decoded) == 0;
 	zassert_true(ok, "Expected decode to be successful");
 	zassert_equal(decoded, 1, "Expected to receive 1 decoded zcbor element");
@@ -1519,7 +1526,7 @@ ZTEST(settings_mgmt, test_delete)
 	zassert_equal(smp_header->nh_version, 1, "SMP header version mismatch");
 
 	/* Get the response value to compare */
-	zcbor_new_decode_state(zsd, 4, nb->data, nb->len, 1);
+	zcbor_new_decode_state(zsd, 4, nb->data, nb->len, 1, NULL, 0);
 	ok = zcbor_map_decode_bulk(zsd, output_decode, ARRAY_SIZE(output_decode), &decoded) == 0;
 	zassert_true(ok, "Expected decode to be successful");
 	zassert_equal(decoded, 1, "Expected to receive 1 decoded zcbor element");

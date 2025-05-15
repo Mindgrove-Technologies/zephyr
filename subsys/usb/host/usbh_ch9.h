@@ -22,11 +22,12 @@ int usbh_req_setup(struct usb_device *const udev,
 
 int usbh_req_desc(struct usb_device *const udev,
 		  const uint8_t type, const uint8_t index,
-		  const uint8_t id,
+		  const uint16_t id,
 		  const uint16_t len,
 		  struct net_buf *const data);
 
 int usbh_req_desc_dev(struct usb_device *const udev,
+		      const uint16_t len,
 		      struct usb_device_descriptor *const dev);
 
 int usbh_req_desc_cfg(struct usb_device *const udev,
@@ -50,6 +51,10 @@ int usbh_req_get_cfg(struct usb_device *const udev,
 int usbh_req_set_sfs_rwup(struct usb_device *const udev);
 
 int usbh_req_clear_sfs_rwup(struct usb_device *const udev);
+
+int usbh_req_set_sfs_halt(struct usb_device *const udev, const uint8_t ep);
+
+int usbh_req_clear_sfs_halt(struct usb_device *const udev, const uint8_t ep);
 
 int usbh_req_set_hcfs_ppwr(const struct usb_device *udev,
 			   const uint8_t port);

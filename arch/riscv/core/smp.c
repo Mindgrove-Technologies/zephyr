@@ -9,43 +9,49 @@
 #include <ksched.h>
 #include <zephyr/irq.h>
 #include <zephyr/sys/atomic.h>
-#include<../../soc/riscv/riscv-privileged/mpfs/soc.h>
+#include <zephyr/arch/riscv/irq.h>
+#include <zephyr/drivers/pm_cpu_ops.h>
+#include <zephyr/platform/hooks.h>
+
 volatile struct {
 	arch_cpustart_t fn;
 	void *arg;
 } riscv_cpu_init[CONFIG_MP_MAX_NUM_CPUS];
 
-volatile uintptr_t riscv_cpu_wake_flag;
+volatile uintptr_t __noinit riscv_cpu_wake_flag;
+volatile uintptr_t riscv_cpu_boot_flag;
 volatile void *riscv_cpu_sp;
 
-static struct k_spinlock print_lock;
+extern void __start(void);
 
-void arch_start_cpu(int cpu_num, k_thread_stack_t *stack, int sz,
+#if defined(CONFIG_RISCV_SOC_INTERRUPT_INIT)
+void soc_interrupt_init(void);
+#endif
+
+void arch_cpu_start(int cpu_num, k_thread_stack_t *stack, int sz,
 		    arch_cpustart_t fn, void *arg)
 {
 	riscv_cpu_init[cpu_num].fn = fn;
 	riscv_cpu_init[cpu_num].arg = arg;
 
-	riscv_cpu_sp = Z_KERNEL_STACK_BUFFER(stack) + sz;
-	riscv_cpu_wake_flag = _kernel.cpus[cpu_num].arch.hartid;
+	riscv_cpu_sp = K_KERNEL_STACK_BUFFER(stack) + sz;
+	riscv_cpu_boot_flag = 0U;
 
-	k_spinlock_key_t key = k_spin_lock(&print_lock);
-
-	printk("arch_start_cpu: WAKE_FLAG=%ld, HART_ID=%ld\n",riscv_cpu_wake_flag,_kernel.cpus[cpu_num].arch.hartid);
-
-	k_spin_unlock(&print_lock, key);
-
-	while (riscv_cpu_wake_flag != 0U) {
-		// ;
-		k_spinlock_key_t key = k_spin_lock(&print_lock);
-
-		printk("arch_start_cpu: while: WAKE_FLAG=%ld, HART_ID=%ld\n",riscv_cpu_wake_flag,_kernel.cpus[cpu_num].arch.hartid);
-
-		k_spin_unlock(&print_lock, key);
+#ifdef CONFIG_PM_CPU_OPS
+	if (pm_cpu_on(cpu_num, (uintptr_t)&__start)) {
+		printk("Failed to boot secondary CPU %d\n", cpu_num);
+		return;
 	}
+#endif
+
+	// printk("ON arch_cpu_start: CPU%d: riscv_cpu_boot_flag=%d, CPU_WAKE_FLAG=%d\n\r",_kernel.cpus[cpu_num].arch.hartid, riscv_cpu_boot_flag, riscv_cpu_wake_flag);
+	while (riscv_cpu_boot_flag == 0U) {
+		riscv_cpu_wake_flag = _kernel.cpus[cpu_num].arch.hartid;
+	}
+	// printk("AFTER arch_cpu_start: CPU%d: riscv_cpu_boot_flag=%d, CPU_WAKE_FLAG=%d\n\r",_kernel.cpus[cpu_num].arch.hartid, riscv_cpu_boot_flag, riscv_cpu_wake_flag);
 }
 
-void z_riscv_secondary_cpu_init(int hartid)
+void arch_secondary_cpu_init(int hartid)
 {
 	unsigned int i;
 	unsigned int cpu_num = 0;
@@ -53,16 +59,16 @@ void z_riscv_secondary_cpu_init(int hartid)
 	for (i = 0; i < CONFIG_MP_MAX_NUM_CPUS; i++) {
 		if (_kernel.cpus[i].arch.hartid == hartid) {
 			cpu_num = i;
-			printk("z_riscv_secondary_cpu_init: IF: CPU_NUM:%d kernel_hartid=%ld, hart_id=%d\n", cpu_num, _kernel.cpus[i].arch.hartid, hartid);
+			printk("z_riscv_secondary_cpu_init: IF: CPU_NUM:%d kernel_hartid=%ld, hart_id=%d\n\r", cpu_num, _kernel.cpus[i].arch.hartid, hartid);
 		}
 
-		printk("z_riscv_secondary_cpu_init: CPU%d, kernel_hartid=%ld, hartid=%d\n", i, _kernel.cpus[i].arch.hartid, hartid);
+		printk("z_riscv_secondary_cpu_init: CPU%d, kernel_hartid=%ld, hartid=%d\n\r", i, _kernel.cpus[i].arch.hartid, hartid);
 
 	}
 	csr_write(mscratch, &_kernel.cpus[cpu_num]);
 	struct _cpu *scratch;
 	scratch = (struct _cpu_t *)csr_read(mscratch);
-	printk("MSCRATCH Value: 0x%x\n", scratch->id);
+	printk("MSCRATCH Value: 0x%x\n\r", scratch->id);
 
 #ifdef CONFIG_SMP
 	_kernel.cpus[cpu_num].arch.online = true;
@@ -77,98 +83,14 @@ void z_riscv_secondary_cpu_init(int hartid)
 	z_riscv_pmp_init();
 #endif
 #ifdef CONFIG_SMP
-	irq_enable(RISCV_MACHINE_SOFT_IRQ);
-#endif
+	irq_enable(RISCV_IRQ_MSOFT);
+#endif /* CONFIG_SMP */
+#ifdef CONFIG_PLIC_IRQ_AFFINITY
+	/* Enable on secondary cores so that they can respond to PLIC */
+	irq_enable(RISCV_IRQ_MEXT);
+#endif /* CONFIG_PLIC_IRQ_AFFINITY */
+#ifdef CONFIG_SOC_PER_CORE_INIT_HOOK
+	soc_per_core_init_hook();
+#endif /* CONFIG_SOC_PER_CORE_INIT_HOOK */
 	riscv_cpu_init[cpu_num].fn(riscv_cpu_init[cpu_num].arg);
 }
-
-#ifdef CONFIG_SMP
-
-#define MSIP(hartid) ((volatile uint32_t *)RISCV_MSIP_BASE)[hartid]
-
-static atomic_val_t cpu_pending_ipi[CONFIG_MP_MAX_NUM_CPUS];
-#define IPI_SCHED	0
-#define IPI_FPU_FLUSH	1
-
-void arch_sched_ipi(void)
-{
-	unsigned int key = arch_irq_lock();
-	unsigned int id = _current_cpu->id;
-	unsigned int num_cpus = arch_num_cpus();
-
-	for (unsigned int i = 0; i < num_cpus; i++) {
-		if (i != id && _kernel.cpus[i].arch.online) {
-			atomic_set_bit(&cpu_pending_ipi[i], IPI_SCHED);
-			MSIP(_kernel.cpus[i].arch.hartid) = 1;
-		}
-	}
-
-	arch_irq_unlock(key);
-}
-
-#ifdef CONFIG_FPU_SHARING
-void z_riscv_flush_fpu_ipi(unsigned int cpu)
-{
-	atomic_set_bit(&cpu_pending_ipi[cpu], IPI_FPU_FLUSH);
-	MSIP(_kernel.cpus[cpu].arch.hartid) = 1;
-}
-#endif
-
-static void ipi_handler(const void *unused)
-{
-	ARG_UNUSED(unused);
-
-	MSIP(csr_read(mhartid)) = 0;
-
-	atomic_val_t pending_ipi = atomic_clear(&cpu_pending_ipi[_current_cpu->id]);
-
-	if (pending_ipi & ATOMIC_MASK(IPI_SCHED)) {
-		z_sched_ipi();
-	}
-#ifdef CONFIG_FPU_SHARING
-	if (pending_ipi & ATOMIC_MASK(IPI_FPU_FLUSH)) {
-		/* disable IRQs */
-		csr_clear(mstatus, MSTATUS_IEN);
-		/* perform the flush */
-		z_riscv_flush_local_fpu();
-		/*
-		 * No need to re-enable IRQs here as long as
-		 * this remains the last case.
-		 */
-	}
-#endif
-}
-
-#ifdef CONFIG_FPU_SHARING
-/*
- * Make sure there is no pending FPU flush request for this CPU while
- * waiting for a contended spinlock to become available. This prevents
- * a deadlock when the lock we need is already taken by another CPU
- * that also wants its FPU content to be reinstated while such content
- * is still live in this CPU's FPU.
- */
-void arch_spin_relax(void)
-{
-	atomic_val_t *pending_ipi = &cpu_pending_ipi[_current_cpu->id];
-
-	if (atomic_test_and_clear_bit(pending_ipi, IPI_FPU_FLUSH)) {
-		/*
-		 * We may not be in IRQ context here hence cannot use
-		 * z_riscv_flush_local_fpu() directly.
-		 */
-		arch_float_disable(_current_cpu->arch.fpu_owner);
-	}
-}
-#endif
-
-static int riscv_smp_init(void)
-{
-
-	IRQ_CONNECT(RISCV_MACHINE_SOFT_IRQ, 0, ipi_handler, NULL, 0);
-	irq_enable(RISCV_MACHINE_SOFT_IRQ);
-
-	return 0;
-}
-
-SYS_INIT(riscv_smp_init, PRE_KERNEL_2, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT);
-#endif /* CONFIG_SMP */

@@ -3,7 +3,7 @@
 Large Composition Data Server
 #############################
 
-The Large Composition Data Server model is a foundation model defined by the Bluetooth mesh
+The Large Composition Data Server model is a foundation model defined by the Bluetooth Mesh
 specification. The model is optional, and is enabled through the
 :kconfig:option:`CONFIG_BT_MESH_LARGE_COMP_DATA_SRV` option.
 
@@ -35,5 +35,3 @@ API reference
 *************
 
 .. doxygengroup:: bt_mesh_large_comp_data_srv
-   :project: Zephyr
-   :members:

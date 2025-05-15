@@ -61,13 +61,13 @@
 #include "hal/debug.h"
 
 static void invalid_release(struct ull_hdr *hdr, struct lll_conn *lll,
-			    memq_link_t *link, struct node_rx_hdr *rx);
+			    memq_link_t *link, struct node_rx_pdu *rx);
 static void ticker_op_stop_adv_cb(uint32_t status, void *param);
 static void ticker_op_cb(uint32_t status, void *param);
 static void ticker_update_latency_cancel_op_cb(uint32_t ticker_status,
 					       void *param);
 
-void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
+void ull_periph_setup(struct node_rx_pdu *rx, struct node_rx_ftr *ftr,
 		     struct lll_conn *lll)
 {
 	uint32_t conn_offset_us, conn_interval_us;
@@ -97,7 +97,7 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 	conn = lll->hdr.parent;
 
 	/* Populate the peripheral context */
-	pdu_adv = (void *)((struct node_rx_pdu *)rx)->pdu;
+	pdu_adv = (void *)rx->pdu;
 
 	peer_addr_type = pdu_adv->tx_addr;
 	memcpy(peer_addr, pdu_adv->connect_ind.init_addr, BDADDR_SIZE);
@@ -109,7 +109,7 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 		/* Get identity address */
 		ll_rl_id_addr_get(rl_idx, &peer_addr_type, peer_id_addr);
 		/* Mark it as identity address from RPA (0x02, 0x03) */
-		peer_addr_type += 2;
+		MARK_AS_IDENTITY_ADDR(peer_addr_type);
 	} else {
 #else /* CONFIG_BT_CTLR_PRIVACY */
 	if (1) {
@@ -120,7 +120,7 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 	/* Use the link stored in the node rx to enqueue connection
 	 * complete node rx towards LL context.
 	 */
-	link = rx->link;
+	link = rx->hdr.link;
 
 #if defined(CONFIG_BT_CTLR_CHECK_SAME_PEER_CONN)
 	const uint8_t peer_id_addr_type = (peer_addr_type & 0x01);
@@ -143,6 +143,11 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 	(void)memcpy(conn->own_id_addr, own_id_addr,
 		     sizeof(conn->own_id_addr));
 #endif /* CONFIG_BT_CTLR_CHECK_SAME_PEER_CONN */
+
+#if defined(CONFIG_BT_CTLR_SYNC_TRANSFER_RECEIVER)
+	/* Set default PAST parameters */
+	conn->past = ull_conn_default_past_param_get();
+#endif /* CONFIG_BT_CTLR_SYNC_TRANSFER_RECEIVER */
 
 	memcpy(&lll->crc_init[0], &pdu_adv->connect_ind.crc_init[0], 3);
 	memcpy(&lll->access_addr[0], &pdu_adv->connect_ind.access_addr[0], 4);
@@ -277,7 +282,7 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 	cc->sca = conn->periph.sca;
 
 	lll->handle = ll_conn_handle_get(conn);
-	rx->handle = lll->handle;
+	rx->hdr.handle = lll->handle;
 
 #if defined(CONFIG_BT_CTLR_TX_PWR_DYNAMIC_CONTROL)
 	lll->tx_pwr_lvl = RADIO_TXP_DEFAULT;
@@ -297,11 +302,11 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 		ll_rx_put(link, rx);
 
 		/* use the rx node for CSA event */
-		rx = (void *)rx_csa;
-		link = rx->link;
+		rx = rx_csa;
+		link = rx->hdr.link;
 
-		rx->handle = lll->handle;
-		rx->type = NODE_RX_TYPE_CHAN_SEL_ALGO;
+		rx->hdr.handle = lll->handle;
+		rx->hdr.type = NODE_RX_TYPE_CHAN_SEL_ALGO;
 
 		cs = (void *)rx_csa->pdu;
 
@@ -326,13 +331,13 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 		 * advertising terminate event
 		 */
 		rx = adv->lll.node_rx_adv_term;
-		link = rx->link;
+		link = rx->hdr.link;
 
 		handle = ull_adv_handle_get(adv);
 		LL_ASSERT(handle < BT_CTLR_ADV_SET);
 
-		rx->type = NODE_RX_TYPE_EXT_ADV_TERMINATE;
-		rx->handle = handle;
+		rx->hdr.type = NODE_RX_TYPE_EXT_ADV_TERMINATE;
+		rx->hdr.handle = handle;
 		rx->rx_ftr.param_adv_term.status = 0U;
 		rx->rx_ftr.param_adv_term.conn_handle = lll->handle;
 		rx->rx_ftr.param_adv_term.num_events = 0U;
@@ -341,24 +346,39 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 
 	ll_rx_put_sched(link, rx);
 
+#if defined(CONFIG_BT_CTLR_PERIPHERAL_RESERVE_MAX)
 #if defined(CONFIG_BT_CTLR_DATA_LENGTH)
 #if defined(CONFIG_BT_CTLR_PHY)
 	max_tx_time = lll->dle.eff.max_tx_time;
 	max_rx_time = lll->dle.eff.max_rx_time;
+
 #else /* !CONFIG_BT_CTLR_PHY */
 	max_tx_time = PDU_DC_MAX_US(PDU_DC_PAYLOAD_SIZE_MIN, PHY_1M);
 	max_rx_time = PDU_DC_MAX_US(PDU_DC_PAYLOAD_SIZE_MIN, PHY_1M);
 #endif /* !CONFIG_BT_CTLR_PHY */
+
 #else /* !CONFIG_BT_CTLR_DATA_LENGTH */
 	max_tx_time = PDU_DC_MAX_US(PDU_DC_PAYLOAD_SIZE_MIN, PHY_1M);
 	max_rx_time = PDU_DC_MAX_US(PDU_DC_PAYLOAD_SIZE_MIN, PHY_1M);
+
 #if defined(CONFIG_BT_CTLR_PHY)
 	max_tx_time = MAX(max_tx_time,
 			  PDU_DC_MAX_US(PDU_DC_PAYLOAD_SIZE_MIN, lll->phy_tx));
 	max_rx_time = MAX(max_rx_time,
 			  PDU_DC_MAX_US(PDU_DC_PAYLOAD_SIZE_MIN, lll->phy_rx));
-#endif /* !CONFIG_BT_CTLR_PHY */
+#endif /* CONFIG_BT_CTLR_PHY */
 #endif /* !CONFIG_BT_CTLR_DATA_LENGTH */
+
+#else /* !CONFIG_BT_CTLR_PERIPHERAL_RESERVE_MAX */
+#if defined(CONFIG_BT_CTLR_PHY)
+	max_tx_time = PDU_MAX_US(0U, 0U, lll->phy_tx);
+	max_rx_time = PDU_MAX_US(0U, 0U, lll->phy_rx);
+
+#else /* !CONFIG_BT_CTLR_PHY */
+	max_tx_time = PDU_MAX_US(0U, 0U, PHY_1M);
+	max_rx_time = PDU_MAX_US(0U, 0U, PHY_1M);
+#endif /* !CONFIG_BT_CTLR_PHY */
+#endif /* !CONFIG_BT_CTLR_PERIPHERAL_RESERVE_MAX */
 
 #if defined(CONFIG_BT_CTLR_PHY)
 	ready_delay_us = lll_radio_rx_ready_delay_get(lll->phy_rx, PHY_FLAGS_S8);
@@ -366,25 +386,23 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 	ready_delay_us = lll_radio_rx_ready_delay_get(0U, 0U);
 #endif /* CONFIG_BT_CTLR_PHY */
 
+	lll->tifs_tx_us = EVENT_IFS_DEFAULT_US;
+	lll->tifs_rx_us = EVENT_IFS_DEFAULT_US;
+	lll->tifs_hcto_us = EVENT_IFS_DEFAULT_US;
+	lll->tifs_cis_us = EVENT_IFS_DEFAULT_US;
+
 	/* Calculate event time reservation */
 	slot_us = max_rx_time + max_tx_time;
-	slot_us += EVENT_IFS_US + (EVENT_CLOCK_JITTER_US << 1);
+	slot_us += lll->tifs_rx_us + (EVENT_CLOCK_JITTER_US << 1);
 	slot_us += ready_delay_us;
 
 	if (IS_ENABLED(CONFIG_BT_CTLR_EVENT_OVERHEAD_RESERVE_MAX)) {
 		slot_us += EVENT_OVERHEAD_START_US + EVENT_OVERHEAD_END_US;
 	}
 
-	/* TODO: active_to_start feature port */
-	conn->ull.ticks_active_to_start = 0U;
-	conn->ull.ticks_prepare_to_start =
-		HAL_TICKER_US_TO_TICKS(EVENT_OVERHEAD_XTAL_US);
-	conn->ull.ticks_preempt_to_start =
-		HAL_TICKER_US_TO_TICKS(EVENT_OVERHEAD_PREEMPT_MIN_US);
 	conn->ull.ticks_slot = HAL_TICKER_US_TO_TICKS_CEIL(slot_us);
 
-	ticks_slot_offset = MAX(conn->ull.ticks_active_to_start,
-				conn->ull.ticks_prepare_to_start);
+	ticks_slot_offset = HAL_TICKER_US_TO_TICKS(EVENT_OVERHEAD_XTAL_US);
 	if (IS_ENABLED(CONFIG_BT_CTLR_LOW_LAT)) {
 		ticks_slot_overhead = ticks_slot_offset;
 	} else {
@@ -400,6 +418,19 @@ void ull_periph_setup(struct node_rx_hdr *rx, struct node_rx_ftr *ftr,
 	conn_offset_us -= EVENT_TICKER_RES_MARGIN_US;
 	conn_offset_us -= EVENT_JITTER_US;
 	conn_offset_us -= ready_delay_us;
+	/*
+	 * NOTE: Correct window widening for the first connection will be:
+	 *
+	 * conn_offset_us -=
+	 *         DIV_ROUND_UP(((lll_clock_ppm_local_get() +
+	 *                        lll_clock_ppm_get(conn->periph.sca)) *
+	 *                       (win_offset * CONN_INT_UNIT_US + win_delay_us)), USEC_PER_SEC);
+	 *
+	 * But, as currently in the implementation the drift compensation uses the
+	 * `lll->periph.window_widening_periodic_us` value, we may as well use that value here
+	 * as well. Adding another value for LLL to use seems overkill for this one case.
+	 */
+	conn_offset_us -= lll->periph.window_widening_periodic_us;
 
 #if (CONFIG_BT_CTLR_ULL_HIGH_PRIO == CONFIG_BT_CTLR_ULL_LOW_PRIO)
 	/* disable ticker job, in order to chain stop and start to avoid RTC
@@ -593,7 +624,7 @@ uint8_t ll_start_enc_req_send(uint16_t handle, uint8_t error_code,
 #endif /* CONFIG_BT_CTLR_LE_ENC */
 
 static void invalid_release(struct ull_hdr *hdr, struct lll_conn *lll,
-			    memq_link_t *link, struct node_rx_hdr *rx)
+			    memq_link_t *link, struct node_rx_pdu *rx)
 {
 	/* Reset the advertising disabled callback */
 	hdr->disabled_cb = NULL;
@@ -602,7 +633,7 @@ static void invalid_release(struct ull_hdr *hdr, struct lll_conn *lll,
 	lll->periph.initiated = 0U;
 
 	/* Mark for buffer for release */
-	rx->type = NODE_RX_TYPE_RELEASE;
+	rx->hdr.type = NODE_RX_TYPE_RELEASE;
 
 	/* Release CSA#2 related node rx too */
 	if (IS_ENABLED(CONFIG_BT_CTLR_CHAN_SEL_2)) {
@@ -617,11 +648,11 @@ static void invalid_release(struct ull_hdr *hdr, struct lll_conn *lll,
 		ll_rx_put(link, rx);
 
 		/* Use the rx node for CSA event */
-		rx = (void *)rx_csa;
-		link = rx->link;
+		rx = rx_csa;
+		link = rx->hdr.link;
 
 		/* Mark for buffer for release */
-		rx->type = NODE_RX_TYPE_RELEASE;
+		rx->hdr.type = NODE_RX_TYPE_RELEASE;
 	}
 
 	/* Enqueue connection or CSA event to be release */

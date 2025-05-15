@@ -7,9 +7,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/types.h>
-#include <zephyr/sys/util.h>
+#include <stddef.h>
+#include <stdint.h>
+
 #include <zephyr/bluetooth/addr.h>
+#include <zephyr/sys/util_macro.h>
 #include <sys/types.h>
 
 static inline void tester_set_bit(uint8_t *addr, unsigned int bit)
@@ -52,6 +54,8 @@ struct btp_handler {
 void tester_register_command_handlers(uint8_t service,
 				      const struct btp_handler *handlers,
 				      size_t num);
+
+uint16_t tester_supported_commands(uint8_t service, uint8_t *cmds);
 
 uint8_t tester_init_gatt(void);
 uint8_t tester_unregister_gatt(void);
@@ -100,6 +104,9 @@ uint8_t tester_unregister_has(void);
 uint8_t tester_init_csis(void);
 uint8_t tester_unregister_csis(void);
 
+uint8_t tester_init_csip(void);
+uint8_t tester_unregister_csip(void);
+
 uint8_t tester_init_micp(void);
 uint8_t tester_unregister_micp(void);
 
@@ -111,3 +118,30 @@ uint8_t tester_unregister_ccp(void);
 
 uint8_t tester_init_vcp(void);
 uint8_t tester_unregister_vcp(void);
+
+uint8_t tester_init_cas(void);
+uint8_t tester_unregister_cas(void);
+
+uint8_t tester_init_cap(void);
+uint8_t tester_unregister_cap(void);
+
+uint8_t tester_init_mcp(void);
+uint8_t tester_unregister_mcp(void);
+
+uint8_t tester_init_mcs(void);
+uint8_t tester_unregister_mcs(void);
+
+uint8_t tester_init_hap(void);
+uint8_t tester_unregister_hap(void);
+
+uint8_t tester_init_tbs(void);
+uint8_t tester_unregister_tbs(void);
+
+uint8_t tester_init_tmap(void);
+uint8_t tester_unregister_tmap(void);
+
+uint8_t tester_init_ots(void);
+uint8_t tester_unregister_ots(void);
+
+uint8_t tester_init_pbp(void);
+uint8_t tester_unregister_pbp(void);

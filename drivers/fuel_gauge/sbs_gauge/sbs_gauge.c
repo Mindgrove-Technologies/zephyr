@@ -83,7 +83,7 @@ static int sbs_gauge_get_prop(const struct device *dev, fuel_gauge_prop_t prop,
 		break;
 	case FUEL_GAUGE_CURRENT:
 		rc = sbs_cmd_reg_read(dev, SBS_GAUGE_CMD_CURRENT, &tmp_val);
-		val->current = tmp_val * 1000;
+		val->current = (int16_t)tmp_val * 1000;
 		break;
 	case FUEL_GAUGE_FULL_CHARGE_CAPACITY:
 		rc = sbs_cmd_reg_read(dev, SBS_GAUGE_CMD_FULL_CAPACITY, &tmp_val);
@@ -290,7 +290,7 @@ static int sbs_gauge_init(const struct device *dev)
 	return 0;
 }
 
-static const struct fuel_gauge_driver_api sbs_gauge_driver_api = {
+static DEVICE_API(fuel_gauge, sbs_gauge_driver_api) = {
 	.get_property = &sbs_gauge_get_prop,
 	.set_property = &sbs_gauge_set_prop,
 	.get_buffer_property = &sbs_gauge_get_buffer_prop,
@@ -311,12 +311,12 @@ static const struct fuel_gauge_driver_api sbs_gauge_driver_api = {
 
 /* Conditionally defined battery config based on battery cutoff support */
 #define SBS_GAUGE_CONFIG_DEFINE(index)                                                             \
-	COND_CODE_1(DT_INST_PROP_OR(index, battery_cutoff_support, false),                         \
+	COND_CODE_1(DT_INST_PROP(index, battery_cutoff_support),                                   \
 		    (_SBS_GAUGE_CONFIG_DEFINE(index)), (;))
 
 /* Conditionally get the battery config variable name or NULL based on battery cutoff support */
 #define SBS_GAUGE_GET_BATTERY_CONFIG_NAME(index)                                                   \
-	COND_CODE_1(DT_INST_PROP_OR(index, battery_cutoff_support, false),                         \
+	COND_CODE_1(DT_INST_PROP(index, battery_cutoff_support),                                   \
 		    (&_SBS_GAUGE_BATT_CUTOFF_CFG_VAR_NAME(index)), (NULL))
 
 #define SBS_GAUGE_INIT(index)                                                                      \

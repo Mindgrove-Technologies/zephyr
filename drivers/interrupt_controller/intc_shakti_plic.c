@@ -223,7 +223,7 @@ static inline void isr_default(uint32_t interrupt_id)
 	// log_trace("\nisr_default exited\n");
 }
 
-int riscv_plic_get_irq(void)
+unsigned int riscv_plic_get_irq(void)
 {
 	return track_irq_num;
 }

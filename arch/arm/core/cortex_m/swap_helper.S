@@ -94,11 +94,11 @@ SECTION_FUNC(TEXT, z_arm_pendsv)
     /* store r8-12 */
     stmea r0!, {r3-r7}
 #elif defined(CONFIG_ARMV7_M_ARMV8_M_MAINLINE)
-    stmia r0, {v1-v8, ip}
+    stmia r0, {r4-r11, ip}
 #ifdef CONFIG_FPU_SHARING
     /* Assess whether switched-out thread had been using the FP registers. */
     tst lr, #_EXC_RETURN_FTYPE_Msk
-    bne out_fp_endif
+    bne .L_out_fp_endif
 
     /* FP context active: set FP state and store callee-saved registers.
      * Note: if Lazy FP stacking is enabled, storing the callee-saved
@@ -108,7 +108,7 @@ SECTION_FUNC(TEXT, z_arm_pendsv)
     add r0, r2, #_thread_offset_to_preempt_float
     vstmia r0, {s16-s31}
 
-out_fp_endif:
+.L_out_fp_endif:
     /* At this point FPCCR.LSPACT is guaranteed to be cleared,
      * regardless of whether the thread has an active FP context.
      */
@@ -135,8 +135,8 @@ out_fp_endif:
      * to pend PendSV have been taken with the current kernel
      * state and this is what we're handling currently.
      */
-    ldr v4, =_SCS_ICSR
-    ldr v3, =_SCS_ICSR_UNPENDSV
+    ldr r7, =_SCS_ICSR
+    ldr r6, =_SCS_ICSR_UNPENDSV
 
     /* _kernel is still in r1 */
 
@@ -154,14 +154,18 @@ out_fp_endif:
      * has been handled.
      */
 
-    /* _SCS_ICSR is still in v4 and _SCS_ICSR_UNPENDSV in v3 */
-    str v3, [v4, #0]
+    /* _SCS_ICSR is still in r7 and _SCS_ICSR_UNPENDSV in r6 */
+    str r6, [r7, #0]
 
 #if defined(CONFIG_THREAD_LOCAL_STORAGE)
     /* Grab the TLS pointer */
+#if defined(CONFIG_ARMV6_M_ARMV8_M_BASELINE)
     ldr r4, =_thread_offset_to_tls
     adds r4, r2, r4
     ldr r0, [r4]
+#else
+    ldr r0, [r2, #_thread_offset_to_tls]
+#endif
 
     /* For Cortex-M, store TLS pointer in a global variable,
      * as it lacks the process ID or thread ID register
@@ -204,9 +208,9 @@ out_fp_endif:
      * were enabled before irq_lock was called.
      */
     cmp r0, #0
-    bne _thread_irq_disabled
+    bne .L_thread_irq_disabled
     cpsie i
-_thread_irq_disabled:
+.L_thread_irq_disabled:
 
 #if defined(CONFIG_MPU_STACK_GUARD) || defined(CONFIG_USERSPACE)
     /* Re-program dynamic memory map */
@@ -259,7 +263,7 @@ _thread_irq_disabled:
 #ifdef CONFIG_FPU_SHARING
     /* Assess whether switched-in thread had been using the FP registers. */
     tst lr, #_EXC_RETURN_FTYPE_Msk
-    beq in_fp_active
+    beq .L_in_fp_active
     /* FP context inactive for swapped-in thread:
      * - reset FPSCR to 0
      * - set EXC_RETURN.F_Type (prevents FP frame un-stacking when returning
@@ -267,9 +271,9 @@ _thread_irq_disabled:
      */
     movs.n r3, #0
     vmsr fpscr, r3
-    b in_fp_endif
+    b .L_in_fp_endif
 
-in_fp_active:
+.L_in_fp_active:
     /* FP context active:
      * - clear EXC_RETURN.F_Type
      * - FPSCR and caller-saved registers will be restored automatically
@@ -277,7 +281,7 @@ in_fp_active:
      */
     add r0, r2, #_thread_offset_to_preempt_float
     vldmia r0, {s16-s31}
-in_fp_endif:
+.L_in_fp_endif:
     /* Clear CONTROL.FPCA that may have been set by FP instructions */
     mrs r3, CONTROL
     bic r3, #_CONTROL_FPCA_Msk
@@ -311,7 +315,7 @@ in_fp_endif:
 
     /* load callee-saved + psp from thread */
     add r0, r2, #_thread_offset_to_callee_saved
-    ldmia r0, {v1-v8, ip}
+    ldmia r0, {r4-r11, ip}
 #else
 #error Unknown ARM architecture
 #endif /* CONFIG_ARMV6_M_ARMV8_M_BASELINE */
@@ -361,12 +365,12 @@ SECTION_FUNC(TEXT, z_arm_svc)
   movs r0, #_EXC_RETURN_SPSEL_Msk
   mov r1, lr
   tst r1, r0
-  beq _stack_frame_msp
+  beq .L_stack_frame_msp
   mrs r0, PSP
-  bne _stack_frame_endif
-_stack_frame_msp:
+  bne .L_stack_frame_endif
+.L_stack_frame_msp:
   mrs r0, MSP
-_stack_frame_endif:
+.L_stack_frame_endif:
 #elif defined(CONFIG_ARMV7_M_ARMV8_M_MAINLINE)
     tst lr, #_EXC_RETURN_SPSEL_Msk /* did we come from thread mode ? */
     ite eq  /* if zero (equal), came from handler mode */
@@ -399,7 +403,7 @@ _stack_frame_endif:
     mrs r2, CONTROL
 
     cmp r1, #3
-    beq _do_syscall
+    beq .L_do_syscall
 
     /*
      * check that we are privileged before invoking other SVCs
@@ -411,12 +415,12 @@ _stack_frame_endif:
 #elif defined(CONFIG_ARMV7_M_ARMV8_M_MAINLINE)
     tst r2, #0x1
 #endif
-    bne _oops
+    bne .L_oops
 
 #endif /* CONFIG_USERSPACE */
 
     cmp r1, #2
-    beq _oops
+    beq .L_oops
 
 #if defined(CONFIG_IRQ_OFFLOAD)
     push {r0, lr}
@@ -429,10 +433,12 @@ _stack_frame_endif:
 #endif
 
     /* exception return is done in z_arm_int_exit() */
-    b z_arm_int_exit
+    ldr r0, =z_arm_int_exit
+    bx r0
+
 #endif
 
-_oops:
+.L_oops:
     push {r0, lr}
 #if defined(CONFIG_EXTRA_EXCEPTION_INFO)
 #if defined(CONFIG_ARMV7_M_ARMV8_M_MAINLINE)
@@ -445,6 +451,7 @@ _oops:
     mov  r1, sp /* pointer to _callee_saved_t */
 #endif /* CONFIG_ARMV7_M_ARMV8_M_MAINLINE */
 #endif /* CONFIG_EXTRA_EXCEPTION_INFO */
+    mov r2, lr /* EXC_RETURN */
     bl z_do_kernel_oops
     /* return from SVC exception is done here */
 #if defined(CONFIG_EXTRA_EXCEPTION_INFO)
@@ -481,7 +488,7 @@ _oops:
      * r6 - call_id
      * r8 - saved link register
      */
-_do_syscall:
+.L_do_syscall:
 #if defined(CONFIG_ARMV6_M_ARMV8_M_BASELINE)
     movs r3, #24
     ldr r1, [r0, r3]   /* grab address of PC from stack frame */
@@ -507,7 +514,7 @@ _do_syscall:
     /* The supplied syscall_id must be lower than the limit
      * (Requires unsigned integer comparison)
      */
-    blo valid_syscall_id
+    blo .L_valid_syscall_id
 
     /* bad syscall id.  Set arg1 to bad id and set call_id to SYSCALL_BAD */
     str r6, [r0]
@@ -515,7 +522,7 @@ _do_syscall:
 
     /* Bad syscalls treated as valid syscalls with ID K_SYSCALL_BAD. */
 
-valid_syscall_id:
+.L_valid_syscall_id:
     ldr r0, =_kernel
     ldr r0, [r0, #_kernel_offset_to_current]
 #if defined(CONFIG_ARMV6_M_ARMV8_M_BASELINE)

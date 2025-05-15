@@ -42,7 +42,7 @@ ZTEST_USER_F(sbs_gauge_new_api, test_get_some_props_failed_returns_bad_status)
 		/* Valid property */
 		FUEL_GAUGE_VOLTAGE,
 	};
-	union fuel_gauge_prop_val props[ARRAY_SIZE(prop_types)];
+	union fuel_gauge_prop_val props[ARRAY_SIZE(prop_types)] = {0};
 
 	int ret = fuel_gauge_get_props(fixture->dev, prop_types, props, ARRAY_SIZE(props));
 
@@ -55,7 +55,7 @@ ZTEST_USER_F(sbs_gauge_new_api, test_set_all_props_failed_returns_err)
 		/* Invalid property */
 		FUEL_GAUGE_PROP_MAX,
 	};
-	union fuel_gauge_prop_val props[ARRAY_SIZE(prop_types)];
+	union fuel_gauge_prop_val props[ARRAY_SIZE(prop_types)] = {0};
 
 	int ret = fuel_gauge_set_props(fixture->dev, prop_types, props, ARRAY_SIZE(props));
 
@@ -166,15 +166,13 @@ ZTEST_USER_F(sbs_gauge_new_api, test_get_props__returns_ok)
 		FUEL_GAUGE_SBS_REMAINING_TIME_ALARM,
 	};
 
-	union fuel_gauge_prop_val props[ARRAY_SIZE(prop_types)];
+	union fuel_gauge_prop_val props[ARRAY_SIZE(prop_types)] = {0};
 
 	zassert_ok(fuel_gauge_get_props(fixture->dev, prop_types, props, ARRAY_SIZE(props)));
 }
 
 ZTEST_USER_F(sbs_gauge_new_api, test_set_props__returns_ok)
 {
-	/* Validate what props are supported by the driver */
-
 	fuel_gauge_prop_t prop_types[] = {
 		FUEL_GAUGE_SBS_MFR_ACCESS,
 		FUEL_GAUGE_SBS_MODE,
@@ -183,7 +181,7 @@ ZTEST_USER_F(sbs_gauge_new_api, test_set_props__returns_ok)
 		FUEL_GAUGE_SBS_REMAINING_CAPACITY_ALARM,
 
 	};
-	union fuel_gauge_prop_val props[ARRAY_SIZE(prop_types)];
+	union fuel_gauge_prop_val props[ARRAY_SIZE(prop_types)] = {0};
 
 	zassert_ok(fuel_gauge_set_props(fixture->dev, prop_types, props, ARRAY_SIZE(props)));
 }
@@ -207,9 +205,25 @@ ZTEST_USER_F(sbs_gauge_new_api, test_get_buffer_props__returns_ok)
 
 ZTEST_USER_F(sbs_gauge_new_api, test_charging_5v_3a)
 {
-	/* Validate what props are supported by the driver */
 	uint32_t expected_uV = 5000 * 1000;
-	uint32_t expected_uA = 3000 * 1000;
+	int32_t expected_uA = 3000 * 1000;
+
+	union fuel_gauge_prop_val voltage;
+	union fuel_gauge_prop_val current;
+
+	zassume_ok(emul_fuel_gauge_set_battery_charging(fixture->sbs_fuel_gauge, expected_uV,
+							expected_uA));
+	zassert_ok(fuel_gauge_get_prop(fixture->dev, FUEL_GAUGE_VOLTAGE, &voltage));
+	zassert_ok(fuel_gauge_get_prop(fixture->dev, FUEL_GAUGE_CURRENT, &current));
+
+	zassert_equal(voltage.voltage, expected_uV, "Got %d instead of %d", voltage, expected_uV);
+	zassert_equal(current.current, expected_uA, "Got %d instead of %d", current, expected_uA);
+}
+
+ZTEST_USER_F(sbs_gauge_new_api, test_charging_5v_neg_1a)
+{
+	uint32_t expected_uV = 5000 * 1000;
+	int32_t expected_uA = -1000 * 1000;
 
 	union fuel_gauge_prop_val voltage;
 	union fuel_gauge_prop_val current;
@@ -225,8 +239,6 @@ ZTEST_USER_F(sbs_gauge_new_api, test_charging_5v_3a)
 
 ZTEST_USER_F(sbs_gauge_new_api, test_set_get_single_prop)
 {
-	/* Validate what props are supported by the driver */
-
 	uint16_t test_value = 0x1001;
 
 	union fuel_gauge_prop_val mfr_acc_set = {

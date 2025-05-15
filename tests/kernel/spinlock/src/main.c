@@ -83,7 +83,7 @@ static void bounce_once(int id, bool trylock)
 		}
 
 		k_spin_unlock(&bounce_lock, key);
-		k_busy_wait(100);
+		k_busy_wait(1);
 	}
 
 	if (!locked && bounce_done) {
@@ -99,7 +99,7 @@ static void bounce_once(int id, bool trylock)
 
 	for (i = 0; i < 5; i++) {
 		zassert_true(bounce_owner == id, "Locked data changed");
-		k_busy_wait(1);
+		k_busy_wait(5);
 	}
 
 	/* Release the lock */
@@ -122,7 +122,7 @@ static void cpu1_fn(void *p1, void *p2, void *p3)
  *
  * @ingroup kernel_spinlock_tests
  *
- * @see arch_start_cpu()
+ * @see arch_cpu_start()
  */
 ZTEST(spinlock, test_spinlock_bounce)
 {
@@ -233,6 +233,9 @@ static void before(void *ctx)
 	ARG_UNUSED(ctx);
 
 	bounce_done = 0;
+	bounce_owner = 0;
+	trylock_failures = 0;
+	trylock_successes = 0;
 }
 
 ZTEST_SUITE(spinlock, NULL, NULL, before, NULL, NULL);

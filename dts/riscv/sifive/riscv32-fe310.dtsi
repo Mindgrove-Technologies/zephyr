@@ -27,7 +27,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		cpu: cpu@0 {
-			compatible = "sifive,e31";
+			compatible = "sifive,e31", "riscv";
 			device_type = "cpu";
 			reg = <0>;
 			riscv,isa = "rv32imac_zicsr_zifencei";
@@ -64,6 +64,12 @@
 			compatible = "sifive,clint0";
 			interrupts-extended = <&hlic 3 &hlic 7>;
 			reg = <0x2000000 0x10000>;
+		};
+		mtimer: timer@200bff8 {
+			compatible = "riscv,machine-timer";
+			interrupts-extended = <&hlic 7>;
+			reg = <0x200bff8 0x8 0x2004000 0x8>;
+			reg-names = "mtime", "mtimecmp";
 		};
 		debug: debug-controller@0 {
 			compatible = "sifive,debug-013", "riscv,debug-013";

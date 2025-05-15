@@ -12,6 +12,7 @@
 #include <zephyr/sys/atomic.h>
 
 #include <zephyr/modem/pipe.h>
+#include <zephyr/modem/stats.h>
 
 #ifndef ZEPHYR_MODEM_PPP_
 #define ZEPHYR_MODEM_PPP_
@@ -19,6 +20,20 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * @brief Modem PPP
+ * @defgroup modem_ppp Modem PPP
+ * @ingroup modem
+ * @{
+ */
+
+/** L2 network interface init callback */
+typedef void (*modem_ppp_init_iface)(struct net_if *iface);
+
+/**
+ * @cond INTERNAL_HIDDEN
+ */
 
 enum modem_ppp_receive_state {
 	/* Searching for start of frame and header */
@@ -56,8 +71,6 @@ enum modem_ppp_transmit_state {
 	/* Writing end of frame */
 	MODEM_PPP_TRANSMIT_STATE_EOF,
 };
-
-typedef void (*modem_ppp_init_iface)(struct net_if *iface);
 
 struct modem_ppp {
 	/* Network interface instance is bound to */
@@ -101,7 +114,16 @@ struct modem_ppp {
 #if defined(CONFIG_NET_STATISTICS_PPP)
 	struct net_stats_ppp stats;
 #endif
+
+#if CONFIG_MODEM_STATS
+	struct modem_stats_buffer receive_buf_stats;
+	struct modem_stats_buffer transmit_buf_stats;
+#endif
 };
+
+/**
+ * @endcond
+ */
 
 /**
  * @brief Attach pipe to instance and connect
@@ -127,11 +149,19 @@ struct net_if *modem_ppp_get_iface(struct modem_ppp *ppp);
 void modem_ppp_release(struct modem_ppp *ppp);
 
 /**
+ * @cond INTERNAL_HIDDEN
+ */
+
+/**
  * @brief Initialize modem PPP instance device
  * @param dev Device instance associated with network interface
  * @warning Should not be used directly
  */
 int modem_ppp_init_internal(const struct device *dev);
+
+/**
+ * @endcond
+ */
 
 /**
  * @brief Define a modem PPP module and bind it to a network interface
@@ -163,6 +193,9 @@ int modem_ppp_init_internal(const struct device *dev);
 			modem_ppp_init_internal, NULL, &_name, NULL, _prio, &modem_ppp_ppp_api,    \
 			PPP_L2, NET_L2_GET_CTX_TYPE(PPP_L2), _mtu)
 
+/**
+ * @}
+ */
 
 #ifdef __cplusplus
 }

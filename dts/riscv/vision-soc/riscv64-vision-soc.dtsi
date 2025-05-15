@@ -107,26 +107,28 @@
                              &cpu1_intc 3 &cpu1_intc 7
                              &cpu2_intc 3 &cpu2_intc 7
                              &cpu3_intc 3 &cpu3_intc 7>; // 3 is Machine Software Interrupt, 7 is Machine Timer Interrupt for CPU
-      reg = <0x02000000 0x00000008
-             0x02004000 0x00000008
-	           0x0200bff8 0x00000008>;
+      reg = <0x02000000 0x00000008>;
     };
 
+		mtimer: timer@200bff8 {
+			compatible = "riscv,machine-timer";
+			interrupts-extended = <&cpu0_intc 7>;
+			reg = <0x200bff8 0x8 0x2004000 0x8>;
+			reg-names = "mtime", "mtimecmp";
+		};
+
     plic: interrupt-controller@c000000 {
-      compatible = "shakti,plic0";
-			#address-cells = <0>;
-			#interrupt-cells = <2>;
-			interrupt-controller;
-			interrupts-extended = <&cpu0_intc 11>, <&cpu0_intc 9>,
-						                <&cpu1_intc 11>, <&cpu1_intc 9>, //11 as to mention MACHINE MODE for CPU or 9 for SUPERVISOR MODE for CPU...
-						                <&cpu2_intc 11>, <&cpu2_intc 9>,
-						                <&cpu3_intc 11>, <&cpu3_intc 9>;
-			reg = <0x0c000000 0x00000080
-			       0x0c002000 0x00000008
-			       0x0c200000 0x00001000>;
-			reg-names = "prio", "irq_en", "reg";
 			riscv,max-priority = <7>;
-			riscv,ndev = <8>;
+			riscv,ndev = < 58 >;
+			reg = <0x0c000000 0x04000000>;
+			interrupts-extended = <&cpu0_intc 11>, <&cpu0_intc 9>,
+			                <&cpu1_intc 11>, <&cpu1_intc 9>, //11 as to mention MACHINE MODE for CPU or 9 for SUPERVISOR MODE for CPU...
+			                <&cpu2_intc 11>, <&cpu2_intc 9>,
+			                <&cpu3_intc 11>, <&cpu3_intc 9>;
+			interrupt-controller;
+			compatible = "sifive,plic-1.0.0";
+			#address-cells = < 0x00 >;
+			#interrupt-cells = < 0x02 >;
 		};
 
     uart0: serial@11300 {

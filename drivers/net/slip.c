@@ -366,8 +366,8 @@ int slip_init(const struct device *dev)
 
 static inline struct net_linkaddr *slip_get_mac(struct slip_context *slip)
 {
-	slip->ll_addr.addr = slip->mac_addr;
-	slip->ll_addr.len = sizeof(slip->mac_addr);
+	(void)net_linkaddr_set(&slip->ll_addr, slip->mac_addr,
+			       sizeof(slip->mac_addr));
 
 	return &slip->ll_addr;
 }
@@ -407,7 +407,7 @@ use_random_mac:
 		slip->mac_addr[2] = 0x5E;
 		slip->mac_addr[3] = 0x00;
 		slip->mac_addr[4] = 0x53;
-		slip->mac_addr[5] = sys_rand32_get();
+		slip->mac_addr[5] = sys_rand8_get();
 	}
 	net_if_set_link_addr(iface, ll_addr->addr, ll_addr->len,
 			     NET_LINK_ETHERNET);

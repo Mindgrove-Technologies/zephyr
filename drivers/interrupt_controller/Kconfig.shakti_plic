@@ -6,7 +6,6 @@
 
 config SHAKTI_PLIC
 	bool "Platform Level Interrupt Controller (PLIC)"
-	default y
 	help
 	  Platform Level Interrupt Controller provides support
 	  for external interrupt lines defined by the RISC-V SoC.

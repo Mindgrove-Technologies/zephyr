@@ -15,17 +15,17 @@ cd ${BSIM_OUT_PATH}/bin
 function Execute_AC_8_II() {
     printf "\n\n======== Running CAP AC_8_II with %s =========\n\n" $1
 
-    Execute ./bs_${BOARD}_tests_bsim_bluetooth_audio_prj_conf \
+    Execute ./bs_${BOARD_TS}_tests_bsim_bluetooth_audio_prj_conf \
         -v=${VERBOSITY_LEVEL} -s=${SIMULATION_ID} -d=0 -testid=cap_initiator_ac_8_ii \
-        -RealEncryption=1 -rs=23 -argstest sink_preset $1 source_preset $2
+        -RealEncryption=1 -rs=23 -D=3 -argstest sink_preset $1 source_preset $2
 
-    Execute ./bs_${BOARD}_tests_bsim_bluetooth_audio_prj_conf \
+    Execute ./bs_${BOARD_TS}_tests_bsim_bluetooth_audio_prj_conf \
         -v=${VERBOSITY_LEVEL} -s=${SIMULATION_ID} -d=1 -testid=cap_acceptor_unicast \
-        -RealEncryption=1 -rs=46
+        -RealEncryption=1 -rs=46 -D=3
 
-    Execute ./bs_${BOARD}_tests_bsim_bluetooth_audio_prj_conf \
+    Execute ./bs_${BOARD_TS}_tests_bsim_bluetooth_audio_prj_conf \
         -v=${VERBOSITY_LEVEL} -s=${SIMULATION_ID} -d=2 -testid=cap_acceptor_unicast \
-        -RealEncryption=1 -rs=69
+        -RealEncryption=1 -rs=69 -D=3
 
     # Simulation time should be larger than the WAIT_TIME in common.h
     Execute ./bs_2G4_phy_v1 -v=${VERBOSITY_LEVEL} -s=${SIMULATION_ID} \
@@ -44,8 +44,14 @@ Execute_AC_8_II 24_1_1 24_1_1
 Execute_AC_8_II 24_2_1 24_2_1
 Execute_AC_8_II 32_1_1 32_1_1
 Execute_AC_8_II 32_2_1 32_2_1
-# Execute_AC_8_II 441_1_1 441_1_1 # ASSERTION FAIL [iso_interval_us >= cig->c_sdu_interval]
-# Execute_AC_8_II 441_2_1 441_2_1 # ASSERTION FAIL [iso_interval_us >= cig->c_sdu_interval]
+# ASSERTION FAIL [err == ((isoal_status_t) 0x00)] @
+# zephyr/subsys/bluetooth/controller/hci/hci_driver.c:489
+# https://github.com/zephyrproject-rtos/zephyr/issues/83586
+# Execute_AC_8_II 441_1_1 441_1_1
+# ASSERTION FAIL [err == ((isoal_status_t) 0x00)] @
+# zephyr/subsys/bluetooth/controller/hci/hci_driver.c:489
+# https://github.com/zephyrproject-rtos/zephyr/issues/83586
+# Execute_AC_8_II 441_2_1 441_2_1
 Execute_AC_8_II 48_1_1 48_1_1
 Execute_AC_8_II 48_2_1 48_2_1
 Execute_AC_8_II 48_3_1 48_3_1

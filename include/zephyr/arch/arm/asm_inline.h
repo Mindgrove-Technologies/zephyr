@@ -6,18 +6,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef ZEPHYR_INCLUDE_ARCH_ARM_AARCH32_ASM_INLINE_H_
-#define ZEPHYR_INCLUDE_ARCH_ARM_AARCH32_ASM_INLINE_H_
+#ifndef ZEPHYR_INCLUDE_ARCH_ARM_ASM_INLINE_H_
+#define ZEPHYR_INCLUDE_ARCH_ARM_ASM_INLINE_H_
 
 /*
  * The file must not be included directly
  * Include kernel.h instead
  */
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__ICCARM__)
 #include <zephyr/arch/arm/asm_inline_gcc.h>
 #else
-#include <arch/arm/asm_inline_other.h>
+#error Unknown toolchain in asm_inline.h
 #endif
 
-#endif /* ZEPHYR_INCLUDE_ARCH_ARM_AARCH32_ASM_INLINE_H_ */
+#endif /* ZEPHYR_INCLUDE_ARCH_ARM_ASM_INLINE_H_ */

@@ -303,7 +303,7 @@ properties:
   multicast-hash:
     type: boolean
     description: |
-      Optional feature flag - Enable multicast hash. When set, mutlicast
+      Optional feature flag - Enable multicast hash. When set, multicast
       frames will be accepted when the 6 bit hash function of the desti-
       nation address points to a bit that is set in the hash register.
 
@@ -312,12 +312,6 @@ properties:
     description: |
       Optional feature flag - Reject broadcast frames. When set, frames
       addressed to the all-ones broadcast address will be rejected.
-
-  promiscuous-mode:
-    type: boolean
-    description: |
-      Optional feature flag - Enable promiscuous mode. When set, all valid
-      frames will be accepted.
 
   discard-non-vlan:
     type: boolean

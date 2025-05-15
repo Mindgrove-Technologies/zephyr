@@ -3,8 +3,12 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <stdint.h>
 
 #include <zephyr/bluetooth/audio/bap.h>
+#include <zephyr/bluetooth/iso.h>
+#include <zephyr/fff.h>
+#include <zephyr/net_buf.h>
 
 #include "bap_stream.h"
 
@@ -20,11 +24,13 @@
 	FAKE(mock_bap_stream_stopped_cb)                                                           \
 	FAKE(mock_bap_stream_recv_cb)                                                              \
 	FAKE(mock_bap_stream_sent_cb)                                                              \
+	FAKE(mock_bap_stream_connected_cb)                                                         \
+	FAKE(mock_bap_stream_disconnected_cb)
 
 struct bt_bap_stream_ops mock_bap_stream_ops;
 
 DEFINE_FAKE_VOID_FUNC(mock_bap_stream_configured_cb, struct bt_bap_stream *,
-		      const struct bt_audio_codec_qos_pref *);
+		      const struct bt_bap_qos_cfg_pref *);
 DEFINE_FAKE_VOID_FUNC(mock_bap_stream_qos_set_cb, struct bt_bap_stream *);
 DEFINE_FAKE_VOID_FUNC(mock_bap_stream_enabled_cb, struct bt_bap_stream *);
 DEFINE_FAKE_VOID_FUNC(mock_bap_stream_metadata_updated_cb, struct bt_bap_stream *);
@@ -35,6 +41,8 @@ DEFINE_FAKE_VOID_FUNC(mock_bap_stream_stopped_cb, struct bt_bap_stream *, uint8_
 DEFINE_FAKE_VOID_FUNC(mock_bap_stream_recv_cb, struct bt_bap_stream *,
 		      const struct bt_iso_recv_info *, struct net_buf *);
 DEFINE_FAKE_VOID_FUNC(mock_bap_stream_sent_cb, struct bt_bap_stream *);
+DEFINE_FAKE_VOID_FUNC(mock_bap_stream_connected_cb, struct bt_bap_stream *);
+DEFINE_FAKE_VOID_FUNC(mock_bap_stream_disconnected_cb, struct bt_bap_stream *, uint8_t);
 
 void mock_bap_stream_init(void)
 {
@@ -56,6 +64,8 @@ void mock_bap_stream_init(void)
 #if defined(CONFIG_BT_AUDIO_TX)
 	mock_bap_stream_ops.sent = mock_bap_stream_sent_cb;
 #endif /* CONFIG_BT_AUDIO_TX */
+	mock_bap_stream_ops.connected = mock_bap_stream_connected_cb;
+	mock_bap_stream_ops.disconnected = mock_bap_stream_disconnected_cb;
 }
 
 void mock_bap_stream_cleanup(void)

@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define DT_DRV_COMPAT x_powers_axp192
-
 #include <errno.h>
 #include <stdbool.h>
 
@@ -15,6 +13,19 @@
 
 LOG_MODULE_REGISTER(mfd_axp192, CONFIG_MFD_LOG_LEVEL);
 
+struct mfd_axp192_config {
+	struct i2c_dt_spec i2c;
+#ifdef CONFIG_DT_HAS_X_POWERS_AXP192_ENABLED
+	bool vbusen_disable;
+#endif
+	uint8_t reg_chip_id;
+	uint8_t vbus_config_reg;
+	uint8_t chip_id;
+	uint8_t val_vbusen_disable;
+};
+
+#ifdef CONFIG_DT_HAS_X_POWERS_AXP192_ENABLED
+
 /* Chip ID value */
 #define AXP192_CHIP_ID 0x03U
 
@@ -22,13 +33,18 @@ LOG_MODULE_REGISTER(mfd_axp192, CONFIG_MFD_LOG_LEVEL);
 #define AXP192_REG_CHIP_ID 0x03U
 
 /* AXP192 GPIO register addresses */
-#define AXP192_GPIO0_REG_FUNC       0x90U
-#define AXP192_GPIO1_REG_FUNC       0x92U
-#define AXP192_GPIO2_REG_FUNC       0x93U
-#define AXP192_GPIO34_REG_FUNC      0x95U
-#define AXP192_GPIO012_REG_PINVAL   0x94U
-#define AXP192_GPIO34_REG_PINVAL    0x96U
-#define AXP192_GPIO012_REG_PULLDOWN 0x97U
+#define AXP192_EXTEN_DCDC2_CONTROL_REG 0x10U
+#define AXP192_VBUS_CFG_REG            0x30U
+#define AXP192_GPIO0_FUNC_REG          0x90U
+#define AXP192_GPIO1_FUNC_REG          0x92U
+#define AXP192_GPIO2_FUNC_REG          0x93U
+#define AXP192_GPIO34_FUNC_REG         0x95U
+#define AXP192_GPIO012_PINVAL_REG      0x94U
+#define AXP192_GPIO34_PINVAL_REG       0x96U
+#define AXP192_GPIO012_PULLDOWN_REG    0x97U
+
+/* VBUS control reg values */
+#define AXP192_VBUS_CFG_VAL_VBUSEN_DISABLE 0x80U
 
 /* GPIO function control parameters */
 #define AXP192_GPIO012_FUNC_VAL_OUTPUT_OD  0x00U
@@ -58,6 +74,9 @@ LOG_MODULE_REGISTER(mfd_axp192, CONFIG_MFD_LOG_LEVEL);
 	(AXP192_GPIO34_FUNC_ENA | AXP192_GPIO4_FUNC_VAL_CHARGE_CTL |                               \
 	 AXP192_GPIO4_FUNC_VAL_OUTPUT_OD | AXP192_GPIO4_FUNC_VAL_INPUT)
 
+#define AXP192_EXTEN_ENA  0x04U
+#define AXP192_EXTEN_MASK 0x04U
+
 /* Pull-Down enable parameters */
 #define AXP192_GPIO0_PULLDOWN_ENABLE 0x01U
 #define AXP192_GPIO1_PULLDOWN_ENABLE 0x02U
@@ -80,13 +99,14 @@ LOG_MODULE_REGISTER(mfd_axp192, CONFIG_MFD_LOG_LEVEL);
 #define AXP192_GPIO2_OUTPUT_VAL 0x04U
 #define AXP192_GPIO012_OUTPUT_MASK                                                                 \
 	(AXP192_GPIO0_OUTPUT_VAL | AXP192_GPIO1_OUTPUT_VAL | AXP192_GPIO2_OUTPUT_VAL)
+
 #define AXP192_GPIO3_OUTPUT_VAL   0x01U
 #define AXP192_GPIO4_OUTPUT_VAL   0x02U
 #define AXP192_GPIO34_OUTPUT_MASK (AXP192_GPIO3_OUTPUT_VAL | AXP192_GPIO4_OUTPUT_VAL)
 
-struct mfd_axp192_config {
-	struct i2c_dt_spec i2c;
-};
+#define AXP192_GPIO5_OUTPUT_MASK  0x04U
+#define AXP192_GPIO5_OUTPUT_VAL   0x04U
+#define AXP192_GPIO5_OUTPUT_SHIFT 3U
 
 struct mfd_axp192_data {
 	const struct device *gpio_mask_used[AXP192_GPIO_MAX_NUM];
@@ -101,30 +121,46 @@ struct mfd_axp192_func_reg_desc {
 const struct mfd_axp192_func_reg_desc gpio_reg_desc[AXP192_GPIO_MAX_NUM] = {
 	{
 		/* GPIO0 */
-		.reg = AXP192_GPIO0_REG_FUNC,
+		.reg = AXP192_GPIO0_FUNC_REG,
 		.mask = AXP192_GPIO012_FUNC_MASK,
 	},
 	{
 		/* GPIO1 */
-		.reg = AXP192_GPIO1_REG_FUNC,
+		.reg = AXP192_GPIO1_FUNC_REG,
 		.mask = AXP192_GPIO012_FUNC_MASK,
 	},
 	{
 		/* GPIO2 */
-		.reg = AXP192_GPIO2_REG_FUNC,
+		.reg = AXP192_GPIO2_FUNC_REG,
 		.mask = AXP192_GPIO012_FUNC_MASK,
 	},
 	{
 		/* GPIO3 */
-		.reg = AXP192_GPIO34_REG_FUNC,
+		.reg = AXP192_GPIO34_FUNC_REG,
 		.mask = AXP192_GPIO3_FUNC_MASK,
 	},
 	{
 		/* GPIO4 */
-		.reg = AXP192_GPIO34_REG_FUNC,
+		.reg = AXP192_GPIO34_FUNC_REG,
 		.mask = AXP192_GPIO4_FUNC_MASK,
 	},
 };
+#endif /* CONFIG_DT_HAS_X_POWERS_AXP192_ENABLED */
+
+#ifdef CONFIG_DT_HAS_X_POWERS_AXP2101_ENABLED
+
+/* Chip ID value */
+#define AXP2101_CHIP_ID		0x4AU
+
+/* Registers definitions */
+#define AXP2101_REG_CHIP_ID	0x03U
+
+/* AXP210 GPIO register addresses */
+#define AXP2101_VBUS_CFG_REG	0x00U
+
+/* VBUS control reg values */
+#define AXP2101_VBUS_CFG_VAL_VBUSEN_DISABLE	0x00U
+#endif /* CONFIG_DT_HAS_X_POWERS_AXP2101_ENABLED */
 
 static int mfd_axp192_init(const struct device *dev)
 {
@@ -140,19 +176,29 @@ static int mfd_axp192_init(const struct device *dev)
 	}
 
 	/* Check if axp192 chip is available */
-	ret = i2c_reg_read_byte_dt(&config->i2c, AXP192_REG_CHIP_ID, &chip_id);
+	ret = i2c_reg_read_byte_dt(&config->i2c, config->reg_chip_id, &chip_id);
 	if (ret < 0) {
 		return ret;
 	}
-
-	if (chip_id != AXP192_CHIP_ID) {
+	if (chip_id != config->chip_id) {
 		LOG_ERR("Invalid Chip detected (%d)", chip_id);
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_DT_HAS_X_POWERS_AXP192_ENABLED
+	/* Disable N_VBUSEN */
+	ret = i2c_reg_update_byte_dt(
+		&config->i2c, config->vbus_config_reg, config->val_vbusen_disable,
+		config->vbusen_disable ? config->val_vbusen_disable : 0);
+	if (ret < 0) {
+		return ret;
+	}
+#endif
+
 	return 0;
 }
 
+#ifdef CONFIG_DT_HAS_X_POWERS_AXP192_ENABLED
 int mfd_axp192_gpio_func_get(const struct device *dev, uint8_t gpio, enum axp192_gpio_func *func)
 {
 	const struct mfd_axp192_config *config = dev->config;
@@ -164,9 +210,11 @@ int mfd_axp192_gpio_func_get(const struct device *dev, uint8_t gpio, enum axp192
 		return -EINVAL;
 	}
 
-	ret = i2c_reg_read_byte_dt(&(config->i2c), gpio_reg_desc[gpio].reg, &reg_fnc);
-	if (ret != 0) {
-		return ret;
+	if (gpio < ARRAY_SIZE(gpio_reg_desc)) {
+		ret = i2c_reg_read_byte_dt(&(config->i2c), gpio_reg_desc[gpio].reg, &reg_fnc);
+		if (ret != 0) {
+			return ret;
+		}
 	}
 
 	switch (gpio) {
@@ -245,6 +293,11 @@ int mfd_axp192_gpio_func_get(const struct device *dev, uint8_t gpio, enum axp192
 		}
 		break;
 
+	case 5U:
+		/* EXTEN is an output only pin */
+		*func = AXP192_GPIO_FUNC_OUTPUT_LOW;
+		break;
+
 	default:
 		ret = -EINVAL;
 	}
@@ -259,7 +312,7 @@ int mfd_axp192_gpio_func_ctrl(const struct device *dev, const struct device *cli
 	struct mfd_axp192_data *data = dev->data;
 	bool is_output = false;
 	int ret = 0;
-	uint8_t reg_cfg;
+	uint8_t reg_cfg = 0;
 
 	if (!AXP192_GPIO_FUNC_VALID(func)) {
 		LOG_ERR("Invalid function");
@@ -355,18 +408,25 @@ int mfd_axp192_gpio_func_ctrl(const struct device *dev, const struct device *cli
 		}
 		break;
 
+	case 5U:
+		/* EXTEN is an output only pin */
+		break;
+
 	default:
 		ret = -EINVAL;
 	}
+
 	if (ret != 0) {
 		LOG_ERR("Invalid function (0x%x) for gpio %d", func, gpio);
 		return ret;
 	}
 
-	ret = i2c_reg_update_byte_dt(&(config->i2c), gpio_reg_desc[gpio].reg,
-				     gpio_reg_desc[gpio].mask, reg_cfg);
-	if (ret != 0) {
-		return ret;
+	if (gpio < ARRAY_SIZE(gpio_reg_desc)) {
+		ret = i2c_reg_update_byte_dt(&(config->i2c), gpio_reg_desc[gpio].reg,
+					     gpio_reg_desc[gpio].mask, reg_cfg);
+		if (ret != 0) {
+			return ret;
+		}
 	}
 
 	/* Save gpio configuration state */
@@ -412,7 +472,7 @@ int mfd_axp192_gpio_pd_get(const struct device *dev, uint8_t gpio, bool *enabled
 		return -EINVAL;
 	}
 
-	ret = i2c_reg_read_byte_dt(&(config->i2c), AXP192_GPIO012_REG_PULLDOWN, &gpio_val);
+	ret = i2c_reg_read_byte_dt(&(config->i2c), AXP192_GPIO012_PULLDOWN_REG, &gpio_val);
 
 	if (ret == 0) {
 		*enabled = ((gpio_val & pd_reg_mask) != 0);
@@ -465,7 +525,7 @@ int mfd_axp192_gpio_pd_ctrl(const struct device *dev, uint8_t gpio, bool enable)
 		return -EINVAL;
 	}
 
-	ret = i2c_reg_update_byte_dt(&(config->i2c), AXP192_GPIO012_REG_PULLDOWN, reg_pd_mask,
+	ret = i2c_reg_update_byte_dt(&(config->i2c), AXP192_GPIO012_PULLDOWN_REG, reg_pd_mask,
 				     reg_pd_val);
 
 	return ret;
@@ -478,22 +538,31 @@ int mfd_axp192_gpio_read_port(const struct device *dev, uint8_t *value)
 	int ret;
 	uint8_t gpio012_val;
 	uint8_t gpio34_val;
+	uint8_t gpio5_val;
 	uint8_t gpio_input_val;
 	uint8_t gpio_output_val;
 
 	/* read gpio0-2 */
-	ret = i2c_reg_read_byte_dt(&(config->i2c), AXP192_GPIO012_REG_PINVAL, &gpio012_val);
+	ret = i2c_reg_read_byte_dt(&(config->i2c), AXP192_GPIO012_PINVAL_REG, &gpio012_val);
 	if (ret != 0) {
 		return ret;
 	}
 
 	/* read gpio3-4 */
-	ret = i2c_reg_read_byte_dt(&(config->i2c), AXP192_GPIO34_REG_PINVAL, &gpio34_val);
+	ret = i2c_reg_read_byte_dt(&(config->i2c), AXP192_GPIO34_PINVAL_REG, &gpio34_val);
 	if (ret != 0) {
 		return ret;
 	}
+
+	/* read gpio5 */
+	ret = i2c_reg_read_byte_dt(&(config->i2c), AXP192_EXTEN_DCDC2_CONTROL_REG, &gpio5_val);
+	if (ret != 0) {
+		return ret;
+	}
+
 	LOG_DBG("GPIO012 pinval-reg=0x%x", gpio012_val);
 	LOG_DBG("GPIO34 pinval-reg =0x%x", gpio34_val);
+	LOG_DBG("GPIO5 pinval-reg =0x%x", gpio5_val);
 	LOG_DBG("Output-Mask       =0x%x", data->gpio_mask_output);
 
 	gpio_input_val =
@@ -503,6 +572,8 @@ int mfd_axp192_gpio_read_port(const struct device *dev, uint8_t *value)
 
 	gpio_output_val = (gpio012_val & AXP192_GPIO012_OUTPUT_MASK);
 	gpio_output_val |= ((gpio34_val & AXP192_GPIO34_OUTPUT_MASK) << 3u);
+	gpio_output_val |=
+		(((gpio5_val & AXP192_GPIO5_OUTPUT_MASK) >> AXP192_GPIO5_OUTPUT_SHIFT) << 5u);
 
 	*value = gpio_input_val & ~(data->gpio_mask_output);
 	*value |= (gpio_output_val & data->gpio_mask_output);
@@ -519,9 +590,9 @@ int mfd_axp192_gpio_write_port(const struct device *dev, uint8_t value, uint8_t 
 
 	/* Write gpio0-2. Mask out other port pins */
 	gpio_reg_val = (value & AXP192_GPIO012_OUTPUT_MASK);
-	gpio_reg_mask = mask & AXP192_GPIO012_OUTPUT_MASK;
+	gpio_reg_mask = (mask & AXP192_GPIO012_OUTPUT_MASK);
 	if (gpio_reg_mask != 0) {
-		ret = i2c_reg_update_byte_dt(&(config->i2c), AXP192_GPIO012_REG_PINVAL,
+		ret = i2c_reg_update_byte_dt(&(config->i2c), AXP192_GPIO012_PINVAL_REG,
 					     gpio_reg_mask, gpio_reg_val);
 		if (ret != 0) {
 			return ret;
@@ -533,7 +604,7 @@ int mfd_axp192_gpio_write_port(const struct device *dev, uint8_t value, uint8_t 
 	gpio_reg_val = value >> 3U;
 	gpio_reg_mask = (mask >> 3U) & AXP192_GPIO34_OUTPUT_MASK;
 	if (gpio_reg_mask != 0) {
-		ret = i2c_reg_update_byte_dt(&(config->i2c), AXP192_GPIO34_REG_PINVAL,
+		ret = i2c_reg_update_byte_dt(&(config->i2c), AXP192_GPIO34_PINVAL_REG,
 					     gpio_reg_mask, gpio_reg_val);
 		if (ret != 0) {
 			return ret;
@@ -541,17 +612,43 @@ int mfd_axp192_gpio_write_port(const struct device *dev, uint8_t value, uint8_t 
 		LOG_DBG("GPIO34 pinval-reg =0x%x mask=0x%x", gpio_reg_val, gpio_reg_mask);
 	}
 
+	/* Write gpio5. Mask out other port pins */
+	if ((mask & BIT(5)) != 0) {
+		gpio_reg_mask = AXP192_EXTEN_MASK;
+		gpio_reg_val = (value & BIT(5)) ? AXP192_EXTEN_ENA : 0U;
+		ret = i2c_reg_update_byte_dt(&(config->i2c), AXP192_EXTEN_DCDC2_CONTROL_REG,
+					     gpio_reg_mask, gpio_reg_val);
+		if (ret != 0) {
+			return ret;
+		}
+		LOG_DBG("GPIO5 pinval-reg =0x%x mask=0x%x\n", gpio_reg_val, gpio_reg_mask);
+	}
+
 	return 0;
 }
+#endif
 
-#define MFD_AXP192_DEFINE(inst)                                                                    \
-	static const struct mfd_axp192_config config##inst = {                                     \
-		.i2c = I2C_DT_SPEC_INST_GET(inst),                                                 \
+#define MFD_AXP192_CONST_CONFIG(model)                                                             \
+	.reg_chip_id = AXP##model##_REG_CHIP_ID,                                                   \
+	.vbus_config_reg = AXP##model##_VBUS_CFG_REG,                                              \
+	.chip_id = AXP##model##_CHIP_ID,                                                           \
+	.val_vbusen_disable = AXP##model##_CHIP_ID,
+
+#define MFD_AXP192_AXP2101_DEFINE(node, model)                                                     \
+	static const struct mfd_axp192_config config##node = {                                     \
+		.i2c = I2C_DT_SPEC_GET(node),                                                      \
+		IF_ENABLED(CONFIG_DT_HAS_X_POWERS_AXP192_ENABLED,                                  \
+		(.vbusen_disable = DT_PROP_OR(node, vbusen_disable, false),))                      \
+		MFD_AXP192_CONST_CONFIG(model)                                                     \
 	};                                                                                         \
                                                                                                    \
-	static struct mfd_axp192_data data##inst;                                                  \
+	IF_ENABLED(CONFIG_DT_HAS_X_POWERS_AXP192_ENABLED,                                          \
+		   (static struct mfd_axp192_data data##node;))                                    \
                                                                                                    \
-	DEVICE_DT_INST_DEFINE(inst, mfd_axp192_init, NULL, &data##inst, &config##inst,             \
-			      POST_KERNEL, CONFIG_MFD_INIT_PRIORITY, NULL);
+	DEVICE_DT_DEFINE(node, mfd_axp192_init, NULL,                                              \
+			 COND_CODE_1(CONFIG_DT_HAS_X_POWERS_AXP192_ENABLED,                        \
+				     (&data##node), (NULL)),                                       \
+			 &config##node, POST_KERNEL, CONFIG_MFD_INIT_PRIORITY, NULL);
 
-DT_INST_FOREACH_STATUS_OKAY(MFD_AXP192_DEFINE)
+DT_FOREACH_STATUS_OKAY_VARGS(x_powers_axp192, MFD_AXP192_AXP2101_DEFINE, 192);
+DT_FOREACH_STATUS_OKAY_VARGS(x_powers_axp2101, MFD_AXP192_AXP2101_DEFINE, 2101);

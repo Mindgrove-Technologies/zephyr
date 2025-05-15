@@ -52,7 +52,7 @@ static void call_log_generic(uint32_t source_id, const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	log2_generic(LOG_LEVEL_INF, fmt, ap);
+	log_generic(LOG_LEVEL_INF, fmt, ap);
 	va_end(ap);
 }
 
@@ -81,6 +81,14 @@ ZTEST_USER(test_log_core_additional, test_log_panic)
 	LOG_INF("log from user, level %d\n", d);
 
 	log_panic();
+}
+
+/* test LOG_PRINTK from user space */
+ZTEST_USER(test_log_core_additional, test_log_printk_from_user)
+{
+	LOG_PRINTK("test_printk");
+	while (log_process()) {
+	}
 }
 
 #endif /** CONFIG_USERSPACE **/

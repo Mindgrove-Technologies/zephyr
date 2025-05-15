@@ -39,6 +39,8 @@ It currently supports the following shells:
 
 - bash
 - zsh
+- fish
+- powershell (board qualifiers only)
 
 Additional instructions are available in the command's help::
 
@@ -73,7 +75,7 @@ See :zephyr_file:`share/zephyr-package/cmake` for details.
 Software bill of materials: ``west spdx``
 *****************************************
 
-This command generates SPDX 2.2 tag-value documents, creating relationships
+This command generates SPDX 2.3 tag-value documents, creating relationships
 from source files to the corresponding generated build files.
 ``SPDX-License-Identifier`` comments in source files are scanned and filled
 into the SPDX documents.
@@ -89,6 +91,8 @@ To use this command:
    This step ensures the build directory contains CMake metadata required for
    SPDX document generation.
 
+#. Enable :file:`CONFIG_BUILD_OUTPUT_META` in your project.
+
 #. Build your application using this pre-created build directory, like so:
 
    .. code-block:: bash
@@ -101,12 +105,26 @@ To use this command:
 
       west spdx -d BUILD_DIR
 
+.. note::
+
+   When building with :ref:`sysbuild`, make sure you target the actual application
+   which you want to generate the SBOM for. For example, if the application is
+   named ``hello_world``:
+
+   .. code-block:: bash
+
+     west spdx --init  -d BUILD_DIR/hello_world
+     west build -d BUILD_DIR/hello_world
+     west spdx -d BUILD_DIR/hello_world
+
 This generates the following SPDX bill-of-materials (BOM) documents in
 :file:`BUILD_DIR/spdx/`:
 
 - :file:`app.spdx`: BOM for the application source files used for the build
 - :file:`zephyr.spdx`: BOM for the specific Zephyr source code files used for the build
 - :file:`build.spdx`: BOM for the built output files
+- :file:`modules-deps.spdx`: BOM for modules dependencies. Check
+  :ref:`modules <modules-vulnerability-monitoring>` for more details.
 
 Each file in the bill-of-materials is scanned, so that its hashes (SHA256 and
 SHA1) can be recorded, along with any detected licenses if an
@@ -210,3 +228,56 @@ You can dump all of the descriptors in an image using::
 You can list all known standard descriptor names using::
 
    west bindesc list
+
+You can print the offset of the descriptors inside the image using::
+
+   west bindesc get_offset
+
+Indexing the sources with GNU Global: ``west gtags``
+****************************************************
+
+.. important:: You must install the ``gtags`` and ``global`` programs provided
+               by `GNU Global`_ to use this command.
+
+The ``west gtags`` command lets you create a GNU Global tags file for the entire
+west workspace::
+
+  west gtags
+
+.. _GNU Global: https://www.gnu.org/software/global/
+
+This will create a tags file named ``GTAGS`` in the workspace :ref:`topdir
+<west-workspace>` (it will also create other Global-related metadata files
+named ``GPATH`` and ``GRTAGS`` in the same place).
+
+You can then run the ``global`` command anywhere inside the
+workspace to search for symbol locations using this tags file.
+
+For example, to search for definitions of the ``arch_system_halt()`` function,
+starting from the ``zephyr/drivers`` directory::
+
+  $ cd zephyr/drivers
+  $ global -x arch_system_halt
+  arch_system_halt   65 ../arch/arc/core/fatal.c FUNC_NORETURN void arch_system_halt(unsigned int reason)
+  arch_system_halt  455 ../arch/arm64/core/fatal.c FUNC_NORETURN void arch_system_halt(unsigned int reason)
+  arch_system_halt  137 ../arch/nios2/core/fatal.c FUNC_NORETURN void arch_system_halt(unsigned int reason)
+  arch_system_halt   18 ../arch/posix/core/fatal.c FUNC_NORETURN void arch_system_halt(unsigned int reason)
+  arch_system_halt   17 ../arch/x86/core/fatal.c FUNC_NORETURN void arch_system_halt(unsigned int reason)
+  arch_system_halt  126 ../arch/xtensa/core/fatal.c FUNC_NORETURN void arch_system_halt(unsigned int reason)
+  arch_system_halt   21 ../kernel/fatal.c FUNC_NORETURN __weak void arch_system_halt(unsigned int reason)
+
+This prints the search symbol, the line it is defined on, a relative path to
+the file it is defined in, and the line itself, for all places where the symbol
+is defined.
+
+Additional tips:
+
+- This can also be useful to search for vendor HAL function definitions.
+
+- See the ``global`` command's manual page for more information on how to use
+  this tool.
+
+- You should run ``global``, **not** ``west global``. There is no need for a
+  separate ``west global`` command since ``global`` already searches for the
+  ``GTAGS`` file starting from your current working directory. This is why you
+  need to run ``global`` from inside the workspace.

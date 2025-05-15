@@ -7,6 +7,7 @@
 #define ZEPHYR_DRIVERS_SPI_SPI_NXP_S32_H_
 
 #include <zephyr/drivers/spi.h>
+#include <zephyr/drivers/spi/rtio.h>
 #include <zephyr/logging/log.h>
 
 #define LOG_LEVEL CONFIG_SPI_LOG_LEVEL
@@ -47,7 +48,6 @@ struct spi_nxp_s32_data {
 };
 
 struct spi_nxp_s32_config {
-	uint8_t instance;
 	uint8_t num_cs;
 	const struct device *clock_dev;
 	clock_control_subsys_t clock_subsys;

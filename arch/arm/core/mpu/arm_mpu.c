@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017 Linaro Limited.
+ * Copyright 2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -30,16 +31,20 @@ LOG_MODULE_DECLARE(mpu);
 #define MPU_NODEID DT_INST(0, arm_armv6m_mpu)
 #endif
 
-#if DT_NODE_HAS_PROP(MPU_NODEID, arm_num_mpu_regions)
-#define NUM_MPU_REGIONS   DT_PROP(MPU_NODEID, arm_num_mpu_regions)
-#endif
-
 #define NODE_HAS_PROP_AND_OR(node_id, prop) \
 	DT_NODE_HAS_PROP(node_id, prop) ||
 
 BUILD_ASSERT((DT_FOREACH_STATUS_OKAY_NODE_VARGS(
 	      NODE_HAS_PROP_AND_OR, zephyr_memory_region_mpu) false) == false,
 	      "`zephyr,memory-region-mpu` was deprecated in favor of `zephyr,memory-attr`");
+
+#define NULL_PAGE_DETECT_NODE_FINDER(node_id, prop)                                                \
+	(DT_NODE_HAS_PROP(node_id, prop) && (DT_REG_ADDR(node_id) == 0) &&                         \
+	 (DT_REG_SIZE(node_id) >= CONFIG_CORTEX_M_NULL_POINTER_EXCEPTION_PAGE_SIZE)) ||
+
+#define DT_NULL_PAGE_DETECT_NODE_EXIST                                                             \
+	(DT_FOREACH_STATUS_OKAY_VARGS(zephyr_memory_region, NULL_PAGE_DETECT_NODE_FINDER,          \
+				      zephyr_memory_attr) false)
 
 /*
  * Global status variable holding the number of HW MPU region indices, which
@@ -58,6 +63,7 @@ static uint8_t static_regions_num;
 #elif defined(CONFIG_CPU_CORTEX_M23) || \
 	defined(CONFIG_CPU_CORTEX_M33) || \
 	defined(CONFIG_CPU_CORTEX_M55) || \
+	defined(CONFIG_CPU_CORTEX_M85) || \
 	defined(CONFIG_AARCH32_ARMV8_R)
 #include "arm_mpu_v8_internal.h"
 #else
@@ -88,7 +94,7 @@ static int region_allocate_and_init(const uint8_t index,
 						    (reg).dt_addr,	\
 						    (reg).dt_size,	\
 						    _ATTR)
-
+#ifdef CONFIG_MEM_ATTR
 /* This internal function programs the MPU regions defined in the DT when using
  * the `zephyr,memory-attr = <( DT_MEM_ARM(...) )>` property.
  */
@@ -106,6 +112,11 @@ static int mpu_configure_regions_from_dt(uint8_t *reg_index)
 		case DT_MEM_ARM_MPU_RAM:
 			region_conf = _BUILD_REGION_CONF(region[idx], REGION_RAM_ATTR);
 			break;
+#ifdef CONFIG_ARM_MPU_PXN
+		case DT_MEM_ARM_MPU_RAM_PXN:
+			region_conf = _BUILD_REGION_CONF(region[idx], REGION_RAM_ATTR_PXN);
+			break;
+#endif
 #ifdef REGION_RAM_NOCACHE_ATTR
 		case DT_MEM_ARM_MPU_RAM_NOCACHE:
 			region_conf = _BUILD_REGION_CONF(region[idx], REGION_RAM_NOCACHE_ATTR);
@@ -134,12 +145,10 @@ static int mpu_configure_regions_from_dt(uint8_t *reg_index)
 			break;
 #endif
 		default:
-			/* Either the specified `ATTR_MPU_*` attribute does not
-			 * exists or the `REGION_*_ATTR` macro is not defined
-			 * for that attribute.
+			/* Attribute other than ARM-specific is set.
+			 * This region should not be configured in MPU.
 			 */
-			LOG_ERR("Invalid attribute for the region\n");
-			return -EINVAL;
+			continue;
 		}
 #if defined(CONFIG_ARMV7_R)
 		region_conf.size = size_to_mpu_rasr_size(region[idx].dt_size);
@@ -155,7 +164,7 @@ static int mpu_configure_regions_from_dt(uint8_t *reg_index)
 
 	return 0;
 }
-
+#endif /* CONFIG_MEM_ATTR */
 /* This internal function programs an MPU region
  * of a given configuration at a given MPU index.
  */
@@ -345,7 +354,7 @@ int arm_core_mpu_get_max_available_dyn_regions(void)
  *
  * Presumes the background mapping is NOT user accessible.
  */
-int arm_core_mpu_buffer_validate(void *addr, size_t size, int write)
+int arm_core_mpu_buffer_validate(const void *addr, size_t size, int write)
 {
 	return mpu_buffer_validate(addr, size, write);
 }
@@ -456,11 +465,16 @@ int z_arm_mpu_init(void)
 
 	/* Update the number of programmed MPU regions. */
 	static_regions_num = mpu_config.num_regions;
-
+#ifdef CONFIG_MEM_ATTR
 	/* DT-defined MPU regions. */
 	if (mpu_configure_regions_from_dt(&static_regions_num) == -EINVAL) {
 		__ASSERT(0, "Failed to allocate MPU regions from DT\n");
 		return -EINVAL;
+	}
+#endif /* CONFIG_MEM_ATTR */
+	/* Clear all regions before enabling MPU */
+	for (int i = static_regions_num; i < get_num_regions(); i++) {
+		mpu_clear_region(i);
 	}
 
 	arm_core_mpu_enable();
@@ -470,7 +484,9 @@ int z_arm_mpu_init(void)
 	 */
 #if defined(CONFIG_NULL_POINTER_EXCEPTION_DETECTION_MPU)
 #if (defined(CONFIG_ARMV8_M_BASELINE) || defined(CONFIG_ARMV8_M_MAINLINE)) && \
-	(CONFIG_FLASH_BASE_ADDRESS > CONFIG_CORTEX_M_NULL_POINTER_EXCEPTION_PAGE_SIZE)
+	(CONFIG_FLASH_BASE_ADDRESS > CONFIG_CORTEX_M_NULL_POINTER_EXCEPTION_PAGE_SIZE) && \
+	(!DT_NULL_PAGE_DETECT_NODE_EXIST)
+
 #pragma message "Null-Pointer exception detection cannot be configured on un-mapped flash areas"
 #else
 	const struct z_arm_mpu_partition unmap_region =	{
@@ -526,11 +542,6 @@ int z_arm_mpu_init(void)
 	defined(CONFIG_CPU_CORTEX_M4)
 	__ASSERT(
 		(MPU->TYPE & MPU_TYPE_DREGION_Msk) >> MPU_TYPE_DREGION_Pos == 8,
-		"Invalid number of MPU regions\n");
-#elif defined(NUM_MPU_REGIONS)
-	__ASSERT(
-		(MPU->TYPE & MPU_TYPE_DREGION_Msk) >> MPU_TYPE_DREGION_Pos ==
-		NUM_MPU_REGIONS,
 		"Invalid number of MPU regions\n");
 #endif /* CORTEX_M0PLUS || CPU_CORTEX_M3 || CPU_CORTEX_M4 */
 

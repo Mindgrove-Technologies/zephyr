@@ -14,7 +14,37 @@
 extern "C" {
 #endif
 
+/**
+ * @brief Modem Pipe
+ * @defgroup modem_pipe Modem Pipe
+ * @ingroup modem
+ * @{
+ */
+
+/** Modem pipe event */
+enum modem_pipe_event {
+	MODEM_PIPE_EVENT_OPENED = 0,
+	MODEM_PIPE_EVENT_RECEIVE_READY,
+	MODEM_PIPE_EVENT_TRANSMIT_IDLE,
+	MODEM_PIPE_EVENT_CLOSED,
+};
+
+/**
+ * @cond INTERNAL_HIDDEN
+ */
+
 struct modem_pipe;
+
+/**
+ * @endcond
+ */
+
+typedef void (*modem_pipe_api_callback)(struct modem_pipe *pipe, enum modem_pipe_event event,
+					void *user_data);
+
+/**
+ * @cond INTERNAL_HIDDEN
+ */
 
 typedef int (*modem_pipe_api_open)(void *data);
 
@@ -31,29 +61,13 @@ struct modem_pipe_api {
 	modem_pipe_api_close close;
 };
 
-enum modem_pipe_state {
-	MODEM_PIPE_STATE_CLOSED = 0,
-	MODEM_PIPE_STATE_OPEN,
-};
-
-enum modem_pipe_event {
-	MODEM_PIPE_EVENT_OPENED = 0,
-	MODEM_PIPE_EVENT_RECEIVE_READY,
-	MODEM_PIPE_EVENT_CLOSED,
-};
-
-typedef void (*modem_pipe_api_callback)(struct modem_pipe *pipe, enum modem_pipe_event event,
-					void *user_data);
-
 struct modem_pipe {
 	void *data;
-	struct modem_pipe_api *api;
+	const struct modem_pipe_api *api;
 	modem_pipe_api_callback callback;
 	void *user_data;
-	enum modem_pipe_state state;
-	struct k_mutex lock;
-	struct k_condvar condvar;
-	bool receive_ready_pending;
+	struct k_spinlock spinlock;
+	struct k_event event;
 };
 
 /**
@@ -63,17 +77,26 @@ struct modem_pipe {
  * @param data Pipe data to bind to pipe instance
  * @param api Pipe API implementation to bind to pipe instance
  */
-void modem_pipe_init(struct modem_pipe *pipe, void *data, struct modem_pipe_api *api);
+void modem_pipe_init(struct modem_pipe *pipe, void *data, const struct modem_pipe_api *api);
+
+/**
+ * @endcond
+ */
 
 /**
  * @brief Open pipe
  *
  * @param pipe Pipe instance
+ * @param timeout Timeout waiting for pipe to open
  *
  * @retval 0 if pipe was successfully opened or was already open
  * @retval -errno code otherwise
+ *
+ * @warning Be cautious when using this synchronous version of the call.
+ * It may block the calling thread, which in the case of the system workqueue
+ * can result in a deadlock until this call times out waiting for the pipe to be open.
  */
-int modem_pipe_open(struct modem_pipe *pipe);
+int modem_pipe_open(struct modem_pipe *pipe, k_timeout_t timeout);
 
 /**
  * @brief Open pipe asynchronously
@@ -104,25 +127,27 @@ void modem_pipe_attach(struct modem_pipe *pipe, modem_pipe_api_callback callback
  * @brief Transmit data through pipe
  *
  * @param pipe Pipe to transmit through
- * @param buf Destination for reveived data
- * @param size Capacity of destination for recevied data
+ * @param buf Data to transmit
+ * @param size Number of bytes to transmit
  *
- * @return Number of bytes placed in pipe
+ * @retval Number of bytes placed in pipe
+ * @retval -EPERM if pipe is closed
+ * @retval -errno code on error
  *
  * @warning This call must be non-blocking
  */
 int modem_pipe_transmit(struct modem_pipe *pipe, const uint8_t *buf, size_t size);
 
 /**
- * @brief Reveive data through pipe
+ * @brief Receive data through pipe
  *
  * @param pipe Pipe to receive from
- * @param buf Destination for reveived data
- * @param size Capacity of destination for recevied data
+ * @param buf Destination for received data; must not be already in use in a modem module.
+ * @param size Capacity of destination for received data
  *
- * @return Number of bytes received from pipe if any
- * @return -EPERM if pipe is closed
- * @return -errno code on error
+ * @retval Number of bytes received from pipe
+ * @retval -EPERM if pipe is closed
+ * @retval -errno code on error
  *
  * @warning This call must be non-blocking
  */
@@ -139,11 +164,16 @@ void modem_pipe_release(struct modem_pipe *pipe);
  * @brief Close pipe
  *
  * @param pipe Pipe instance
+ * @param timeout Timeout waiting for pipe to close
  *
  * @retval 0 if pipe open was called closed or pipe was already closed
  * @retval -errno code otherwise
+ *
+ * @warning Be cautious when using this synchronous version of the call.
+ * It may block the calling thread, which in the case of the system workqueue
+ * can result in a deadlock until this call times out waiting for the pipe to be closed.
  */
-int modem_pipe_close(struct modem_pipe *pipe);
+int modem_pipe_close(struct modem_pipe *pipe, k_timeout_t timeout);
 
 /**
  * @brief Close pipe asynchronously
@@ -157,6 +187,10 @@ int modem_pipe_close(struct modem_pipe *pipe);
  * @retval -errno code otherwise
  */
 int modem_pipe_close_async(struct modem_pipe *pipe);
+
+/**
+ * @cond INTERNAL_HIDDEN
+ */
 
 /**
  * @brief Notify user of pipe that it has opened
@@ -184,6 +218,23 @@ void modem_pipe_notify_closed(struct modem_pipe *pipe);
  * @note Invoked from instance which initialized the pipe instance
  */
 void modem_pipe_notify_receive_ready(struct modem_pipe *pipe);
+
+/**
+ * @brief Notify user of pipe that pipe has no more data to transmit
+ *
+ * @param pipe Pipe instance
+ *
+ * @note Invoked from instance which initialized the pipe instance
+ */
+void modem_pipe_notify_transmit_idle(struct modem_pipe *pipe);
+
+/**
+ * @endcond
+ */
+
+/**
+ * @}
+ */
 
 #ifdef __cplusplus
 }
