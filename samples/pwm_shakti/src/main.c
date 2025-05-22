@@ -17,6 +17,12 @@ LOG_MODULE_REGISTER(app, LOG_LEVEL_INF);
 #define PWM_5 5
 #define PWM_6 6
 #define PWM_7 7
+#define PWM_8 8
+#define PWM_9 9
+#define PWM_10 10
+#define PWM_11 11
+#define PWM_12 12
+#define PWM_13 13
 
 void main() {
 
@@ -30,4 +36,10 @@ void main() {
     pwm_set_cycles(dev,PWM_5, 1000, 750, PWM_POLARITY_NORMAL);
     pwm_set_cycles(dev,PWM_6, 1000, 750, PWM_POLARITY_NORMAL);
     pwm_set_cycles(dev,PWM_7, 1000, 750, PWM_POLARITY_NORMAL);
+    pwm_set_cycles(dev,PWM_8, 1000, 750, PWM_POLARITY_NORMAL);
+    pwm_set_cycles(dev,PWM_9, 1000, 750, PWM_POLARITY_NORMAL);
+    pwm_set_cycles(dev,PWM_10, 1000, 750, PWM_POLARITY_NORMAL);
+    pwm_set_cycles(dev,PWM_11, 1000, 750, PWM_POLARITY_NORMAL);
+    pwm_set_cycles(dev,PWM_12, 1000, 750, PWM_POLARITY_NORMAL);
+    pwm_set_cycles(dev,PWM_13, 1000, 750, PWM_POLARITY_NORMAL);
 }

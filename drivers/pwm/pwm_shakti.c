@@ -53,6 +53,12 @@
 #define PWM_5 5
 #define PWM_6 6
 #define PWM_7 7
+#define PWM_8 8
+#define PWM_9 9
+#define PWM_10 10
+#define PWM_11 11
+#define PWM_12 12
+#define PWM_13 13
 
 // Control Register Individual Bits
 #define PWM_ENABLE                      0x00000001
@@ -72,7 +78,7 @@
 #define CLOCK_FREQUENCY 40000000
 
 /*!Pulse Width Modulation Start Offsets */
-#define PWM_MAX_COUNT 8				/*Maximum number of PWM*/
+#define PWM_MAX_COUNT 14				/*Maximum number of PWM*/
 #define PWM_BASE_ADDRESS 0x00030000 /*PWM Base address*/
 #define PWM_END_ADDRESS 0x000307FF  /*PWM End address*/
 
@@ -87,10 +93,16 @@
 #define PWM_START_5 0x00030500	/* Pulse Width Modulation 5 */
 #define PWM_START_6 0x00030600 	/* Pulse Width Modulation 6 */
 #define PWM_START_7 0x00030700 	/* Pulse Width Modulation 7 */
+#define PWM_START_8 0x00030800 	/* Pulse Width Modulation 1 */
+#define PWM_START_9 0x00030900 	/* Pulse Width Modulation 2 */
+#define PWM_START_10 0x00031000 	/* Pulse Width Modulation 3 */
+#define PWM_START_11 0x00031100 	/* Pulse Width Modulation 4 */
+#define PWM_START_12 0x00031200	/* Pulse Width Modulation 5 */
+#define PWM_START_13 0x00031300 	/* Pulse Width Modulation 6 */
 
 /*pinmux*/
 #define PINMUX_START 0x40300 			/*Pinmux start address*/
-#define PINMUX_CONFIGURE_REG 0x40300	/*Pinmux configuration register*/
+#define PINMUX_CONFIGURE_REG 0x40400	/*Pinmux configuration register*/
 
 #define PWM_BASE                   0x00030000UL
 #define PWM_OFFSET                 0x00000100UL
@@ -101,6 +113,10 @@ typedef enum
 	rise_interrupt,				//Enable interrupt only on rise
 	fall_interrupt,				//Enable interrupt only on fall
 	halfperiod_interrupt,		//Enable interrupt only on halfperiod
+	rise_fall_interrupt,      //Enable interrupt on rise and fall
+	fall_halfperiod_interrupt,    //Enable interrupt on fall and halfperiod
+	rise_halfperiod_interrupt,    //Enable interrupt on rise and halfperiod
+	rise_fall_halfperiod_interrupt,   //Enable interrupt on rise, fall and halfperiod
 	no_interrupt				//Disable interrupts
 }pwm_interrupt_modes;
 
@@ -196,17 +212,17 @@ inline int configure_control(bool update, pwm_interrupt_modes interrupt_mode, bo
 		value |=PWM_UPDATE_ENABLE;
 	}
 
-	if(interrupt_mode==0)
+	if(interrupt_mode == 0 || interrupt_mode == 3 || interrupt_mode == 5 || interrupt_mode == 6)
 	{
 		value |= PWM_RISE_INTERRUPT_ENABLE;
 	}
 
-	if(interrupt_mode==1)
+	if(interrupt_mode == 1 || interrupt_mode == 3 || interrupt_mode ==4 || interrupt_mode == 6)
 	{
 		value |= PWM_FALL_INTERRUPT_ENABLE;
 	}
 
-	if(interrupt_mode==2)
+	if(interrupt_mode == 2 || interrupt_mode == 4 || interrupt_mode == 5 || interrupt_mode == 6)
 	{
 		value |= PWM_HALFPERIOD_INTERRUPT_ENABLE;
 	}
@@ -252,7 +268,7 @@ void pwm_start(int channel)
 	int value= 0x0;
 	value = PWM_REG(channel)->control ;
 
-	value |= (PWM_UPDATE_ENABLE | PWM_ENABLE | PWM_START);
+	value |= (PWM_UPDATE_ENABLE | PWM_ENABLE | PWM_START | PWM_OUTPUT_ENABLE);
 
 	PWM_REG(channel)->control = value;
 }
@@ -265,7 +281,7 @@ void pwm_start(int channel)
  */
 void pinmux_enable_pwm(int num)
 {
-	if (num < 8)
+	if (num < 14)
 	{
 		*(pinmux_config_reg + num) = 1;
 	}
@@ -355,14 +371,46 @@ static int pwm_shakti_set_cycles(const struct device *dev, uint32_t channel,uint
 		control_reg = db_config7[1];
 		prescale = db_config7[2];
 		break;
+	case PWM_8:
+		int db_config8[] = DT_PROP(DT_NODELABEL(pwm8), db_configure);
+		deadband_delay = db_config8[0];
+		control_reg = db_config8[1];
+		prescale = db_config8[2];
+		break;
+	case PWM_9:
+		int db_config9[] = DT_PROP(DT_NODELABEL(pwm9), db_configure);
+		deadband_delay = db_config9[0];
+		control_reg = db_config9[1];
+		prescale = db_config9[2];
+		break;
+	case PWM_10:
+		int db_config10[] = DT_PROP(DT_NODELABEL(pwm10), db_configure);
+		deadband_delay = db_config10[0];
+		control_reg = db_config10[1];
+		prescale = db_config10[2];
+		break;
+	case PWM_11:
+		int db_config11[] = DT_PROP(DT_NODELABEL(pwm11), db_configure);
+		deadband_delay = db_config11[0];
+		control_reg = db_config11[1];
+		prescale = db_config11[2];
+		break;
+	case PWM_12:
+		int db_config12[] = DT_PROP(DT_NODELABEL(pwm12), db_configure);
+		deadband_delay = db_config12[0];
+		control_reg = db_config12[1];
+		prescale = db_config12[2];
+		break;
+	case PWM_13:
+		int db_config13[] = DT_PROP(DT_NODELABEL(pwm13), db_configure);
+		deadband_delay = db_config13[0];
+		control_reg = db_config13[1];
+		prescale = db_config13[2];
+		break;
 	default:
 		break;
 	}
-
-	// printf("\nDeadband_delay %u",deadband_delay);
-	// printf("\nControl_reg %u",control_reg);
-	// printf("\nPrescale value %u",prescale);
-
+	
 	pinmux_enable_pwm(channel);
 	pwm_set_prescalar_value(channel, prescale);
     pwm_configure(channel, period_cycles, pulse_cycles, no_interrupt, deadband_delay, flags);
