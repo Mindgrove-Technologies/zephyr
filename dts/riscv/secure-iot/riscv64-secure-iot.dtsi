@@ -74,14 +74,14 @@
     spi0: spi@20000 {
             #address-cells = <1>;
             #size-cells = <0>;
-            compatible = "shakti,spi";
+            compatible = "seciot,spi";
             reg = <0x0 0x20000 0x0 0x100>;
     };
 
     spi1: spi@20100 {
            #address-cells = <1>;
 			     #size-cells = <0>;
-           compatible = "shakti,spi";
+           compatible = "seciot,spi";
            reg = <0x0 0x20100 0x0 0x100>;
     };
 
