@@ -113,7 +113,7 @@
 
     watchdog: watchdog@40400
     {
-      compatible="seciot,wdt";
+      compatible="mindgrove,wdt";
       reg= <0x0 0x40400 0x0 0x1>;
     };
     
