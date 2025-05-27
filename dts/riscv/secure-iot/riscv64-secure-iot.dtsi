@@ -87,7 +87,7 @@
 
     gpio0: gpio@40200 {
                 #gpio-cells = <0x2>;
-                compatible = "shakti,gpio";
+                compatible = "seciot,gpio";
                 reg = < 0x0 0x40200 0x0 0x08>;
                 config_gpio = <GPIO_OUTPUT>;
                 interrupt-parent = <&plic>;
