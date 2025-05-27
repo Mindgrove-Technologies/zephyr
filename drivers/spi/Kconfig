@@ -85,7 +85,7 @@ source "drivers/spi/Kconfig.sam0"
 
 source "drivers/spi/Kconfig.sifive"
 
-source "drivers/spi/Kconfig.seciot"
+source "drivers/spi/Kconfig.mindgrove"
 
 source "drivers/spi/Kconfig.spi_emul"
 
