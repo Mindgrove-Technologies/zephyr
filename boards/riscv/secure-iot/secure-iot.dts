@@ -36,6 +36,13 @@ chosen {
 // 	clock_frequency = <40000000>;
 // 	scl_frequency = <100000>;
 // };
+
+&watchdog{
+	status="okay";
+	rcycles=<5000>;
+	wcycles=<5000>;
+};
+
 &spi0 {
 		status = "okay";
 		sclk_configure = <0x0 0x0 0x10 0x0 0x0>;

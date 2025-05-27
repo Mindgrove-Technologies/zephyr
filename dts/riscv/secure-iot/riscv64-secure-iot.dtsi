@@ -111,6 +111,12 @@
     //   reg= <0x0 0x44100 0x0 0x100>;
     // };
 
+    watchdog: watchdog@40400
+    {
+      compatible="seciot,wdt";
+      reg= <0x0 0x40400 0x0 0x1>;
+    };
+    
     pwm0: pwm@30000 {
       compatible = "seciot,pwm";
       reg= < 0x0 0x30000 0x0 0x100>;
