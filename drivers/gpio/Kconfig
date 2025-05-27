@@ -101,7 +101,7 @@ source "drivers/gpio/Kconfig.cc32xx"
 
 source "drivers/gpio/Kconfig.sifive"
 
-source "drivers/gpio/Kconfig.seciot"
+source "drivers/gpio/Kconfig.mindgrove"
 
 source "drivers/gpio/Kconfig.esp32"
 
