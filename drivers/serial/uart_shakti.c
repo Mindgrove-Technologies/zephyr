@@ -61,7 +61,6 @@
 #define STS_TX_FULL 	    1 << 1
 #define STS_TX_EMPTY 	    1 << 0
 
-
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 
 #define RX_FIFO_80_FULL_IE  1 << 8
@@ -85,12 +84,37 @@
  * Used by txctrl and rxctrl registers
  */
 #define CTRL_CNT(x)    (((x) & 0x07) << 16)
+
+
+#define UART_BASE                  	0x00011300UL
+#define UART_OFFSET                 0x00000100UL
+// #define UART_REG(x)     ((UART_Type*)(UART_BASE + (x)*UART_OFFSET))
+
+int uart_num = 0;
+
+#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+typedef void (*irq_cfg_func_t)(void);
+#endif
+
+struct uart_shakti_device_config {
+	uint32_t       port;
+	uint32_t       sys_clk_freq;
+	uint32_t       baud_rate;
+	uint32_t       rxcnt_irq;
+	uint32_t       txcnt_irq;
+#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+	irq_cfg_func_t cfg_func;
+#endif
+};
+
+
 typedef union{
   uint32_t data_32;
   uint16_t data_16;
   uint8_t data_8;
 } Data;
-typedef struct {                                /*!< UART0 Structure                                                           */
+
+struct uart_shakti_regs_t{                                /*!< UART0 Structure                                                           */
     uint16_t  BAUD_REG;                     /*!< Baud register                                                             */
      uint16_t  RESERVED;
   
@@ -162,43 +186,8 @@ typedef struct {                                /*!< UART0 Structure            
     uint8_t   RX_THRESHOLD;                 /*!< The threshold value to indicate the RX FIFO almost full interrupt         */
      uint8_t   RESERVED5;
      uint16_t  RESERVED6;
-} UART_Type;     
+};     
 
-
-// struct uart_shakti_regs_t {
-//     uint16_t div;
-//     uint16_t reserv0;
-//     uint32_t tx;
-//     uint32_t rx;
-//     unsigned short  status;
-//     uint16_t reserv2;
-//     uint16_t delay;
-//     uint16_t reserv3;
-//     uint16_t control;
-//     uint16_t reserv4;
-//     uint8_t  ie; 
-//     uint8_t  reserv5;
-//     uint16_t reserv6;
-//     uint8_t  iqcycles;
-//     uint8_t  reserv7;
-//     uint16_t reserv8;
-//     uint8_t  rx_threshold;
-// };
-
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-typedef void (*irq_cfg_func_t)(void);
-#endif
-
-struct uart_shakti_device_config {
-	uint32_t       port;
-	uint32_t       sys_clk_freq;
-	uint32_t       baud_rate;
-	uint32_t       rxcnt_irq;
-	uint32_t       txcnt_irq;
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	irq_cfg_func_t cfg_func;
-#endif
-};
 
 struct uart_shakti_data {
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
@@ -231,15 +220,13 @@ static unsigned char uart_shakti_poll_out(struct device *dev,
   	volatile struct uart_shakti_regs_t *uart = DEV_UART(dev);
 
 	// Wait while TX FIFO is full
-	// while (uart->STATUS_REG & STS_TX_FULL);
-
-	// uart->TX_REG = (int)c;
 	k_busy_wait(80);
-	while(((UART_Type*)(0x11300))->STATUS_REG & STS_TX_FULL);
+	int uart_num = 0;
+	while(uart->STATUS_REG & STS_TX_FULL);
 
-	((UART_Type*)(0x11300))->TX_REG.data_8 = (int)c;
+	uart->TX_REG.data_8 = (int)c;
 
-	return c; 
+	return c; 	
 }
 
 /**
@@ -254,14 +241,14 @@ static int uart_shakti_poll_in(struct device *dev, unsigned char *c)
 {
 	volatile struct uart_shakti_regs_t *uart = DEV_UART(dev);
 
-	if (((UART_Type*)(0x11300))->STATUS_REG & STS_RX_NOT_EMPTY)
+	if (uart->STATUS_REG & STS_RX_NOT_EMPTY)
 		return -1;
 
 	// volatile uint32_t read_val = uart->RX_REG;
 	// *c = (unsigned char)(read_val & RXDATA_MASK);
 	
-	while((((UART_Type*)(0x11300))->STATUS_REG & STS_RX_NOT_EMPTY) == 0);
-	*c = (((UART_Type*)(0x11300))->RX_REG.data_8);
+	while((uart->STATUS_REG & STS_RX_NOT_EMPTY) == 0);
+	*c = (uart->RX_REG.data_8);
 
 	return 0;
 }
@@ -486,6 +473,10 @@ static int uart_shakti_init(struct device *dev)
 	const struct uart_shakti_device_config * const cfg = DEV_CFG(dev);
 	volatile struct uart_shakti_regs_t *uart = DEV_UART(dev);
 
+	int uart_num = 0;
+	// char *uart_inst; 
+    // uart_inst = dev->name;
+    // uart_num = uart_inst[6] - '0';
 	//uart->base_addr = 0x11300;
 
 	/* Enable TX and RX channels */
@@ -493,7 +484,9 @@ static int uart_shakti_init(struct device *dev)
 	//uart->rxctrl = RXCTRL_RXEN | CTRL_CNT(cfg->txcnt_irq);
 
 	/* Set baud rate */
-	((UART_Type*)(0x11300))->BAUD_REG = 16; //(cfg->sys_clk_freq / cfg->baud_rate) / 16;
+	// ((UART_Type*)(0x11300))->BAUD_REG = 16; //(cfg->sys_clk_freq / cfg->baud_rate) / 16;
+	/* Set baud rate */
+	uart->BAUD_REG = 16;
 
 	// // uart->CTRL = (STOP_BITS(cfg->stop_bits) | PARITY(cfg->parity) | UART_TX_RX_LEN(cfg->char_size));
 	// uart->control = (STOP_BITS(2) | PARITY(2) | UART_TX_RX_LEN(6));
