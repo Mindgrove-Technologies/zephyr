@@ -19,25 +19,29 @@ chosen {
 };
 
 &uart1 {
-	status = "okay";
+	//status = "okay";
 	current-speed = <115200>;
 	clock-frequency = <100000000>;
 };
 
+&qspi0 {
+	status = "okay";
+};
+
 &i2c0 {
-	status = "ok";
+	//status = "ok";
 	base = <0x44000>;
 	clock_frequency = <40000000>;
 	scl_frequency = <100000>;
 };
-&i2c1 {
-	status = "ok";
-	base = <0x44100>;
-	clock_frequency = <40000000>;
-	scl_frequency = <100000>;
-};
+// &i2c1 {
+// 	status = "ok";
+// 	base = <0x44100>;
+// 	clock_frequency = <40000000>;
+// 	scl_frequency = <100000>;
+// };
 &spi0 {
-		status = "okay";
+		//status = "okay";
 		sclk_configure = <0x0 0x0 0x10 0x0 0x0>;
         comm_configure = <0x01 0x00 0x03 0x08>;
 		clock-frequency = <10000000>;
@@ -46,14 +50,14 @@ chosen {
 };
 
 &spi1 {
-		status = "okay";
+		//status = "okay";
 		sclk_configure = <0x0 0x0 0x10 0x0 0x0>;
         comm_configure = <0x01 0x00 0x03 0x08>;
 		clock-frequency = <10000000>;
         cs-gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
 
         ili9341_display: ili9341@0 {
-		  status = "okay";
+		  //status = "okay";
           compatible = "ilitek,ili9341_driver";
           reg = <0>;
           spi-max-frequency = <2000000>;
@@ -68,6 +72,7 @@ chosen {
 		  timctrla = [85 00 78];
 		  timctrlb = [00 00];
 		  pwseqctrl = [64 03 12 81];
+		  
 		  pumpratioctrl = [20];
 		  disctrl = [08 82 27];
 		  vmctrl1 = [3e 28];
@@ -86,59 +91,21 @@ chosen {
         };
 };
 
+// &spi2 {
+// 	status = "okay";
+// 	sclk_configure = <0x0 0x0 0x10 0x0 0x0>;
+// 	comm_configure = <0x01 0x00 0x03 0x08>;
+// 	clock-frequency = <10000000>;
+// 	cs-gpios = <&gpio0 10 0>;
+
+// };
+
 &gpio0 {
-	status = "okay";
+	//status = "okay";
 };
 
-&watchdog
-{
-	
-	status="okay";
-	rcycles=<5000>;
-	wcycles=<5000>;
-};
 &plic {
 
-	status = "okay";
+	//status = "okay";
 	base = <0xc000000>;
-};
-
-&pwm0 {
-	status = "okay";
-	db_configure = <0 4 5000>;
-};
-
-&pwm1 {
-	status = "okay";
-	db_configure = <0 4 5000>;
-};
-
-&pwm2 {
-	status = "okay";
-	db_configure = <0 4 5000>;
-};
-
-&pwm3 {
-	status = "okay";
-	db_configure = <0 4 5000>;
-};
-
-&pwm4 {
-	status = "okay";
-	db_configure = <0 4 5000>;
-};
-
-&pwm5 {
-	status = "okay";
-	db_configure = <0 4 5000>;
-};
-
-&pwm6 {
-	status = "okay";
-	db_configure = <0 4 5000>;
-};
-
-&pwm7 {
-	status = "okay";
-	db_configure = <0 4 5000>;
 };
