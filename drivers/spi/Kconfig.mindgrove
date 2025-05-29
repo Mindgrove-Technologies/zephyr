@@ -1,13 +1,13 @@
-# seciot SPI Driver configuration options
+# Mindgrove SPI Driver configuration options
 
-# Copyright (c) 2024 seciot Inc.
+# Copyright (c) 2025 Mindgrove Technologies Private Limited.
 # SPDX-License-Identifier: Apache-2.0
 
 config SPI_MINDGROVE
-	bool "seciot SPI controller driver"
+	bool "Mindgrove SPI controller driver"
 	default y
 	help
-	  This option enables the seciot spi driver.
+	  This option enables the Mindgrove spi driver.
 
 config SPI_INIT_PRIORITY
 	int "SPI init priority"

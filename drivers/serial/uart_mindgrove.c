@@ -1,5 +1,4 @@
-/* For Mindgrove SOC
- *
+/* 
  * SPDX-License-Identifier: Apache-2.0
  */
 

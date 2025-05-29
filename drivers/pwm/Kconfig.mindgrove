@@ -1,10 +1,8 @@
-# seciot Freedom PWM configuration options
-
-# Copyright (c) 2018 seciot Inc.
+# Copyright (c) 2025 Mindgrove Technologies Private Limited.
 # SPDX-License-Identifier: Apache-2.0
 
 config PWM_MINDGROVE
-	bool "Mindgrove Silicon Secure-iot-SoC PWM driver"
+	bool "Mindgrove Silicon's PWM driver"
 	default y
 	help
-	  Enable the PWM driver for the seciot Freedom platform
+	  Enable the PWM driver for the Mindgrove Freedom platform

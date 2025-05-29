@@ -1,12 +1,8 @@
-# Copyright (c) 2018, SiFive Inc.
+# Copyright (c) 2025 Mindgrove Technologies Private Limited.
 # SPDX-License-Identifier: Apache-2.0
 
 description: |
-  seciot Watchdog timer.
-
-  Note: First instance of the Sifive SPI controller (spi0) must be kept
-  disabled if used to access SPI Flash ROM. Failing to do so could result in
-  crashes during boot time.
+  Mindgrove Watchdog timer.
 
 compatible: "mindgrove,wdt"
 
