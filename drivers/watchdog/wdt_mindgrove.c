@@ -92,7 +92,7 @@ static struct wdt_mindgrove_dev_data wdt_mindgrove_data;
 static const struct wdt_mindgrove_device_config wdt_mindgrove_cfg = {
 	.regs = DT_INST_REG_ADDR(0), 
 	.rcycles = DT_INST_PROP(0, rcycles), 
-	.wcycles = DT_INST_PROP(0, wcycles), 
+	.wcycles = DT_INST_PROP(0, wcycles)
 };
 
 DEVICE_DT_INST_DEFINE(0, wdt_mindgrove_init, NULL,
