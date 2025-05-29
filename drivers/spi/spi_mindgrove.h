@@ -7,7 +7,7 @@
  * 
  * @file spi_mindgrove.h
  * @author Kishore. J (kishore@mindgrovetech.in)
- * @brief This is a zephyr SSPI Driver's Header file for Mindgrove Silicon's SPI Peripheral
+ * @brief This is a zephyr SPI Driver's Header file for Mindgrove Silicon's SPI Peripheral
  * @version 0.1
  * @date 2024-04-17
  * 
@@ -43,23 +43,23 @@ extern "C" {
 #define SPI_START_2 0x00020200 /* Serial Peripheral Interface 2 */
 #define SPI_START_3 0x00020300 /* Serial Peripheral Interface 3 */
 
-/* Struct to access SSPI registers as 32 bit registers */
+/* Struct to access SPI registers as 32 bit registers */
 
-#define SSPI_MAX_COUNT  4 /*! Number of Standard SSPI used in the SOC */
+#define SPI_MAX_COUNT  4 /*! Number of Standard SPI used in the SOC */
 
-#define SSPI0_BASE_ADDRESS  0x00020000 /*! Standard Serial Peripheral Interface 0 Base address*/
-#define SSPI0_END_ADDRESS  0x000200FF /*! Standard Serial Peripheral Interface 0 Base address*/
+#define SPI0_BASE_ADDRESS  0x00020000 /*! Standard Serial Peripheral Interface 0 Base address*/
+#define SPI0_END_ADDRESS  0x000200FF /*! Standard Serial Peripheral Interface 0 Base address*/
 
-#define SSPI1_BASE_ADDRESS  0x00020100 /*! Standard Serial Peripheral Interface 1 Base address*/
-#define SSPI1_END_ADDRESS  0x000201FF /*! Standard Serial Peripheral Interface 1 Base address*/
+#define SPI1_BASE_ADDRESS  0x00020100 /*! Standard Serial Peripheral Interface 1 Base address*/
+#define SPI1_END_ADDRESS  0x000201FF /*! Standard Serial Peripheral Interface 1 Base address*/
 
-#define SSPI2_BASE_ADDRESS  0x00020200 /*! Standard Serial Peripheral Interface 2 Base address*/
-#define SSPI2_END_ADDRESS  0x000202FF /*! Standard Serial Peripheral Interface 2 Base address*/
+#define SPI2_BASE_ADDRESS  0x00020200 /*! Standard Serial Peripheral Interface 2 Base address*/
+#define SPI2_END_ADDRESS  0x000202FF /*! Standard Serial Peripheral Interface 2 Base address*/
 
-#define SSPI3_BASE_ADDRESS  0x00020300 /*! Standard Serial Peripheral Interface 3 Base address*/
-#define SSPI3_END_ADDRESS  0x000203FF /*! Standard Serial Peripheral Interface 3 Base address*/
+#define SPI3_BASE_ADDRESS  0x00020300 /*! Standard Serial Peripheral Interface 3 Base address*/
+#define SPI3_END_ADDRESS  0x000203FF /*! Standard Serial Peripheral Interface 3 Base address*/
 
-#define SSPI_BASE_OFFSET 0x100
+#define SPI_BASE_OFFSET 0x100
 
 // #define COMMCTRL    0x00
 // #define CLKCTRL     0x04
@@ -70,14 +70,14 @@ extern "C" {
 // #define COMMSTS     0x18
 // #define INQUAL      0x1C
 
-//SSPIx Clock Control Register
+//SPIx Clock Control Register
 #define SPI_CLK_POLARITY(x)   (x<<0)
 #define SPI_CLK_PHASE(x)      (x<<1)
 #define SPI_PRESCALE(x)       (x<<2)
 #define SPI_SS2TX_DELAY(x)    (x<<10)
 #define SPI_TX2SS_DELAY(x)    (x<<18)
 
-//SSPIx Communication Control Register
+//SPIx Communication Control Register
 #define SPI_MASTER(x)          (x<<0)  
 #define SPI_ENABLE(x)          (x<<1)
 #define SPI_LSB_FIRST(x)       (x<<2)
@@ -89,7 +89,7 @@ extern "C" {
 #define SPI_OUT_EN_MISO(x)        (x<<24)
 #define SPI_OUT_EN_MOSI(x)        (x<<25)
 
-//SSPIx Communication Status Register
+//SPIx Communication Status Register
 #define SPI_BUSY             (1<<0)
 #define SPI_TX_EN            (1<<1)
 #define SPI_RX_NOT_EN        (1<<2)
@@ -97,7 +97,7 @@ extern "C" {
 #define SPI_RX_FIFO(x)       (x<<6)
 #define SPI_OVR              (1<<9)
 
-//SSPIx FIFO Status Register
+//SPIx FIFO Status Register
 #define SPI_TX_EMPTY          (1<<0)
 #define SPI_TX_DUAL           (1<<1)
 #define SPI_TX_QUAD           (1<<2)
@@ -118,7 +118,7 @@ extern "C" {
 #define SPI_RX_30             (1<<16)
 #define SPI_RX_FULL           (1<<17)
 
-//SSPIx Interrupt Enable Register
+//SPIx Interrupt Enable Register
 #define SPI_TX_EMPTY_INTR_EN    (1<<0)
 #define SPI_TX_DUAL_INTR_EN     (1<<1)
 #define SPI_TX_QUAD_INTR_EN     (1<<2)
@@ -191,8 +191,8 @@ typedef union{
 } Data;
 
 /**
- * @struct sspi_struct
- * @brief This defines a structure for controlling and communicating with an SSPI device.
+ * @struct spi_struct
+ * @brief This defines a structure for controlling and communicating with an SPI device.
  * @details This structure contains all the registers used in the Serial Peripheral Interface(SPI).
  * The registers used are: communication_control, clock_control register, TX and RX Data registers,
  * Interrupt Enable register, Communication and FIFO status registers, and an Input Qualification register.
@@ -202,14 +202,14 @@ typedef struct{
 /**
  * @var uint32_t comm_control
  * This is a 32-bit register that controls the communication
- * settings of the SSPI (Synchronous Serial Peripheral Interface) module. It may include settings such
+ * settings of the SPI (Synchronous Serial Peripheral Interface) module. It may include settings such
  * as clock polarity, clock phase, data order, and master/slave mode.
  */
     uint32_t    comm_control;
 /**
  * @var uint32_t clk_control
  * The clk_control property is a 32-bit register that controls the
- * clock signal used by the SSPI (Synchronous Serial Peripheral Interface) module. It can be used to
+ * clock signal used by the SPI (Synchronous Serial Peripheral Interface) module. It can be used to
  * set the clock frequency, phase, and polarity.
  */
     uint32_t    clk_control;
@@ -226,14 +226,14 @@ typedef struct{
 * The above code is declaring a structure named "Data" and a variable named "data_rx" of that
 * structure type. The structure has a member named "data_rx" which is of type "unsigned int" and is
 * used to receive the data from a Serial Peripheral Interface (SPI) communication protocol. This register is used
-* to read the data received from the SSPI device during data transfer operations.
+* to read the data received from the SPI device during data transfer operations.
 * The comment indicates that the data size can be 8, 16, or 32 bits. " 
 */
     Data        data_rx;
 /**
  * @var uint32_t intr_en
  * The "intr_en" property is a 32-bit register that controls the
- * interrupt enable status for various events in the SSPI (Synchronous Serial Peripheral Interface)
+ * interrupt enable status for various events in the SPI (Synchronous Serial Peripheral Interface)
  * module. These events include transmit buffer empty, receive buffer full, and various error
  * conditions. By setting the appropriate bits in this register, the interrupt will be enbled or disabled.
  */
@@ -241,14 +241,14 @@ typedef struct{
 /**
  * @var uint32_t fifo_status
  * The fifo_status property is an 32-bit register that indicates the
- * status of the FIFO (First-In-First-Out) buffer in the SSPI (Synchronous Serial Peripheral Interface)
+ * status of the FIFO (First-In-First-Out) buffer in the SPI (Synchronous Serial Peripheral Interface)
  * module. It can be used to determine if the FIFO is full, empty, or partially full.
  */
     uint32_t    fifo_status;
 /**
  * @var uint16_t comm_status
- * The SSPI Communication Status Register is an 16-bit register that
- * provides information about the current status of the SSPI communication. It may contain information
+ * The SPI Communication Status Register is an 16-bit register that
+ * provides information about the current status of the SPI communication. It may contain information
  * such as whether the communication is currently active, whether there are any errors in the
  * communication, or whether the communication has been completed successfully.
  */
@@ -262,15 +262,15 @@ typedef struct{
     uint16_t    reserve0;
 /**
  * @var uint8_t qual
- * The "qual" property is the SSPI Input Qualification Control Register,
- * which is an 8-bit register used to set the input qualification level for the SSPI receiver. This
- * register determines the minimum pulse width required for the SSPI receiver to recognize a valid
+ * The "qual" property is the SPI Input Qualification Control Register,
+ * which is an 8-bit register used to set the input qualification level for the SPI receiver. This
+ * register determines the minimum pulse width required for the SPI receiver to recognize a valid
  * input signal. 
  */
     uint8_t     qual;
 /**
  * @var uint8_t reserve5
- * The reserve5 is an 8-bit reserved field in the sspi_struct. It is not
+ * The reserve5 is an 8-bit reserved field in the spi_struct. It is not
  * used for any specific purpose and is left unused for future modifications or updates to the
  * structure.
  */
@@ -282,7 +282,7 @@ typedef struct{
  * expansion or compatibility with other systems.
  */
     uint16_t    reserve2;
-}sspi_struct;
+}spi_struct;
 
 struct spi_mindgrove_data {
 	struct spi_context ctx;
