@@ -17,7 +17,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/init.h>
-#define DT_DRV_COMPAT mindgrove_i2c0
+#define DT_DRV_COMPAT mindgrove_i2c
 #include <stdint.h>
 #include <stdlib.h>
 #include <zephyr/drivers/i2c.h>

@@ -4,10 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 menuconfig GPIO_MINDGROVE
-	bool "seciot GPIO driver"
+	bool "Mindgrove GPIO driver"
 	default y
 	help
-	  This option enables the Secseciot GPIO driver.
+	  This option enables the Mindgrove GPIO driver.
 
 config GPIO_INIT_PRIORITY
 	int "GPIO init priority"

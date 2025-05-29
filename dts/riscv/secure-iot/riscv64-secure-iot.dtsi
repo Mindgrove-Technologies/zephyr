@@ -103,11 +103,11 @@
     };
     
     i2c0: i2c@44000 {
-           compatible = "mindgrove,i2c0";
+           compatible = "mindgrove,i2c";
            reg= <0x0 0x44000 0x0 0x100>;
     };
     // i2c1: i2c@44100 {
-    //   compatible = "mindgrove,i2c0";
+    //   compatible = "mindgrove,i2c";
     //   reg= <0x0 0x44100 0x0 0x100>;
     // };
 
