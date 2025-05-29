@@ -11,7 +11,7 @@
 #include <zephyr/arch/cpu.h>
 #include <zephyr/drivers/uart.h>
 
-#define DT_DRV_COMPAT mindgrove_uart0
+#define DT_DRV_COMPAT mindgrove_uart
 
 #define CONFIG_UART_SHAKTI_PORT 1
 
