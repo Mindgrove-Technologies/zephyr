@@ -21,7 +21,7 @@ typedef void (*mindgrove_cfg_func_t)(void);
 
 typedef void (*gpio_mindgrove_cfg_func_t)(void);
 
-typedef struct gpio_mingrove_regs_t
+typedef struct gpio_mindgrove_regs_t
 {
     uint32_t  direction;               /*! direction register */
     uint32_t  reserved0;                /*! reserved for future use */
@@ -62,14 +62,14 @@ struct gpio_mindgrove_data {
 #define DEV_GPIO_CFG(dev)						\
 	((const struct gpio_mindgrove_config * const)(dev)->config)
 #define DEV_GPIO(dev)							\
-	((volatile struct gpio_mingrove_regs_t *)(DEV_GPIO_CFG(dev))->gpio_base_addr)
+	((volatile struct gpio_mindgrove_regs_t *)(DEV_GPIO_CFG(dev))->gpio_base_addr)
 #define DEV_GPIO_DATA(dev)				\
 	((struct gpio_mindgrove_data *)(dev)->data)
 
 
 int gpio_mindgrove_init(const struct device *dev){
     
-    volatile struct gpio_mingrove_regs_t *gpio = DEV_GPIO(dev);
+    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
     const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
 
     // gpio = GPIO_START;
@@ -82,7 +82,7 @@ static int gpio_mindgrove_pin_configure (const struct device *dev,
                         gpio_pin_t pin, 
                         gpio_flags_t flags){
 
-    volatile struct gpio_mingrove_regs_t *gpio = DEV_GPIO(dev);
+    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
     const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
     // printk("GPIO MODE: %d\n", cfg->gpio_mode);
     
@@ -103,7 +103,7 @@ static int gpio_mindgrove_pin_configure (const struct device *dev,
 static int gpio_mindgrove_pin_get_raw(const struct device *dev,
                     gpio_pin_t pin)
 {
-    volatile struct gpio_mingrove_regs_t *gpio = DEV_GPIO(dev);
+    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
     return gpio->data;
 
 }
@@ -111,7 +111,7 @@ static int gpio_mindgrove_pin_get_raw(const struct device *dev,
 static int gpio_mindgrove_pin_set_raw(const struct device *dev,
                     gpio_pin_t pin)
 {
-    volatile struct gpio_mingrove_regs_t *gpio = DEV_GPIO(dev);   
+    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);   
     const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
     // printf("GPIO Set Addr:%#x, Pin: %d",&(gpio ->set), pin);
     gpio ->set = pin;
@@ -125,7 +125,7 @@ static int gpio_mindgrove_pin_toggle(const struct device *dev,
                     gpio_pin_t pin)
 {
     // printf("toggle pin\n");
-    volatile struct gpio_mingrove_regs_t *gpio = DEV_GPIO(dev);
+    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
     gpio ->toggle = pin;
 
     return 0;
@@ -134,7 +134,7 @@ static int gpio_mindgrove_pin_toggle(const struct device *dev,
 static int gpio_mindgrove_pin_clear_raw(const struct device *dev,
                     gpio_pin_t pin)
 {
-    volatile struct gpio_mingrove_regs_t *gpio = DEV_GPIO(dev);   
+    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);   
     // printf("GPIO Clear Addr:%#x, Pin: %d",&(gpio ->clear), pin);
     gpio ->clear = pin;
     // *((uint32_t*)(0x40218))=(1<<pin);
@@ -158,7 +158,7 @@ static inline unsigned int gpio_mindgrove_pin_irq(unsigned int base_irq, int pin
 static int gpio_mindgrove_irq_handler(const struct device *dev)
 {
     struct gpio_mindgrove_data *data = DEV_GPIO_DATA(dev);
-    volatile struct gpio_mingrove_regs_t *gpio_reg = DEV_GPIO(dev);
+    volatile struct gpio_mindgrove_regs_t *gpio_reg = DEV_GPIO(dev);
     const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev); 
 
     uint8_t pin = ((uint8_t)(cfg->gpio_irq_base >> CONFIG_1ST_LEVEL_INTERRUPT_BITS) - 1) - 1 ; // This logic needs fixing
@@ -179,7 +179,7 @@ static int gpio_mindgrove_pin_interrupt_configure(const struct device *dev,
                                                 gpio_pin_t pin, 
                                                 gpio_flags_t flag)
 {
-    volatile struct gpio_mingrove_regs_t *gpio_reg = DEV_GPIO(dev);
+    volatile struct gpio_mindgrove_regs_t *gpio_reg = DEV_GPIO(dev);
     const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
 
     // Initially disable interrupt for all 32 GPIOs

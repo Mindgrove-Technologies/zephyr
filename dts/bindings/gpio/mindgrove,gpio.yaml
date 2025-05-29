@@ -1,7 +1,7 @@
-# Copyright (c) 2018, SiFive Inc.
+# Copyright (c) 2025 Mindgrove Technologies Private Limited.
 # SPDX-License-Identifier: Apache-2.0
 
-description: SECIOT GPIO node
+description: Mindgrove GPIO node
 
 compatible: "mindgrove,gpio"
 
