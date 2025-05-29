@@ -10,18 +10,18 @@
 #include <zephyr/devicetree.h>
 // /home/suneeth/WORK/MG_Z/zephyr/include/zephyr/devicetree.h
 
-#include "gpio_shakti.h"
+#include "gpio_mindgrove.h"
 
 #include <zephyr/drivers/gpio/gpio_utils.h>
 
 
-#define DT_DRV_COMPAT shakti_gpio
+#define DT_DRV_COMPAT mindgrove_gpio
 
-typedef void (*shakti_cfg_func_t)(void);
+typedef void (*mindgrove_cfg_func_t)(void);
 
-typedef void (*gpio_shakti_cfg_func_t)(void);
+typedef void (*gpio_mindgrove_cfg_func_t)(void);
 
-typedef struct gpio_shakti_regs_t
+typedef struct gpio_mindgrove_regs_t
 {
     uint32_t  direction;               /*! direction register */
     uint32_t  reserved0;                /*! reserved for future use */
@@ -42,16 +42,16 @@ typedef struct gpio_shakti_regs_t
 };
 
 
-struct gpio_shakti_config{
+struct gpio_mindgrove_config{
 /* gpio_driver_config needs to be first */
     struct gpio_driver_config common;
     uintptr_t gpio_base_addr;
     uint32_t gpio_irq_base;
-    gpio_shakti_cfg_func_t gpio_cfg_func;
+    gpio_mindgrove_cfg_func_t gpio_cfg_func;
     uint32_t gpio_mode;
 };
 
-struct gpio_shakti_data {
+struct gpio_mindgrove_data {
 
     struct gpio_driver_data common;
     sys_slist_t cb;
@@ -60,17 +60,17 @@ struct gpio_shakti_data {
 
 /* Helper Macros for GPIO */
 #define DEV_GPIO_CFG(dev)						\
-	((const struct gpio_shakti_config * const)(dev)->config)
+	((const struct gpio_mindgrove_config * const)(dev)->config)
 #define DEV_GPIO(dev)							\
-	((volatile struct gpio_shakti_regs_t *)(DEV_GPIO_CFG(dev))->gpio_base_addr)
+	((volatile struct gpio_mindgrove_regs_t *)(DEV_GPIO_CFG(dev))->gpio_base_addr)
 #define DEV_GPIO_DATA(dev)				\
-	((struct gpio_shakti_data *)(dev)->data)
+	((struct gpio_mindgrove_data *)(dev)->data)
 
 
-int gpio_shakti_init(const struct device *dev){
+int gpio_mindgrove_init(const struct device *dev){
     
-    volatile struct gpio_shakti_regs_t *gpio = DEV_GPIO(dev);
-    const struct gpio_shakti_config *cfg = DEV_GPIO_CFG(dev);
+    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
+    const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
 
     // gpio = GPIO_START;
     // printk("Initialization Done\n");
@@ -78,12 +78,12 @@ int gpio_shakti_init(const struct device *dev){
 }
 
 
-static int gpio_shakti_pin_configure (const struct device *dev, 
+static int gpio_mindgrove_pin_configure (const struct device *dev, 
                         gpio_pin_t pin, 
                         gpio_flags_t flags){
 
-    volatile struct gpio_shakti_regs_t *gpio = DEV_GPIO(dev);
-    const struct gpio_shakti_config *cfg = DEV_GPIO_CFG(dev);
+    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
+    const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
     // printk("GPIO MODE: %d\n", cfg->gpio_mode);
     
     if(flags & GPIO_OUTPUT){
@@ -100,19 +100,19 @@ static int gpio_shakti_pin_configure (const struct device *dev,
     return 0;
 }
 
-static int gpio_shakti_pin_get_raw(const struct device *dev,
+static int gpio_mindgrove_pin_get_raw(const struct device *dev,
                     gpio_pin_t pin)
 {
-    volatile struct gpio_shakti_regs_t *gpio = DEV_GPIO(dev);
+    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
     return gpio->data;
 
 }
 
-static int gpio_shakti_pin_set_raw(const struct device *dev,
+static int gpio_mindgrove_pin_set_raw(const struct device *dev,
                     gpio_pin_t pin)
 {
-    volatile struct gpio_shakti_regs_t *gpio = DEV_GPIO(dev);   
-    const struct gpio_shakti_config *cfg = DEV_GPIO_CFG(dev);
+    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);   
+    const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
     // printf("GPIO Set Addr:%#x, Pin: %d",&(gpio ->set), pin);
     gpio ->set = pin;
     // printk("set has been done \n");
@@ -121,20 +121,20 @@ static int gpio_shakti_pin_set_raw(const struct device *dev,
     return 0;
 }
 
-static int gpio_shakti_pin_toggle(const struct device *dev,
+static int gpio_mindgrove_pin_toggle(const struct device *dev,
                     gpio_pin_t pin)
 {
     // printf("toggle pin\n");
-    volatile struct gpio_shakti_regs_t *gpio = DEV_GPIO(dev);
+    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
     gpio ->toggle = pin;
 
     return 0;
 }
 
-static int gpio_shakti_pin_clear_raw(const struct device *dev,
+static int gpio_mindgrove_pin_clear_raw(const struct device *dev,
                     gpio_pin_t pin)
 {
-    volatile struct gpio_shakti_regs_t *gpio = DEV_GPIO(dev);   
+    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);   
     // printf("GPIO Clear Addr:%#x, Pin: %d",&(gpio ->clear), pin);
     gpio ->clear = pin;
     // *((uint32_t*)(0x40218))=(1<<pin);
@@ -145,7 +145,7 @@ static int gpio_shakti_pin_clear_raw(const struct device *dev,
 
 //-------Function WIP----------
 
-static inline unsigned int gpio_shakti_pin_irq(unsigned int base_irq, int pin)
+static inline unsigned int gpio_mindgrove_pin_irq(unsigned int base_irq, int pin)
 {
     unsigned int level = irq_get_level(base_irq);
     volatile unsigned int pin_irq = 0;
@@ -155,11 +155,11 @@ static inline unsigned int gpio_shakti_pin_irq(unsigned int base_irq, int pin)
     return pin_irq;
 }
 
-static int gpio_shakti_irq_handler(const struct device *dev)
+static int gpio_mindgrove_irq_handler(const struct device *dev)
 {
-    struct gpio_shakti_data *data = DEV_GPIO_DATA(dev);
-    volatile struct gpio_shakti_regs_t *gpio_reg = DEV_GPIO(dev);
-    const struct gpio_shakti_config *cfg = DEV_GPIO_CFG(dev); 
+    struct gpio_mindgrove_data *data = DEV_GPIO_DATA(dev);
+    volatile struct gpio_mindgrove_regs_t *gpio_reg = DEV_GPIO(dev);
+    const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev); 
 
     uint8_t pin = ((uint8_t)(cfg->gpio_irq_base >> CONFIG_1ST_LEVEL_INTERRUPT_BITS) - 1) - 1 ; // This logic needs fixing
     
@@ -170,17 +170,17 @@ static int gpio_shakti_irq_handler(const struct device *dev)
     return 0;
 }
 
-static void gpio_shakti_isr(const struct device *dev)
+static void gpio_mindgrove_isr(const struct device *dev)
 {
     printf("Entered GPIO ISR()\n");
 }
 
-static int gpio_shakti_pin_interrupt_configure(const struct device *dev, 
+static int gpio_mindgrove_pin_interrupt_configure(const struct device *dev, 
                                                 gpio_pin_t pin, 
                                                 gpio_flags_t flag)
 {
-    volatile struct gpio_shakti_regs_t *gpio_reg = DEV_GPIO(dev);
-    const struct gpio_shakti_config *cfg = DEV_GPIO_CFG(dev);
+    volatile struct gpio_mindgrove_regs_t *gpio_reg = DEV_GPIO(dev);
+    const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
 
     // Initially disable interrupt for all 32 GPIOs
     gpio_reg->intr_config &= ~(0xFFFFFFFF); 
@@ -194,40 +194,40 @@ static int gpio_shakti_pin_interrupt_configure(const struct device *dev,
         gpio_reg->intr_config |= (1 << pin);
     }
 
-    irq_enable(gpio_shakti_pin_irq(cfg->gpio_irq_base, pin));
+    irq_enable(gpio_mindgrove_pin_irq(cfg->gpio_irq_base, pin));
 
     return 0;
 }
 
-static const struct gpio_driver_api gpio_shakti_driver = {
-    .pin_configure              = gpio_shakti_pin_configure,
-    .port_get_raw               = gpio_shakti_pin_get_raw,   
-    .port_set_bits_raw          = gpio_shakti_pin_set_raw,    
-    .port_clear_bits_raw        = gpio_shakti_pin_clear_raw,
-    .port_toggle_bits           = gpio_shakti_pin_toggle, 
-    .pin_interrupt_configure    = gpio_shakti_pin_interrupt_configure,  
+static const struct gpio_driver_api gpio_mindgrove_driver = {
+    .pin_configure              = gpio_mindgrove_pin_configure,
+    .port_get_raw               = gpio_mindgrove_pin_get_raw,   
+    .port_set_bits_raw          = gpio_mindgrove_pin_set_raw,    
+    .port_clear_bits_raw        = gpio_mindgrove_pin_clear_raw,
+    .port_toggle_bits           = gpio_mindgrove_pin_toggle, 
+    .pin_interrupt_configure    = gpio_mindgrove_pin_interrupt_configure,  
 };
 
 // #define		IRQ_INIT(n)					\
 // IRQ_CONNECT(n+32,   \
 // 		1,		\
-// 		gpio_shakti_irq_handler,    \
+// 		gpio_mindgrove_irq_handler,    \
 // 		NULL,				\
 // 		0)
 
-static void gpio_shakti_cfg(uint32_t gpio_pin){
+static void gpio_mindgrove_cfg(uint32_t gpio_pin){
 
     // static const int irq_line= gpio_pin + 1;
     gpio_pin = (1 << gpio_pin);
     // IRQ_CONNECT(1, 1,
-    //             gpio_shakti_irq_handler,
+    //             gpio_mindgrove_irq_handler,
     //             NULL, 0);     
 
     // IRQ_INIT(gpio_pin);
     // irq_enable(gpio_sha);
 
     // IRQ_CONNECT(irq_line, 1,
-    //             gpio_shakti_irq_handler,
+    //             gpio_mindgrove_irq_handler,
     //             NULL, 0);
 // #if DT_INST_IRQ_HAS_IDX(0, 0)
 // 	IRQ_INIT(0);
@@ -327,29 +327,29 @@ static void gpio_shakti_cfg(uint32_t gpio_pin){
 // #endif
 }
 
-static const struct gpio_shakti_config gpio_shakti_config0 ={
+static const struct gpio_mindgrove_config gpio_mindgrove_config0 ={
     // .common = {
     //     .port_pin_mask  = GPIO_PORT_PIN_MASK_FROM_DT_INST(0),
     // },
     .gpio_base_addr     = GPIO_START,
     .gpio_irq_base      = GPIO_IRQ_BASE,
-    .gpio_cfg_func      = gpio_shakti_cfg,
+    .gpio_cfg_func      = gpio_mindgrove_cfg,
     .gpio_mode          = DT_PROP(DT_NODELABEL(gpio0), config_gpio)
 };
 
-static struct gpio_shakti_data gpio_shakti_data0 ={
+static struct gpio_mindgrove_data gpio_mindgrove_data0 ={
 
-    .cb = gpio_shakti_isr
+    .cb = gpio_mindgrove_isr
 };
 
 #define GPIO_INIT(inst)	\
 DEVICE_DT_INST_DEFINE(inst, \
-                gpio_shakti_init,  \
+                gpio_mindgrove_init,  \
                 NULL, \
-                &gpio_shakti_data0, &gpio_shakti_config0, \
+                &gpio_mindgrove_data0, &gpio_mindgrove_config0, \
                 PRE_KERNEL_1, CONFIG_GPIO_INIT_PRIORITY, \
-                &gpio_shakti_driver); 
+                &gpio_mindgrove_driver); 
 
-// IRQ_CONNECT(1, 1, gpio_shakti_isr, DEVICE_DT_GET(DT_NODELABEL(gpio0)), 0));
+// IRQ_CONNECT(1, 1, gpio_mindgrove_isr, DEVICE_DT_GET(DT_NODELABEL(gpio0)), 0));
 
 DT_INST_FOREACH_STATUS_OKAY(GPIO_INIT)

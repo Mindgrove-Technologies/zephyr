@@ -1,10 +1,10 @@
-# Copyright (c) 2018, Shakti Inc.
+# Copyright (c) 2025 Mindgrove Technologies Private Limited.
 # SPDX-License-Identifier: Apache-2.0
 
 description: |
-  shakti PWM controller.
+  Mindgrove PWM controller.
 
-compatible: "shakti,pwm"
+compatible: "mindgrove,pwm"
 
 properties:
   reg:

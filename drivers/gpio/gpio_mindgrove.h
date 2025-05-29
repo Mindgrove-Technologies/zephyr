@@ -2,9 +2,6 @@
 extern "C" {
 #endif
 
-// #ifndef ZEPHYR_INCLUDE_DRIVERS_GPIO_GPIO_SHAKTI_H_
-// #define ZEPHYR_INCLUDE_DRIVERS_GPIO_GPIO_SHAKTI_H_
-
 #include <stdint.h>
 #include <errno.h>
 

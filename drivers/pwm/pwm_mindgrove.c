@@ -1,11 +1,11 @@
 /**
  * Project                           : Secure IoT SoC
- * Name of the file                  : pwm_shakti.c
+ * Name of the file                  : pwm_mindgrove.c
  * Brief Description of file         : This is a zephyr rtos PWM Driver file for Mindgrove Silicon's PWM Peripheral.
  * Name of Author                    : Harini Sree.S
  * Email ID                          : harini@mindgrovetech.in
  * 
- * @file pwm_shakti.c
+ * @file pwm_mindgrove.c
  * @author Harini Sree.S (harini@mindgrovetech.in)
  * @brief This is a zephyr rtos PWM Driver file for Mindgrove Silicon's PWM Peripheral.
  * @version 0.1
@@ -20,7 +20,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define DT_DRV_COMPAT shakti_pwm
+#define DT_DRV_COMPAT mindgrove_pwm
 
 #include <stdint.h>
 #include <errno.h>
@@ -119,10 +119,10 @@ typedef struct
 }PWM_Type;
 
 /*Data structure*/
-struct pwm_shakti_data {};
+struct pwm_mindgrove_data {};
 
 /*Zephyr configuration structure*/
-struct pwm_shakti_cfg {
+struct pwm_mindgrove_cfg {
 	uint32_t base;
 	uint32_t f_sys;
 	uint32_t cmpwidth;
@@ -141,9 +141,9 @@ volatile unsigned int* pinmux_config_reg = (volatile unsigned int* ) PINMUX_CONF
  * @param[in] dev The device declared in devicetree
  * @param[Out] No output parameter
  */
-static int pwm_shakti_init(const struct device *dev)
+static int pwm_mindgrove_init(const struct device *dev)
 {
-	const struct pwm_shakti_cfg *cfg = dev->config;
+	const struct pwm_mindgrove_cfg *cfg = dev->config;
 	char *pwm_no;
 	pwm_no = dev->name;
 	int channel = pwm_no[6] - '0';
@@ -287,7 +287,7 @@ void pwm_clear(const struct device *dev, int channel)
 	PWM_REG(channel)->deadband_delay=0;
 }
 
-/** @fn pwm_shakti_set_cycles
+/** @fn pwm_mindgrove_set_cycles
  * @brief Set the period and pulse width for a specific pwm module
  * @details This function will set the period and pulse width for a specific pwm module
  * @param[in] dev The device declared in devicetree
@@ -297,9 +297,9 @@ void pwm_clear(const struct device *dev, int channel)
  * 			pwm_flags_t (flags- polarity of a PWM channel.)
  * @param[Out] No output parameter
  */
-static int pwm_shakti_set_cycles(const struct device *dev, uint32_t channel,uint32_t period_cycles, uint32_t pulse_cycles, pwm_flags_t flags)
+static int pwm_mindgrove_set_cycles(const struct device *dev, uint32_t channel,uint32_t period_cycles, uint32_t pulse_cycles, pwm_flags_t flags)
 {
-	const struct pwm_shakti_cfg *cfg = dev->config;
+	const struct pwm_mindgrove_cfg *cfg = dev->config;
 	uint32_t deadband_delay;	/*32bit field to store deadband delay value*/ 
 	uint32_t control_reg;		/*32bit field to store control register value*/
 	uint16_t prescale;			/*32bit field to store prescale value*/
@@ -372,24 +372,24 @@ static int pwm_shakti_set_cycles(const struct device *dev, uint32_t channel,uint
 
 /* Device Instantiation */
 
-static const struct pwm_driver_api pwm_shakti_api = {
-	.set_cycles = pwm_shakti_set_cycles,
+static const struct pwm_driver_api pwm_mindgrove_api = {
+	.set_cycles = pwm_mindgrove_set_cycles,
 };
-// .cmpwidth = DT_INST_PROP(n, shakti_compare_width), \
+// .cmpwidth = DT_INST_PROP(n, mindgrove_compare_width), \
 
-#define PWM_SHAKTI_INIT(n)	\
-	static struct pwm_shakti_data pwm_shakti_data_##n;	\
-	static const struct pwm_shakti_cfg pwm_shakti_cfg_##n = {	\
+#define PWM_MINDGROVE_INIT(n)	\
+	static struct pwm_mindgrove_data pwm_mindgrove_data_##n;	\
+	static const struct pwm_mindgrove_cfg pwm_mindgrove_cfg_##n = {	\
 			.base = PWM_START_##n ,	\
 			.f_sys = CLOCK_FREQUENCY,  \
 		};	\
 	DEVICE_DT_INST_DEFINE(n,	\
-			    pwm_shakti_init,	\
+			    pwm_mindgrove_init,	\
 			    NULL,	\
-			    &pwm_shakti_data_##n,	\
-			    &pwm_shakti_cfg_##n,	\
+			    &pwm_mindgrove_data_##n,	\
+			    &pwm_mindgrove_cfg_##n,	\
 			    POST_KERNEL,	\
 			    CONFIG_PWM_INIT_PRIORITY,	\
-			    &pwm_shakti_api);
+			    &pwm_mindgrove_api);
 
-DT_INST_FOREACH_STATUS_OKAY(PWM_SHAKTI_INIT)
+DT_INST_FOREACH_STATUS_OKAY(PWM_MINDGROVE_INIT)
