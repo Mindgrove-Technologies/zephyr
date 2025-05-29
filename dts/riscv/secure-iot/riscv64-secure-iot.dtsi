@@ -50,7 +50,7 @@
     plic: interrupt-controller@c000000 {
       #address-cells = <0>;
 			#interrupt-cells = <2>;
-      compatible = "mindgrove,plic0";
+      compatible = "mindgrove,plic";
       interrupt-controller;
       reg = <0x0c000000 0x00000080
 			       0x0c002000 0x00000008

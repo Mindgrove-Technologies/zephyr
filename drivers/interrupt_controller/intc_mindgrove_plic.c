@@ -12,7 +12,7 @@
 
 // Zephyr-plic_mindgrove
 
-#define DT_DRV_COMPAT mindgrove_plic0
+#define DT_DRV_COMPAT mindgrove_plic
 #define PLIC_BASE_ADDRESS DT_INST_PROP(0, base)
 
 //--------------------------------
@@ -97,13 +97,6 @@ volatile int key=0;
 // 	uint32_t interrupt_id;
 
 // 	log_trace("\ninterrupt_claim_request entered\n");
-
-// 	/*
-// 	   return the interrupt id. This will be used to index into the plic isr table.
-// 	   From the isr table, the exact isr will be called
-
-// 	   refer https://gitlab.com/mindgroveproject/uncore/devices/blob/master/plic/plic.bsv as on 26/8/2019
-// 	 */
 
 // 	interrupt_claim_address = (uint32_t *)(PLIC_BASE_ADDRESS +
 // 					       PLIC_CLAIM_OFFSET);
