@@ -15,6 +15,7 @@
 #define DT_DRV_COMPAT shakti_uart0
 
 #define CONFIG_UART_SHAKTI_PORT_0 1
+#define CONFIG_UART_SHAKTI_PORT_1 1
 
 #ifdef CONFIG_BOARD_SHAKTI_VAJRA
 
@@ -61,8 +62,6 @@
 #define STS_TX_FULL 	    1 << 1
 #define STS_TX_EMPTY 	    1 << 0
 
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-
 #define RX_FIFO_80_FULL_IE  1 << 8
 #define BREAK_ERROR_IE      1 << 7
 #define FRAME_ERROR_IE      1 << 6
@@ -78,7 +77,6 @@
 #define PARITY(x) ( (x & 3)  << 3 ) 				/*! 00 --- No parity; 01 -Odd Parity; 10 - Even Parity;  11 - Unused */
 #define UART_TX_RX_LEN(x)       ( (x & 0x3) << 5) 	/*! Maximum length 32 bits */
 
-#endif /* CONFIG_UART_INTERRUPT_DRIVER */
 /*
  * RX/TX Threshold count to generate TX/RX Interrupts.
  * Used by txctrl and rxctrl registers
@@ -494,7 +492,7 @@ static int uart_shakti_init(struct device *dev)
 	// uart->delay = 0;
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	/* Ensure that uart IRQ is disabled initially */
-	uart->ie = 0;
+	uart->INTR_EN = 0;
 
 	/* Setup IRQ handler */
 	cfg->cfg_func();
@@ -573,20 +571,22 @@ static void uart_shakti_irq_cfg_func_1(void);
 #endif
 
 static const struct uart_shakti_device_config uart_shakti_dev_cfg_1 = {
-	.port         = DT_SHAKTI_UART_1_BASE_ADDR,
-	.sys_clk_freq = DT_SHAKTI_UART_1_CLK_FREQ,
-	.baud_rate    = DT_SHAKTI_UART_1_CURRENT_SPEED,
-	.rxcnt_irq    = CONFIG_UART_SHAKTI_PORT_1_RXCNT_IRQ,
-	.txcnt_irq    = CONFIG_UART_SHAKTI_PORT_1_TXCNT_IRQ,
+	.port         = 0X11700,
+	.sys_clk_freq = 30000000,
+	.baud_rate    = 115200,
+	.rxcnt_irq    = 0,
+	.txcnt_irq    = 0,
+	// .pcfg	      = PINCTRL_DT_INST_DEV_CONFIG_GET(0),
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	.cfg_func     = uart_shakti_irq_cfg_func_1,
 #endif
 };
 
-DEVICE_AND_API_INIT(uart_shakti_1, CONFIG_SHAKTI_UART_1_LABEL,
+DEVICE_DT_INST_DEFINE(1,
 		    uart_shakti_init,
+		    NULL,
 		    &uart_shakti_data_1, &uart_shakti_dev_cfg_1,
-		    PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
+		    PRE_KERNEL_1, CONFIG_SERIAL_INIT_PRIORITY,
 		    (void *)&uart_shakti_driver_api);
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
