@@ -1,11 +1,11 @@
 /**
  * Project                           : Secure IoT SoC
- * Name of the file                  : i2c_v2_driver.c
+ * Name of the file                  : i2c_mindgrove.c
  * Brief Description of file         : This is a Baremetal I2C Driver file for Mindgrove Silicon's I2C Peripheral.
  * Name of Author                    : Vishwajith.N.S 
  * Email ID                          : vishwajithns6@gmail.com
  * 
- * @file i2c_v2_driver.c
+ * @file i2c_mindgrove.c
  * @author Vishwajith .N.S (vishwajithns6@gmail.com)
  * @brief This is a Baremetal I2C Driver file for Mindgrove Silicon's I2C Peripheral.
  * @version 0.2
@@ -17,7 +17,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/init.h>
-#define DT_DRV_COMPAT shakti_i2c0
+#define DT_DRV_COMPAT mindgrove_i2c
 #include <stdint.h>
 #include <stdlib.h>
 #include <zephyr/drivers/i2c.h>
@@ -66,9 +66,9 @@
 #define I2C_DATA     0x10
 #define I2C_STATUS   0x18
 #define I2C_SCL_DIV  0x38
-#define WRITE_TO_REG(confg,offset,value)   *((uint32_t*)((((struct i2c_seciot_cfg*)(confg))->base)+offset)) = value
-#define READ_REG(confg,offset) *((uint32_t*)((((struct i2c_seciot_cfg*)(confg))->base)+offset))
-#define READ_REG_8BIT(confg,offset) *((uint8_t*)((((struct i2c_seciot_cfg*)(confg))->base)+offset))
+#define WRITE_TO_REG(confg,offset,value)   *((uint32_t*)((((struct i2c_mindgrove_cfg*)(confg))->base)+offset)) = value
+#define READ_REG(confg,offset) *((uint32_t*)((((struct i2c_mindgrove_cfg*)(confg))->base)+offset))
+#define READ_REG_8BIT(confg,offset) *((uint8_t*)((((struct i2c_mindgrove_cfg*)(confg))->base)+offset))
 /* Struct to access I2C registers as 32 bit registers */
 
 typedef struct
@@ -145,7 +145,7 @@ i2c_struct* i2c_instance[MAX_I2C_COUNT];
 
 
 
-struct i2c_seciot_cfg{
+struct i2c_mindgrove_cfg{
     uint32_t base;
     uint32_t scl_clk;
     uint32_t sys_clk;
@@ -161,11 +161,11 @@ static void i2c_target_address(const struct device *dev,uint8_t slave_address,ui
 static void i2c_write_page(const struct device *dev,uint8_t *data,uint32_t length);
 static void i2c_write_byte(const struct device *dev,uint8_t data);
 static uint8_t i2c_read_byte(const struct device *dev);
-static int i2c_seciot_init(const struct device *dev);
-static int i2c_seciot_configure(const struct device *dev,uint32_t dev_config);
-static int i2c_seciot_write_msg(const struct device *dev,struct i2c_msg *msg,uint16_t addr);
-static int i2c_seciot_read_msg(const struct device *dev,struct i2c_msg *msg,uint16_t addr);
-static int i2c_seciot_transfer(const struct device *dev,struct i2c_msg *msgs,uint8_t num_msgs,uint16_t addr);		       
+static int i2c_mindgrove_init(const struct device *dev);
+static int i2c_mindgrove_configure(const struct device *dev,uint32_t dev_config);
+static int i2c_mindgrove_write_msg(const struct device *dev,struct i2c_msg *msg,uint16_t addr);
+static int i2c_mindgrove_read_msg(const struct device *dev,struct i2c_msg *msg,uint16_t addr);
+static int i2c_mindgrove_transfer(const struct device *dev,struct i2c_msg *msgs,uint8_t num_msgs,uint16_t addr);		       
 
 
 
@@ -182,7 +182,7 @@ static void delayms(long delay)
   }
 }
 static void i2c_start_bit_(const struct device *dev){
-    struct i2c_seciot_cfg *confg = (struct i2c_seciot_cfg *)dev->config;
+    struct i2c_mindgrove_cfg *confg = (struct i2c_mindgrove_cfg *)dev->config;
  WRITE_TO_REG(confg,I2C_CONTROL,I2C_START);
 #ifdef I2C_DEBUG
  printf("\nStart bit is transmitted!!!");
@@ -190,7 +190,7 @@ static void i2c_start_bit_(const struct device *dev){
 }
 
 static void i2c_end(const struct device *dev){
-    struct i2c_seciot_cfg *confg = (struct i2c_seciot_cfg *)dev->config;
+    struct i2c_mindgrove_cfg *confg = (struct i2c_mindgrove_cfg *)dev->config;
   delayms(1);
   WRITE_TO_REG(confg,I2C_CONTROL,I2C_STOP);
   k_sched_unlock();
@@ -202,7 +202,7 @@ static void i2c_end(const struct device *dev){
 
 static void wait_till_txrx_operation_Completes_(const struct device *dev)
 {
-    struct i2c_seciot_cfg *confg = (struct i2c_seciot_cfg *)dev->config;
+    struct i2c_mindgrove_cfg *confg = (struct i2c_mindgrove_cfg *)dev->config;
     uint8_t timeout = 4;
     while ((READ_REG(confg,I2C_STATUS) & 0x01) && (--timeout)){
 	    delayms(DELAY);
@@ -222,7 +222,7 @@ static void wait_till_txrx_operation_Completes_(const struct device *dev)
 
 static void wait_till_I2c_bus_free_(const struct device *dev)
 {
-    struct i2c_seciot_cfg *confg = (struct i2c_seciot_cfg *)dev->config;
+    struct i2c_mindgrove_cfg *confg = (struct i2c_mindgrove_cfg *)dev->config;
      volatile uint8_t temp =(READ_REG(confg,I2C_STATUS));
 while (!((READ_REG(confg,I2C_STATUS))& 0x01)){
 #ifdef I2C_DEBUG
@@ -241,7 +241,7 @@ while (!((READ_REG(confg,I2C_STATUS))& 0x01)){
 static void i2c_target_address(const struct device *dev,uint8_t slave_address,uint8_t mode)
 {
   uint8_t dummy;
-   struct i2c_seciot_cfg *confg = (struct i2c_seciot_cfg *)dev->config;
+   struct i2c_mindgrove_cfg *confg = (struct i2c_mindgrove_cfg *)dev->config;
    k_sched_lock();
   wait_till_I2c_bus_free_(dev);//wait till bus is free
   //printf("slave addr:%#x mode:%d ",slave_address,mode);
@@ -276,7 +276,7 @@ static void i2c_write_page(const struct device *dev,uint8_t *data,uint32_t lengt
 }
 
 static void i2c_write_byte(const struct device *dev,uint8_t data){
-  struct i2c_seciot_cfg *confg = (struct i2c_seciot_cfg *)dev->config;
+  struct i2c_mindgrove_cfg *confg = (struct i2c_mindgrove_cfg *)dev->config;
   WRITE_TO_REG(confg,I2C_DATA,data);// write the data in data register
   wait_till_txrx_operation_Completes_(dev);// wait till the eight bits completely get transmitted
   delayms(DELAY);
@@ -290,25 +290,25 @@ static void i2c_write_byte(const struct device *dev,uint8_t data){
 }
 
 static uint8_t i2c_read_byte(const struct device *dev){
-  struct i2c_seciot_cfg *confg = (struct i2c_seciot_cfg *)dev->config;
+  struct i2c_mindgrove_cfg *confg = (struct i2c_mindgrove_cfg *)dev->config;
   uint8_t data = READ_REG_8BIT(confg,I2C_DATA);// write the data in data register
  // printf("Data recieved: %#x",data);
   delayms(DELAY);
   //waitfor(1000);
   return data;
 }
-static int i2c_seciot_init(const struct device *dev)
+static int i2c_mindgrove_init(const struct device *dev)
 {
-    const struct i2c_seciot_cfg *confg = dev->config;
+    const struct i2c_mindgrove_cfg *confg = dev->config;
     uint32_t dev_config = confg->scl_clk;
-    i2c_seciot_configure(dev,dev_config);
+    i2c_mindgrove_configure(dev,dev_config);
     return 0;
 
 }
-static int i2c_seciot_configure(const struct device *dev,uint32_t dev_config)
+static int i2c_mindgrove_configure(const struct device *dev,uint32_t dev_config)
 {
    //printk("Configuring I2C0!!!");
-   struct i2c_seciot_cfg *confg = (struct i2c_seciot_cfg *)dev->config;
+   struct i2c_mindgrove_cfg *confg = (struct i2c_mindgrove_cfg *)dev->config;
    uint32_t prescale = 1;
    uint32_t scl_div = (confg->sys_clk/((prescale+1)*confg->scl_clk))-1;
    WRITE_TO_REG(confg,I2C_CONTROL,I2C_PIN);
@@ -319,7 +319,7 @@ static int i2c_seciot_configure(const struct device *dev,uint32_t dev_config)
 }
 
 
-static int i2c_seciot_write_msg(const struct device *dev,struct i2c_msg *msg,uint16_t addr)
+static int i2c_mindgrove_write_msg(const struct device *dev,struct i2c_msg *msg,uint16_t addr)
 {
     i2c_target_address(dev,(uint8_t)addr,I2C_WRITE);
     uint8_t *data =msg->buf;
@@ -328,7 +328,7 @@ static int i2c_seciot_write_msg(const struct device *dev,struct i2c_msg *msg,uin
     i2c_end(dev);
     return 0;
 }
-static int i2c_seciot_read_msg(const struct device *dev,struct i2c_msg *msg,uint16_t addr)
+static int i2c_mindgrove_read_msg(const struct device *dev,struct i2c_msg *msg,uint16_t addr)
 {
     uint8_t length = msg->len;
     if(length == 1)
@@ -343,7 +343,7 @@ static int i2c_seciot_read_msg(const struct device *dev,struct i2c_msg *msg,uint
         return 1;
     }
 }
-static int i2c_seciot_transfer(const struct device *dev,struct i2c_msg *msgs,uint8_t num_msgs,uint16_t addr)		       
+static int i2c_mindgrove_transfer(const struct device *dev,struct i2c_msg *msgs,uint8_t num_msgs,uint16_t addr)		       
 {
 	/* Check for NULL pointers */
 	if (dev == NULL) {
@@ -357,36 +357,36 @@ static int i2c_seciot_transfer(const struct device *dev,struct i2c_msg *msgs,uin
 	if (msgs == NULL) {
 		return -EINVAL;
 	}
-k_mutex_lock(&(((struct i2c_seciot_cfg*)(dev->config))->mutex),K_FOREVER);
+k_mutex_lock(&(((struct i2c_mindgrove_cfg*)(dev->config))->mutex),K_FOREVER);
     for (int i = 0; i < num_msgs; i++) {
         delayms(10);
         if (msgs[i].flags & I2C_MSG_READ) {
-	    	i2c_seciot_read_msg(dev, &(msgs[i]), addr);
+	    	i2c_mindgrove_read_msg(dev, &(msgs[i]), addr);
 	    } else {
-	    	i2c_seciot_write_msg(dev, &(msgs[i]), addr);
+	    	i2c_mindgrove_write_msg(dev, &(msgs[i]), addr);
 	    }
-  k_mutex_unlock(&(((struct i2c_seciot_cfg*)(dev->config))->mutex));
+  k_mutex_unlock(&(((struct i2c_mindgrove_cfg*)(dev->config))->mutex));
     }
 }
 
-static struct i2c_driver_api i2c_seciot_api = {
-	.configure = i2c_seciot_configure,
-	.transfer = i2c_seciot_transfer,
+static struct i2c_driver_api i2c_mindgrove_api = {
+	.configure = i2c_mindgrove_configure,
+	.transfer = i2c_mindgrove_transfer,
 };
 
-#define I2C_SECIOT_INIT(n) \
-    static struct i2c_seciot_cfg i2c_seciot_cfg_##n = { \
+#define I2C_MINDGROVE_INIT(n) \
+    static struct i2c_mindgrove_cfg i2c_mindgrove_cfg_##n = { \
 		.base = DT_INST_PROP(n, base), \
 		.sys_clk = DT_INST_PROP(n, clock_frequency), \
 		.scl_clk = DT_INST_PROP(n, scl_frequency), \
 	}; \
 	I2C_DEVICE_DT_INST_DEFINE(n, \
-			    i2c_seciot_init, \
+			    i2c_mindgrove_init, \
 			    NULL, \
 			    NULL, \
-			    &i2c_seciot_cfg_##n, \
+			    &i2c_mindgrove_cfg_##n, \
 			    POST_KERNEL, \
 			    CONFIG_I2C_INIT_PRIORITY, \
-			    &i2c_seciot_api);
+			    &i2c_mindgrove_api);
 
-DT_INST_FOREACH_STATUS_OKAY(I2C_SECIOT_INIT)
+DT_INST_FOREACH_STATUS_OKAY(I2C_MINDGROVE_INIT)

@@ -1,23 +1,22 @@
-# Kconfig.fe310 - SiFive Freedom UART configuration option
 #
-# Copyright (c) 2017 Jean-Paul Etienne <fractalclone@gmail.com>
+# Copyright (c) 2025 Mindgrove Technologies Private Limited.
 #
 # SPDX-License-Identifier: Apache-2.0
 #
 
-menuconfig UART_SHAKTI
-	bool "shakti serial driver"
+menuconfig UART_MINDGROVE
+	bool "Mindgrove serial driver"
 	depends on SOC_RISCV64_SHAKTI
 	select SERIAL_HAS_DRIVER
 	select SERIAL_SUPPORT_INTERRUPT
 	help
-	  This option enables the Shakti serial driver.
+	  This option enables the Mindgrove's Serial Driver.
 
 # ---------- Port 0 ----------
 
 menuconfig UART_SHAKTI_PORT_0
-	bool "Enable SHAKTI Port 0"
-	depends on UART_SHAKTI
+	bool "Enable MINDGROVE Port 0"
+	depends on UART_MINDGROVE
 	help
 	  This tells the driver to configure the UART port at boot, depending on
 	  the additional configure options below.

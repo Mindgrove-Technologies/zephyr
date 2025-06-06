@@ -24,6 +24,12 @@ chosen {
 	clock-frequency = <100000000>;
 };
 
+&uart2 {
+	status = "okay";
+	current-speed = <115200>;
+	clock-frequency = <100000000>;
+};
+
 &i2c0 {
 	status = "ok";
 	base = <0x44000>;
@@ -36,6 +42,13 @@ chosen {
 // 	clock_frequency = <40000000>;
 // 	scl_frequency = <100000>;
 // };
+
+&watchdog{
+	status="okay";
+	rcycles=<5000>;
+	wcycles=<5000>;
+};
+
 &spi0 {
 		status = "okay";
 		sclk_configure = <0x0 0x0 0x10 0x0 0x0>;
@@ -103,4 +116,44 @@ chosen {
 
 	status = "okay";
 	base = <0xc000000>;
+};
+
+&pwm0 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm1 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm2 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm3 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm4 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm5 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm6 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm7 {
+	status = "okay";
+	db_configure = <0 4 5000>;
 };

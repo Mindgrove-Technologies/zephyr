@@ -1,9 +1,9 @@
-# Copyright (c) 2018, SiFive Inc.
+# Copyright (c) 2025 Mindgrove Technologies Private Limited.
 # SPDX-License-Identifier: Apache-2.0
 
-description: Shakti RISCV-V platform-local interrupt controller
+description: Mindgrove RISCV-V platform-local interrupt controller
 
-compatible: "shakti,plic0"
+compatible: "mindgrove,plic"
 
 include: riscv,plic0.yaml
 

@@ -388,6 +388,7 @@ microsys	MicroSys Electronics GmbH
 mikroe	MikroElektronika d.o.o.
 mikrotik	MikroTik
 miniand	Miniand Tech
+mindgrove	Mindgrove Technologies Pvt Ltd
 minix	MINIX Technology Ltd.
 miramems	MiraMEMS Sensing Technology Co., Ltd.
 mitsubishi	Mitsubishi Electric Corporation
