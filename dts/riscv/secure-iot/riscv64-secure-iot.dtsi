@@ -71,6 +71,11 @@
         reg= < 0x0 0x11400 0x0 0x100>;
     };    
 
+    uart2: serial@11500 {
+        compatible = "mindgrove,uart";
+        reg= < 0x0 0x11400 0x0 0x100>;
+    }; 
+
     spi0: spi@20000 {
             #address-cells = <1>;
             #size-cells = <0>;

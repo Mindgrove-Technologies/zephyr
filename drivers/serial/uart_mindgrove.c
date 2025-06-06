@@ -13,6 +13,9 @@
 #define DT_DRV_COMPAT mindgrove_uart
 
 #define CONFIG_UART_SHAKTI_PORT 1
+#define CONFIG_UART_SHAKTI_PORT_1	1
+#define CONFIG_UART_SHAKTI_PORT_2	1
+#define CONFIG_PINCTRL	1
 
 #ifdef CONFIG_BOARD_SHAKTI_VAJRA
 
@@ -98,6 +101,7 @@ struct uart_mindgrove_device_config {
 	uint32_t       baud_rate;
 	uint32_t       rxcnt_irq;
 	uint32_t       txcnt_irq;
+	const struct	pinctrl_dev_config *pcfg;
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	irq_cfg_func_t cfg_func;
 #endif
@@ -111,7 +115,7 @@ struct uart_mindgrove_data {
 };
 
 #define DEV_CFG(dev)						\
-	((const struct uart_mindgrove_device_config * const)	\
+	((struct uart_mindgrove_device_config * const)	\
 	 (dev)->config)
 #define DEV_UART(dev)						\
 	((struct uart_mindgrove_regs_t *)(DEV_CFG(dev))->port)
@@ -378,7 +382,7 @@ static void uart_mindgrove_irq_handler(void *arg)
 
 static int uart_mindgrove_init(struct device *dev)
 {
-	const struct uart_mindgrove_device_config * const cfg = DEV_CFG(dev);
+	struct uart_mindgrove_device_config * const cfg = DEV_CFG(dev);
 	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
 
 	//uart->base_addr = 0x11300;
@@ -396,6 +400,7 @@ static int uart_mindgrove_init(struct device *dev)
 
 	/* Setup IRQ handler */
 	cfg->cfg_func();
+
 #endif
 
 	return 0;
@@ -435,8 +440,8 @@ static void uart_mindgrove_irq_cfg_func_0(void);
 
 static const struct uart_mindgrove_device_config uart_mindgrove_dev_cfg_0 = {
 	.port         = 0X11300,
-	.sys_clk_freq = SHAKTI_UART_0_CLK_FREQUENCY,
-	.baud_rate    = SECIOT_VCU118_UART_BAUD,
+	.sys_clk_freq = SHAKTI_UART_1_CLK_FREQUENCY,
+	.baud_rate    = SECIOT_NEXYS_UART_BAUD,
 	.rxcnt_irq    = 0,
 	.txcnt_irq    = 0,
 	// .pcfg	      = PINCTRL_DT_INST_DEV_CONFIG_GET(0),
@@ -474,32 +479,74 @@ static void uart_mindgrove_irq_cfg_func_1(void);
 #endif
 
 static const struct uart_mindgrove_device_config uart_mindgrove_dev_cfg_1 = {
-	.port         = DT_SHAKTI_UART_1_BASE_ADDR,
-	.sys_clk_freq = DT_SHAKTI_UART_1_CLK_FREQ,
-	.baud_rate    = DT_SHAKTI_UART_1_CURRENT_SPEED,
-	.rxcnt_irq    = CONFIG_UART_SHAKTI_PORT_1_RXCNT_IRQ,
-	.txcnt_irq    = CONFIG_UART_SHAKTI_PORT_1_TXCNT_IRQ,
+	.port         = 0x11400,
+	.sys_clk_freq = SHAKTI_UART_1_CLK_FREQUENCY,
+	.baud_rate    = SECIOT_NEXYS_UART_BAUD,
+	.rxcnt_irq    = 0,
+	.txcnt_irq    = 0,
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	.cfg_func     = uart_mindgrove_irq_cfg_func_1,
 #endif
 };
 
-DEVICE_AND_API_INIT(uart_mindgrove_1, CONFIG_SHAKTI_UART_1_LABEL,
+DEVICE_DT_INST_DEFINE(1,
 		    uart_mindgrove_init,
+		    NULL,
 		    &uart_mindgrove_data_1, &uart_mindgrove_dev_cfg_1,
-		    PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEVICE,
+		    PRE_KERNEL_1, CONFIG_SERIAL_INIT_PRIORITY,
 		    (void *)&uart_mindgrove_driver_api);
 
-// #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-// static void uart_mindgrove_irq_cfg_func_1(void)
-// {
-// 	IRQ_CONNECT(DT_SHAKTI_UART_1_IRQ_0,
-// 		    CONFIG_UART_SHAKTI_PORT_1_IRQ_PRIORITY,
-// 		    uart_mindgrove_irq_handler, DEVICE_GET(uart_mindgrove_1),
-// 		    0);
 
-// 	irq_enable(DT_SHAKTI_UART_1_IRQ_0);
-// }
-// #endif
+#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+static void uart_mindgrove_irq_cfg_func_1(void)
+{
+	IRQ_CONNECT(DT_SHAKTI_UART_1_IRQ_0,
+		    CONFIG_UART_SHAKTI_PORT_1_IRQ_PRIORITY,
+		    uart_mindgrove_irq_handler, DEVICE_GET(uart_mindgrove_1),
+		    0);
 
-#endif /* CONFIG_UART_SHAKTI_PORT_1 */
+	irq_enable(DT_SHAKTI_UART_1_IRQ_0);
+}
+#endif
+#endif /* CONFIG_UART_SHAKTI_PORT */
+
+#ifdef CONFIG_UART_SHAKTI_PORT_2
+
+static struct uart_mindgrove_data uart_mindgrove_data_2;
+
+#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+static void uart_mindgrove_irq_cfg_func_2(void);
+#endif
+
+static const struct uart_mindgrove_device_config uart_mindgrove_dev_cfg_2 = {
+	.port         = 0x11500,
+	.sys_clk_freq = SHAKTI_UART_1_CLK_FREQUENCY,
+	.baud_rate    = SECIOT_NEXYS_UART_BAUD,
+	.rxcnt_irq    = 0,
+	.txcnt_irq    = 0,
+#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+	.cfg_func     = uart_mindgrove_irq_cfg_func_2,
+#endif
+};
+
+DEVICE_DT_INST_DEFINE(2,
+		    uart_mindgrove_init,
+		    NULL,
+		    &uart_mindgrove_data_2, &uart_mindgrove_dev_cfg_2,
+		    PRE_KERNEL_2, CONFIG_SERIAL_INIT_PRIORITY,
+		    (void *)&uart_mindgrove_driver_api);
+
+
+#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+static void uart_mindgrove_irq_cfg_func_2(void)
+{
+	IRQ_CONNECT(DT_SHAKTI_UART_2_IRQ_0,
+		    CONFIG_UART_SHAKTI_PORT_2_IRQ_PRIORITY,
+		    uart_mindgrove_irq_handler, DEVICE_GET(uart_mindgrove_2),
+		    0);
+
+	irq_enable(DT_SHAKTI_UART_2_IRQ_0);
+}
+#endif
+#endif /* CONFIG_UART_SHAKTI_PORT */
+
