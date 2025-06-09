@@ -440,8 +440,8 @@ static void uart_mindgrove_irq_cfg_func_0(void);
 
 static const struct uart_mindgrove_device_config uart_mindgrove_dev_cfg_0 = {
 	.port         = 0X11300,
-	.sys_clk_freq = SHAKTI_UART_1_CLK_FREQUENCY,
-	.baud_rate    = SECIOT_NEXYS_UART_BAUD,
+	.sys_clk_freq = DT_INST_PROP(0, clock_frequency),
+	.baud_rate    = DT_INST_PROP(0, current_speed),
 	.rxcnt_irq    = 0,
 	.txcnt_irq    = 0,
 	// .pcfg	      = PINCTRL_DT_INST_DEV_CONFIG_GET(0),
@@ -480,8 +480,8 @@ static void uart_mindgrove_irq_cfg_func_1(void);
 
 static const struct uart_mindgrove_device_config uart_mindgrove_dev_cfg_1 = {
 	.port         = 0x11400,
-	.sys_clk_freq = SHAKTI_UART_1_CLK_FREQUENCY,
-	.baud_rate    = SECIOT_NEXYS_UART_BAUD,
+	.sys_clk_freq = DT_INST_PROP(0, clock_frequency),
+	.baud_rate    = DT_INST_PROP(0, current_speed),
 	.rxcnt_irq    = 0,
 	.txcnt_irq    = 0,
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
@@ -520,8 +520,8 @@ static void uart_mindgrove_irq_cfg_func_2(void);
 
 static const struct uart_mindgrove_device_config uart_mindgrove_dev_cfg_2 = {
 	.port         = 0x11500,
-	.sys_clk_freq = SHAKTI_UART_1_CLK_FREQUENCY,
-	.baud_rate    = SECIOT_NEXYS_UART_BAUD,
+	.sys_clk_freq = DT_INST_PROP(0, clock_frequency),
+	.baud_rate    = DT_INST_PROP(0, current_speed),
 	.rxcnt_irq    = 0,
 	.txcnt_irq    = 0,
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
