@@ -1,4 +1,7 @@
 #include <stdio.h>
+#include<zephyr/device.h>
+#include <zephyr/drivers/uart.h>
+#include <zephyr/devicetree.h>
 
 int main(void)
 {

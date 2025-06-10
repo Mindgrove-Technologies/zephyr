@@ -16,3 +16,9 @@ properties:
 
     interrupts:
       required: false
+    current-speed:
+      type: int
+    clock-frequency:
+      type: int
+    clocks:
+      required: false

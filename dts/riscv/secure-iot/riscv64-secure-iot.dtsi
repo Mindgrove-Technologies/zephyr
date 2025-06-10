@@ -63,17 +63,17 @@
 
     uart0: serial@11300 {
         compatible = "mindgrove,uart";
-        reg= < 0x0 0x11300 0x0 0x100>;
+        reg= <0x11300 0x100>;
     };
 
     uart1: serial@11400 {
         compatible = "mindgrove,uart";
-        reg= < 0x0 0x11400 0x0 0x100>;
+        reg= <0x11400 0x100>;
     };    
 
     uart2: serial@11500 {
         compatible = "mindgrove,uart";
-        reg= < 0x0 0x11400 0x0 0x100>;
+        reg= <0x11500 0x100>;
     }; 
 
     spi0: spi@20000 {
