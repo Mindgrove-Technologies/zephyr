@@ -116,6 +116,11 @@ class gen_isr_config:
                                                   format(str(i).zfill(2))) for i in
                                      range(num_aggregators)]
 
+                print("2nd LVL AGGREGATORS: ", num_aggregators)
+                print([self.get_sym('CONFIG_2ND_LVL_INTR_{}_OFFSET'.
+                                                  format(str(i).zfill(2))) for i in
+                                     range(num_aggregators)])
+
                 self.__log.debug('2nd level offsets: {}'.format(self.__irq2_offsets))
 
                 if self.check_sym("CONFIG_3RD_LEVEL_INTERRUPTS"):
@@ -171,19 +176,24 @@ class gen_isr_config:
 
     def get_irq_baseoffset(self, lvl):
         if lvl == 2:
+            print("IRQ2 Offset: ", self.__irq2_baseoffset)
             return self.__irq2_baseoffset
         if lvl == 3:
+            print("IRQ3 Offset: ", self.__irq3_baseoffset)
             return self.__irq3_baseoffset
         self.__log.error("Unsupported irq level: {}".format(lvl))
 
     def get_irq_index(self, irq, lvl):
         if lvl == 2:
+            print("IRQ LVL2 Offsets: ", self.__irq2_offsets)
             offsets = self.__irq2_offsets
         elif lvl == 3:
+            print("IRQ LVL3 Offsets: ", self.__irq3_offsets)
             offsets = self.__irq3_offsets
         else:
             self.__log.error("Unsupported irq level: {}".format(lvl))
         try:
+            print("IRQ", irq)
             return offsets.index(irq)
         except ValueError:
             self.__log.error("IRQ {} not present in parent offsets ({}). ".
@@ -200,6 +210,7 @@ class gen_isr_config:
         irq1 = irq & self.int_lvl_masks[0]
         # Figure out third level interrupt position
         if irq3:
+            print("IRQ2: ", irq2)
             list_index = self.get_irq_index(irq2 - 1, 3)
             irq3_pos = self.get_irq_baseoffset(3) + self.__max_irq_per * list_index + irq3 - 1
             self.__log.debug('IRQ_level = 3')
@@ -208,6 +219,7 @@ class gen_isr_config:
             return irq3_pos - offset
         # Figure out second level interrupt position
         if irq2:
+            print("IRQ1: ", irq1)
             list_index = self.get_irq_index(irq1, 2)
             irq2_pos = self.get_irq_baseoffset(2) + self.__max_irq_per * list_index + irq2 - 1
             self.__log.debug('IRQ_level = 2')

@@ -194,7 +194,7 @@ source "drivers/serial/Kconfig.cc32xx"
 
 source "drivers/serial/Kconfig.cmsdk_apb"
 
-source "drivers/serial/Kconfig.shakti"
+source "drivers/serial/Kconfig.mindgrove"
 
 source "drivers/serial/Kconfig.sifive"
 

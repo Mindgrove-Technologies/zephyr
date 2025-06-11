@@ -1,0 +1,21 @@
+#
+# Copyright (c) 2025, Mindgrove Technologies.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+description: >
+    This binding gives a base representation of the Mindgrove UART
+
+compatible: "mindgrove,uart"
+
+include: [uart-controller.yaml]
+
+properties:
+    reg:
+      required: true
+    interrupts:
+      required: true
+    clock-frequency:
+      required: true
+    current-speed:
+      required: true

@@ -2,66 +2,76 @@ if SOC_VISION_SOC
 
 config SYS_CLOCK_HW_CYCLES_PER_SEC
     int
-    default 1000000000
+    default 1000000000  # 1 GHz clock
 
 config SYS_CLOCK_TICKS_PER_SEC
     int
-    default 1000       # 1 ms system tick interval
+    default 1000        # 1 ms system tick
 
+# Interrupt Configuration
 config RISCV_SOC_INTERRUPT_INIT
     bool
-    default y          # Enable custom SoC interrupt initialization
+    default y           # Custom SoC interrupt init
 
 config MULTI_LEVEL_INTERRUPTS
     bool
-    default y          # Enable hierarchical interrupt handling
+    default y           # Enable hierarchical interrupts
+
+config 1ST_LEVEL_INTERRUPT_BITS
+	default 4
+
+config NUM_2ND_LEVEL_AGGREGATORS
+	default 2
 
 config 2ND_LEVEL_INTERRUPT_BITS
-    int
-    default 6          # 6 bits = 64 IRQs (aligns with MAX_IRQ_PER_AGGREGATOR)
+	default 11
 
 config 2ND_LVL_ISR_TBL_OFFSET
-    int
-    default 12         # Second-level ISR table starts at index 12
+	default 12
 
 config 2ND_LVL_INTR_00_OFFSET
+	default 11
+
+config 2ND_LVL_INTR_01_OFFSET
+	default 4
+
+
+config MAX_IRQ_PER_AGGREGATOR
     int
-    default 11
+    default 1023          # Must cover highest IRQ
+
+config NUM_IRQS
+    int
+    default 2048          # Total IRQs = highest IRQ + 1 (58 + 1)
 
 config RISCV_HAS_CPU_IDLE
     bool
     default y          # Enable CPU idle states
 
-config MAX_IRQ_PER_AGGREGATOR
-    int
-    default 58         # Matches hardware capability (e.g., PLIC with 58 IRQs)
-
-config NUM_IRQS
-    int
-    default 58         # Total IRQs (matches hardware + software needs)
-
+# CPU/RAM Configuration
 config MP_MAX_NUM_CPUS
     int
-    default 4          # Quad-core system
+    default 4           # Quad-core
 
 config RISCV_RAM_BASE_ADDR
     hex
-    default 0x80000000 # Standard RISC-V RAM base address
+    default 0x80000000  # Standard RISC-V RAM base
 
 config RISCV_RAM_SIZE
     hex
-    default 0x10000000 # 256 MB RAM (adjust to hardware)
+    default 0x200000    # 2 MB RAM
 
+# PLIC Configuration
 config RISCV_HAS_PLIC
     bool
-    default y          # SoC uses PLIC for external interrupts
+    default y           # SoC uses PLIC
 
 config PLIC
     bool
-    default y          # Enable PLIC driver
+    default y           # Enable PLIC driver
 
 config RISCV_MACHINE_TIMER
     bool
-    default y          # Use RISC-V machine-mode timer
+    default y           # Use machine-mode timer
 
 endif

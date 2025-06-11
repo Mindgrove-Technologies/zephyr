@@ -119,7 +119,7 @@
 
     plic: interrupt-controller@c000000 {
 			riscv,max-priority = <7>;
-			riscv,ndev = < 58 >;
+			riscv,ndev = < 59 >;
 			reg = <0x0c000000 0x04000000>;
 			interrupts-extended = <&cpu0_intc 11>, <&cpu0_intc 9>,
 			                <&cpu1_intc 11>, <&cpu1_intc 9>, //11 as to mention MACHINE MODE for CPU or 9 for SUPERVISOR MODE for CPU...
@@ -132,14 +132,26 @@
 		};
 
     uart0: serial@11300 {
-        compatible = "shakti,uart";
-        reg = <0x11300 0x100>;  // Single address/size cells    
+        compatible = "mindgrove,uart";
+        reg = <0x11300 0x100>;
+        interrupts = <47 1>;             // <irq_number priority>
+       	interrupt-names = "TXnRX";
+        interrupt-parent = <&plic>;
+        clock-frequency = <1000000000>;
+        current-speed = <115200>;
+        status = "okay";
     };
 
     uart1: serial@11400 {
-        compatible = "shakti,uart";
-        reg= <0x11400 0x100>;
-    };    
+        compatible = "mindgrove,uart";
+        reg = <0x11400 0x100>;
+        interrupts = <48 1>;             // <irq_number priority>
+       	interrupt-names = "TXnRX";
+        interrupt-parent = <&plic>;
+        clock-frequency = <1000000000>;
+        current-speed = <115200>;
+        status = "okay";
+    };
 
   };
 };
