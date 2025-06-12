@@ -14,12 +14,14 @@ chosen {
 &uart0 {
 	status = "okay";
 	current-speed = <115200>;
-	clock-frequency = <1000000000>;
+	clock-frequency = <100000000>;
+	// current-speed = <62500000>;
+	// clock-frequency = <1000000000>;
 };
 
 &uart1 {
 	status = "okay";
-	current-speed = <115200>;
+	current-speed = <62500000>;
 	clock-frequency = <1000000000>;
 };
 

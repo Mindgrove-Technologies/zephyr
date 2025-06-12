@@ -138,7 +138,7 @@
        	interrupt-names = "TXnRX";
         interrupt-parent = <&plic>;
         clock-frequency = <1000000000>;
-        current-speed = <115200>;
+        current-speed = <62500000>;
         status = "okay";
     };
 
@@ -149,7 +149,7 @@
        	interrupt-names = "TXnRX";
         interrupt-parent = <&plic>;
         clock-frequency = <1000000000>;
-        current-speed = <115200>;
+        current-speed = <62500000>;
         status = "okay";
     };
 
