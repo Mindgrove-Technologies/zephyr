@@ -12,8 +12,6 @@
 
 #define DT_DRV_COMPAT mindgrove_uart
 
-#define CONFIG_UART_SHAKTI_PORT 1
-
 #ifdef CONFIG_BOARD_SHAKTI_VAJRA
 
 #define SHAKTI_UART_0_CLK_FREQUENCY 50000000
@@ -110,13 +108,11 @@ struct uart_mindgrove_data {
 #endif
 };
 
-#define DEV_CFG(dev)						\
-	((struct uart_mindgrove_config * const)	\
-	 (dev)->config)
-#define DEV_UART(dev)						\
-	((struct uart_mindgrove_regs_t *)(DEV_CFG(dev))->port)
-#define DEV_DATA(dev)						\
-	((struct uart_mindgrove_data * const)(dev)->driver_data)
+#define DEV_CFG(dev) ((struct uart_mindgrove_config * const)(dev)->config)
+
+#define DEV_UART(dev) ((struct uart_mindgrove_regs_t *)(uintptr_t)(DEV_CFG(dev)->port))
+
+#define DEV_DATA(dev) ((struct uart_mindgrove_data * const)(dev)->data)
 
 /**
  * @brief Output a character in polled mode.
@@ -128,7 +124,7 @@ struct uart_mindgrove_data {
  *
  * @return Sent character
  */
-static unsigned char uart_mindgrove_poll_out(struct device *dev,
+static void uart_mindgrove_poll_out(const struct device *dev,
 					 unsigned char c)
 {
   	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
@@ -150,7 +146,7 @@ static unsigned char uart_mindgrove_poll_out(struct device *dev,
  *
  * @return 0 if a character arrived, -1 if the input buffer if empty.
  */
-static int uart_mindgrove_poll_in(struct device *dev, unsigned char *c)
+static int uart_mindgrove_poll_in(const struct device *dev, unsigned char *c)
 {
 	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
 
@@ -173,7 +169,7 @@ static int uart_mindgrove_poll_in(struct device *dev, unsigned char *c)
  * @return Number of bytes sent
  */
 static int uart_mindgrove_fifo_fill(struct device *dev,
-				const u8_t *tx_data,
+				const uint8_t *tx_data,
 				int size)
 {
 	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
@@ -195,7 +191,7 @@ static int uart_mindgrove_fifo_fill(struct device *dev,
  * @return Number of bytes read
  */
 static int uart_mindgrove_fifo_read(struct device *dev,
-				u8_t *rx_data,
+				uint8_t *rx_data,
 				const int size)
 {
 	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
@@ -208,7 +204,7 @@ static int uart_mindgrove_fifo_read(struct device *dev,
 		if (val & RXDATA_EMPTY)
 			break;
 
-		rx_data[i] = (u8_t)(val & RXDATA_MASK);
+		rx_data[i] = (uint8_t)(val & RXDATA_MASK);
 	}
 
 	return i;
@@ -253,7 +249,7 @@ static int uart_mindgrove_irq_tx_ready(struct device *dev)
 {
 	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
 
-	return !!(uart->ip & IE_TXWM);
+	return !!(uart->ie & IE_TXWM);
 }
 
 /**
@@ -313,7 +309,7 @@ static int uart_mindgrove_irq_rx_ready(struct device *dev)
 {
 	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
 
-	return !!(uart->ip & IE_RXWM);
+	return !!(uart->ie & IE_RXWM);
 }
 
 /* No error interrupt for this controller */
@@ -338,7 +334,7 @@ static int uart_mindgrove_irq_is_pending(struct device *dev)
 {
 	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
 
-	return !!(uart->ip & (IE_RXWM | IE_TXWM));
+	return !!(uart->ie & (IE_RXWM | IE_TXWM));
 }
 
 static int uart_mindgrove_irq_update(struct device *dev)
@@ -370,7 +366,7 @@ static void uart_mindgrove_irq_handler(void *arg)
 	struct uart_mindgrove_data *data = DEV_DATA(dev);
 
 	if (data->callback)
-		data->callback(data->cb_data);
+		data->callback(dev,data->cb_data);
 }
 
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
@@ -424,38 +420,42 @@ static struct uart_driver_api uart_mindgrove_driver_api = {
 #endif
 };
 
-#ifdef CONFIG_UART_SHAKTI_PORT
+#ifdef CONFIG_UART_MINDGROVE_PORT
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-static void uart_mindgrove_irq_cfg_func_##n(void);
-#endif
+#define UART_MINDGROVE_CFG_FUNC(n) .cfg_func = uart_mindgrove_irq_cfg_func_##n,
+#define UART_MINDGROVE_IRQ_CONFIG_FUNC(n) \
+    static void uart_mindgrove_irq_cfg_func_##n(void) { \
+        IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority), \
+                    uart_mindgrove_irq_handler, DEVICE_DT_INST_GET(n), 0); \
+        irq_enable(DT_INST_IRQN(n)); \
+    }
+#else
+#define UART_MINDGROVE_CFG_FUNC(n)
+#define UART_MINDGROVE_IRQ_CONFIG_FUNC(n)
+#endif // CONFIG_UART_INTERRUPT_DRIVEN
 
-#endif
-                                        
-#define UART_MINDGROVE_INIT(n)                                                        \
-                                                                               \
-	static void uart_mindgrove_cfg_func_##n(struct device *dev);         \
-                                                                               \
-	static struct uart_mindgrove_config uart_mindgrove_config_##n = {    \
-		.port = DT_INST_REG_ADDR(n),    				\
-		.sys_clk_freq = DT_INST_PROP(n, clock_frequency),                     \
-		.baud_rate = DT_INST_PROP(n, current_speed),                           \
-		.rxcnt_irq = 0,                                                        \
-		.txcnt_irq = 0,                                                        \
-		IF_ENABLED(CONFIG_UART_INTERRUPT_DRIVEN,                               \
-			(.cfg_func = uart_mindgrove_cfg_func_##n,))                        \
-	};                                                                         \
-                                                                               \
-	static struct uart_mindgrove_data uart_mindgrove_data_##n;                 \
-                                                                               \
-	DEVICE_DT_INST_DEFINE(n,                                                   \
-			      uart_mindgrove_init,                                         \
-			      NULL,					                                       \
-			      &uart_mindgrove_data_##n,                                    \
-			      &uart_mindgrove_config_##n,                                  \
-			      POST_KERNEL,                                                 \
-			      CONFIG_KERNEL_INIT_PRIORITY_DEVICE,                          \
-			      &uart_mindgrove_driver_api,                                  \
-			      NULL); 													   \
+#endif // CONFIG_UART_MINDGROVE_PORT
 
+#define UART_MINDGROVE_INIT(n) \
+    UART_MINDGROVE_IRQ_CONFIG_FUNC(n) \
+    static struct uart_mindgrove_config uart_mindgrove_config_##n = { \
+        .port = DT_INST_REG_ADDR(n), \
+        .sys_clk_freq = DT_INST_PROP(n, clock_frequency), \
+        .baud_rate = DT_INST_PROP(n, current_speed), \
+        .rxcnt_irq = 0, \
+        .txcnt_irq = 0, \
+        UART_MINDGROVE_CFG_FUNC(n) \
+    }; \
+    static struct uart_mindgrove_data uart_mindgrove_data_##n; \
+    DEVICE_DT_INST_DEFINE(n, \
+        uart_mindgrove_init, \
+        NULL, \
+        &uart_mindgrove_data_##n, \
+        &uart_mindgrove_config_##n, \
+        PRE_KERNEL_1, \
+        CONFIG_KERNEL_INIT_PRIORITY_DEVICE, \
+        &uart_mindgrove_driver_api, \
+        NULL);
+	
 DT_INST_FOREACH_STATUS_OKAY(UART_MINDGROVE_INIT)

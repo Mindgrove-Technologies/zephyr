@@ -13,12 +13,11 @@ include: [uart-controller.yaml]
 properties:
     reg:
       required: true
-
     interrupts:
       required: false
     current-speed:
-      type: int
+      required: true
     clock-frequency:
-      type: int
+      required: true
     clocks:
       required: false
