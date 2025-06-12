@@ -35,7 +35,7 @@ extern "C" {
 #define SPI_REG(dev, offset) ((mem_addr_t) (SPI_CFG(dev)->base + (offset)))
 
 /*clock frequency*/
-#define CLOCK_FREQUENCY 40000000
+#define CLOCK_FREQUENCY 700000000
 
 /*!Serial Peripheral Interface Offsets */
 #define SPI_START_0 0x00020000 /* Serial Peripheral Interface 0 */

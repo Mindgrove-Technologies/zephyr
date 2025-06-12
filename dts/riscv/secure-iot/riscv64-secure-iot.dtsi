@@ -90,6 +90,13 @@
            reg = <0x0 0x20100 0x0 0x100>;
     };
 
+    spi2: spi@20200 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      compatible = "mindgrove,spi";
+      reg = <0x0 0x20200 0x0 0x100>;
+    };
+
     gpio0: gpio@40200 {
                 #gpio-cells = <0x2>;
                 compatible = "mindgrove,gpio";
@@ -111,10 +118,11 @@
            compatible = "mindgrove,i2c";
            reg= <0x0 0x44000 0x0 0x100>;
     };
-    // i2c1: i2c@44100 {
-    //   compatible = "mindgrove,i2c";
-    //   reg= <0x0 0x44100 0x0 0x100>;
-    // };
+    
+    i2c1: i2c@44100 {
+      compatible = "mindgrove,i2c";
+      reg= <0x0 0x44100 0x0 0x100>;
+    };
 
     watchdog: watchdog@40400
     {
