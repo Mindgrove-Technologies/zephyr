@@ -453,8 +453,8 @@ static struct spi_driver_api spi_mindgrove_api = {
   }; \
   static struct spi_mindgrove_cfg spi_mindgrove_cfg_##n = { \
     .ncs = GPIO_DT_SPEC_INST_GET(n, cs_gpios),\
-    .base = SPI_START_##n , \ 
-    .f_sys = CLOCK_FREQUENCY, \
+    .base = DT_INST_REG_ADDR(n) , \ 
+    .f_sys = DT_INST_PROP(n, clock_frequency), \
   }; \
   DEVICE_DT_INST_DEFINE(n, \
         spi_mindgrove_init, \
