@@ -5,6 +5,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include<zephyr/device.h>
 #include<zephyr/devicetree.h>
 #include <zephyr/drivers/i2c.h>

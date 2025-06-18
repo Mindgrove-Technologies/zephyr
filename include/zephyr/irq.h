@@ -306,7 +306,7 @@ static inline unsigned int irq_get_level(unsigned int irq)
 	return 1;
 }
 
-#if defined(CONFIG_2ND_LEVEL_INTERRUPTS)
+// #if defined(CONFIG_2ND_LEVEL_INTERRUPTS)
 /**
  * @brief Return the 2nd level interrupt number
  *
@@ -358,7 +358,7 @@ static inline unsigned int irq_parent_level_2(unsigned int irq)
 {
 	return irq & BIT_MASK(CONFIG_1ST_LEVEL_INTERRUPT_BITS);
 }
-#endif
+// #endif
 
 #ifdef CONFIG_3RD_LEVEL_INTERRUPTS
 /**
