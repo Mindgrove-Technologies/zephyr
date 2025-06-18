@@ -1,3 +1,4 @@
+#include<stdio.h>
 #include <errno.h>
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
@@ -78,7 +79,7 @@ int gpio_mindgrove_init(const struct device *dev){
 }
 
 
-static int gpio_mindgrove_pin_configure (const struct device *dev, 
+int gpio_mindgrove_pin_configure (const struct device *dev, 
                         gpio_pin_t pin, 
                         gpio_flags_t flags){
 
@@ -100,16 +101,16 @@ static int gpio_mindgrove_pin_configure (const struct device *dev,
     return 0;
 }
 
-static int gpio_mindgrove_pin_get_raw(const struct device *dev,
-                    gpio_pin_t pin)
+int gpio_mindgrove_pin_get_raw(const struct device *dev,
+                    gpio_port_value_t *pin)
 {
     volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
     return gpio->data;
 
 }
 
-static int gpio_mindgrove_pin_set_raw(const struct device *dev,
-                    gpio_pin_t pin)
+int gpio_mindgrove_pin_set_raw(const struct device *dev,
+                    gpio_port_value_t pin)
 {
     volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);   
     const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
@@ -121,8 +122,8 @@ static int gpio_mindgrove_pin_set_raw(const struct device *dev,
     return 0;
 }
 
-static int gpio_mindgrove_pin_toggle(const struct device *dev,
-                    gpio_pin_t pin)
+int gpio_mindgrove_pin_toggle(const struct device *dev,
+                    gpio_port_value_t pin)
 {
     // printf("toggle pin\n");
     volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
@@ -131,8 +132,8 @@ static int gpio_mindgrove_pin_toggle(const struct device *dev,
     return 0;
 }
 
-static int gpio_mindgrove_pin_clear_raw(const struct device *dev,
-                    gpio_pin_t pin)
+int gpio_mindgrove_pin_clear_raw(const struct device *dev,
+                    gpio_port_value_t pin)
 {
     volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);   
     // printf("GPIO Clear Addr:%#x, Pin: %d",&(gpio ->clear), pin);
@@ -170,14 +171,15 @@ static int gpio_mindgrove_irq_handler(const struct device *dev)
     return 0;
 }
 
-static void gpio_mindgrove_isr(const struct device *dev)
+static int gpio_mindgrove_isr(const struct device *dev)
 {
     printf("Entered GPIO ISR()\n");
 }
 
-static int gpio_mindgrove_pin_interrupt_configure(const struct device *dev, 
+int gpio_mindgrove_pin_interrupt_configure(const struct device *dev, 
                                                 gpio_pin_t pin, 
-                                                gpio_flags_t flag)
+                                                enum gpio_int_mode mode,
+					       enum gpio_int_trig trig)
 {
     volatile struct gpio_mindgrove_regs_t *gpio_reg = DEV_GPIO(dev);
     const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
@@ -185,7 +187,7 @@ static int gpio_mindgrove_pin_interrupt_configure(const struct device *dev,
     // Initially disable interrupt for all 32 GPIOs
     gpio_reg->intr_config &= ~(0xFFFFFFFF); 
     
-    if(flag == 1)
+    if(trig == 1)
     {
         gpio_reg->intr_config &= ~(1 << pin);
     }
@@ -215,9 +217,10 @@ static const struct gpio_driver_api gpio_mindgrove_driver = {
 // 		NULL,				\
 // 		0)
 
-static void gpio_mindgrove_cfg(uint32_t gpio_pin){
+static void gpio_mindgrove_cfg(void){
 
     // static const int irq_line= gpio_pin + 1;
+    uint32_t gpio_pin;
     gpio_pin = (1 << gpio_pin);
     // IRQ_CONNECT(1, 1,
     //             gpio_mindgrove_irq_handler,
@@ -337,10 +340,7 @@ static const struct gpio_mindgrove_config gpio_mindgrove_config0 ={
     .gpio_mode          = DT_PROP(DT_NODELABEL(gpio0), config_gpio)
 };
 
-static struct gpio_mindgrove_data gpio_mindgrove_data0 ={
-
-    .cb = gpio_mindgrove_isr
-};
+static struct gpio_mindgrove_data gpio_mindgrove_data0;
 
 #define GPIO_INIT(inst)	\
 DEVICE_DT_INST_DEFINE(inst, \

@@ -11,7 +11,7 @@ LOG_MODULE_REGISTER(app, LOG_LEVEL_INF);
 
 int main()
 {
-    const struct device *const dev = DEVICE_DT_GET(DT_NODELABEL(spi1));
+    const struct device *const dev = DEVICE_DT_GET(DT_NODELABEL(spi0));
     struct spi_config config;
     config.operation = SPI_OP_MODE_MASTER | SPI_TRANSFER_MSB | SPI_WORD_SET(8);
     k_busy_wait(100);

@@ -7,12 +7,15 @@
 #include <stdio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
+#include <zephyr/arch/cpu.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/irq.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/interrupt_controller/riscv_plic.h>
 #include <zephyr/sw_isr_table.h>
-
+#include <soc.h>
+#include <zephyr/arch/riscv/irq.h>
+#include <zephyr/drivers/interrupt_controller/intc_mindgrove_plic.h>
 
 #define GPIO_PIN 		6
 #define GPIO_PIN_FLAG 	1
@@ -52,10 +55,16 @@ int main(void)
 		
 	isr_installer();
 
+	int pin_val = gpio_pin_get_raw(dev, GPIO_PIN);
 
 	while(1)
 	{
-		printf("GPIO Pin Status : %x\n", gpio_port_get_raw(dev, GPIO_PIN));
+	if (pin_val >= 0) {
+		printf("GPIO Pin %d Status: %d\n", GPIO_PIN, pin_val);
+	} else {
+		printf("Failed to read GPIO pin\n");
+	}
+		// printf("GPIO Pin Status : %x\n", gpio_port_get_raw(dev, GPIO_PIN));
 	}
 
 	return 0;

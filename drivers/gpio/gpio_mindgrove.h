@@ -13,7 +13,7 @@ extern "C" {
 #include <zephyr/device.h>
 #include <zephyr/dt-bindings/gpio/gpio.h>
 #include <zephyr/kernel.h>
-
+#include <zephyr/drivers/gpio.h>
 typedef uint8_t gpio_pin_t;
 typedef uint32_t gpio_flags_t;
 

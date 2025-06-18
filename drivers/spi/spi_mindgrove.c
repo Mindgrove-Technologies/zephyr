@@ -409,7 +409,7 @@ static int spi_mindgrove_transceive(const struct device *dev,
 int spi_mindgrove_init(const struct device *dev)
 { 
   // printk("init\n");
-  int spi_base;
+  spi_struct *spi_base;
   char *spi_inst; 
   spi_inst = dev->name;
   struct spi_mindgrove_cfg *confg = (struct spi_mindgrove_cfg *)dev->config;
@@ -424,6 +424,7 @@ int spi_mindgrove_init(const struct device *dev)
     #ifdef SPI_DEBUG
     printk("\nSPI%d Initialized..", spi_number);
     #endif
+    k_busy_wait(10);
     return 0;
   }
   else{

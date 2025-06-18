@@ -15,6 +15,7 @@
 #include <zephyr/sw_isr_table.h>
 #include <zephyr/drivers/interrupt_controller/riscv_plic.h>
 #include <zephyr/irq.h>
+#include <zephyr/drivers/interrupt_controller/intc_mindgrove_plic.h>
 
 //Defines
 
@@ -215,7 +216,7 @@ void plic_mindgrove_set_priority(uint32_t priority_value, uint32_t int_id)
  *          Sets up the plic meta data table. Assigns the plic
  *          handler to mcause_interrupt_table.,By default interrupts are disabled.
  */
-void plic_mindgrove_init(const struct device *dev)
+int plic_mindgrove_init(const struct device *dev)
 {
     volatile uint32_t *interrupt_disable_addr = (uint32_t *) (PLIC_BASE_ADDRESS + PLIC_ENABLE_OFFSET);
     volatile uint32_t *interrupt_threshold_priority = (uint32_t *) (PLIC_BASE_ADDRESS + PLIC_THRESHOLD_OFFSET);    
