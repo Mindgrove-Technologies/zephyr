@@ -12,16 +12,10 @@
  * @date 2024-05-03
  * 
  * @copyright Copyright (c) Mindgrove Technologies Pvt. Ltd 2023. All rights reserved.
- * 
- * @copyright Copyright (c) 2017 Google LLC.
- * @copyright Copyright (c) 2018 qianfan Zhao.
- * @copyright Copyright (c) 2023 Gerson Fernando Budke.
- *
- * SPDX-License-Identifier: Apache-2.0
  */
 
-#define DT_DRV_COMPAT mindgrove_pwm
-
+#include <stdio.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <errno.h>
 #include <zephyr/sys/__assert.h>
@@ -33,9 +27,8 @@
 #include <zephyr/kernel.h>
 #include <soc.h>
 #include <zephyr/drivers/pwm.h>
-#include<stdbool.h>
-#include <stdio.h>
 
+#define DT_DRV_COMPAT mindgrove_pwm
 
 /* Macros */
 /* Register Offsets */
@@ -119,8 +112,6 @@ typedef struct
 }PWM_Type;
 
 /*Data structure*/
-struct pwm_mindgrove_data {};
-
 /*Zephyr configuration structure*/
 struct pwm_mindgrove_cfg {
 	uint32_t base;
@@ -134,7 +125,6 @@ struct pwm_mindgrove_cfg {
 volatile unsigned int* pinmux_config_reg = (volatile unsigned int* ) PINMUX_CONFIGURE_REG;
 
 /* Functions */
-
 /** @fn  pwm_init
  * @brief Function to initialize all pwm modules
  * @details This function will be called to initialize all pwm modules
@@ -172,8 +162,9 @@ int pwm_set_control(int channel, uint32_t value)
  */
 void pwm_set_prescalar_value(int channel, uint16_t prescalar_value)
 {
-	if( 32768 < prescalar_value )
+	if(prescalar_value > 32768)
 	{
+		printk("Prescalar exceed limits(32768)\n");
 		return;
 	}
 	PWM_REG(channel)->clock = (prescalar_value << 1);
@@ -358,11 +349,6 @@ static int pwm_mindgrove_set_cycles(const struct device *dev, uint32_t channel,u
 	default:
 		break;
 	}
-
-	// printf("\nDeadband_delay %u",deadband_delay);
-	// printf("\nControl_reg %u",control_reg);
-	// printf("\nPrescale value %u",prescale);
-
 	pinmux_enable_pwm(channel);
 	pwm_set_prescalar_value(channel, prescale);
     pwm_configure(channel, period_cycles, pulse_cycles, no_interrupt, deadband_delay, flags);
@@ -378,7 +364,6 @@ static const struct pwm_driver_api pwm_mindgrove_api = {
 // .cmpwidth = DT_INST_PROP(n, mindgrove_compare_width), \
 
 #define PWM_MINDGROVE_INIT(n)	\
-	static struct pwm_mindgrove_data pwm_mindgrove_data_##n;	\
 	static const struct pwm_mindgrove_cfg pwm_mindgrove_cfg_##n = {	\
 			.base = PWM_START_##n ,	\
 			.f_sys = CLOCK_FREQUENCY,  \
@@ -386,7 +371,7 @@ static const struct pwm_driver_api pwm_mindgrove_api = {
 	DEVICE_DT_INST_DEFINE(n,	\
 			    pwm_mindgrove_init,	\
 			    NULL,	\
-			    &pwm_mindgrove_data_##n,	\
+			    NULL,	\
 			    &pwm_mindgrove_cfg_##n,	\
 			    POST_KERNEL,	\
 			    CONFIG_PWM_INIT_PRIORITY,	\

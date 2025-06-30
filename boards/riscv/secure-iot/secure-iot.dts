@@ -3,8 +3,8 @@
 #include <secure-iot/riscv64-secure-iot.dtsi>
 
 / {
-	model = "shakti,spike-bare";
-	compatible = "shakti,spike-bare-dev";
+	model = "mindgrove,spike-bare";
+	compatible = "mindgrove,spike-bare-dev";
 
 chosen {
 		zephyr,console = &uart0;

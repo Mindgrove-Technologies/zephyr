@@ -1,24 +1,18 @@
-#include<stdio.h>
+#include <stdio.h>
 #include <errno.h>
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <soc.h>
-#include <zephyr/drivers/gpio.h>
 #include <zephyr/sys/util.h>
 #include <zephyr/irq.h>
 #include <zephyr/drivers/interrupt_controller/riscv_plic.h>
 #include <zephyr/sw_isr_table.h>
 #include <zephyr/devicetree.h>
-// /home/suneeth/WORK/MG_Z/zephyr/include/zephyr/devicetree.h
-
+#include <zephyr/drivers/gpio/gpio_utils.h>
+#include <zephyr/drivers/gpio.h>
 #include "gpio_mindgrove.h"
 
-#include <zephyr/drivers/gpio/gpio_utils.h>
-
-
 #define DT_DRV_COMPAT mindgrove_gpio
-
-typedef void (*mindgrove_cfg_func_t)(void);
 
 typedef void (*gpio_mindgrove_cfg_func_t)(void);
 
@@ -44,7 +38,6 @@ typedef struct gpio_mindgrove_regs_t
 
 
 struct gpio_mindgrove_config{
-/* gpio_driver_config needs to be first */
     struct gpio_driver_config common;
     uintptr_t gpio_base_addr;
     uint32_t gpio_irq_base;
@@ -53,7 +46,6 @@ struct gpio_mindgrove_config{
 };
 
 struct gpio_mindgrove_data {
-
     struct gpio_driver_data common;
     sys_slist_t cb;
 
@@ -67,37 +59,23 @@ struct gpio_mindgrove_data {
 #define DEV_GPIO_DATA(dev)				\
 	((struct gpio_mindgrove_data *)(dev)->data)
 
-
-int gpio_mindgrove_init(const struct device *dev){
-    
+int gpio_mindgrove_init(const struct device *dev){    
     volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
     const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
-
-    // gpio = GPIO_START;
-    // printk("Initialization Done\n");
     return 0;
 }
-
 
 int gpio_mindgrove_pin_configure (const struct device *dev, 
                         gpio_pin_t pin, 
                         gpio_flags_t flags){
-
     volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
     const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
-    // printk("GPIO MODE: %d\n", cfg->gpio_mode);
-    
     if(flags & GPIO_OUTPUT){
         gpio->direction =-1;
-        // printk("GPIO Output Mode.\n");
     }
     else{
         gpio->direction &= ~(1 << pin);
-        // printk("GPIO Input Mode.\n");
     }
-
-    // printk("Configuration Done2\n");
-
     return 0;
 }
 
@@ -106,7 +84,6 @@ int gpio_mindgrove_pin_get_raw(const struct device *dev,
 {
     volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
     return gpio->data;
-
 }
 
 int gpio_mindgrove_pin_set_raw(const struct device *dev,
@@ -114,21 +91,15 @@ int gpio_mindgrove_pin_set_raw(const struct device *dev,
 {
     volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);   
     const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
-    // printf("GPIO Set Addr:%#x, Pin: %d",&(gpio ->set), pin);
     gpio ->set = pin;
-    // printk("set has been done \n");
-    // printk("gpio addr: 0x%x", gpio);
-
     return 0;
 }
 
 int gpio_mindgrove_pin_toggle(const struct device *dev,
                     gpio_port_value_t pin)
 {
-    // printf("toggle pin\n");
     volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
     gpio ->toggle = pin;
-
     return 0;
 }
 
@@ -136,16 +107,11 @@ int gpio_mindgrove_pin_clear_raw(const struct device *dev,
                     gpio_port_value_t pin)
 {
     volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);   
-    // printf("GPIO Clear Addr:%#x, Pin: %d",&(gpio ->clear), pin);
     gpio ->clear = pin;
-    // *((uint32_t*)(0x40218))=(1<<pin);
-    // printk("Cleared \n");
-
     return 0;
 }
 
 //-------Function WIP----------
-
 static inline unsigned int gpio_mindgrove_pin_irq(unsigned int base_irq, int pin)
 {
     unsigned int level = irq_get_level(base_irq);
@@ -210,130 +176,12 @@ static const struct gpio_driver_api gpio_mindgrove_driver = {
     .pin_interrupt_configure    = gpio_mindgrove_pin_interrupt_configure,  
 };
 
-// #define		IRQ_INIT(n)					\
-// IRQ_CONNECT(n+32,   \
-// 		1,		\
-// 		gpio_mindgrove_irq_handler,    \
-// 		NULL,				\
-// 		0)
-
 static void gpio_mindgrove_cfg(void){
-
-    // static const int irq_line= gpio_pin + 1;
     uint32_t gpio_pin;
     gpio_pin = (1 << gpio_pin);
-    // IRQ_CONNECT(1, 1,
-    //             gpio_mindgrove_irq_handler,
-    //             NULL, 0);     
-
-    // IRQ_INIT(gpio_pin);
-    // irq_enable(gpio_sha);
-
-    // IRQ_CONNECT(irq_line, 1,
-    //             gpio_mindgrove_irq_handler,
-    //             NULL, 0);
-// #if DT_INST_IRQ_HAS_IDX(0, 0)
-// 	IRQ_INIT(0);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 1)
-// 	IRQ_INIT(1);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 2)
-// 	IRQ_INIT(2);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 3)
-// 	IRQ_INIT(3);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 4)
-// 	IRQ_INIT(4);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 5)
-// 	IRQ_INIT(5);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 6)
-// 	IRQ_INIT(6);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 7)
-// 	IRQ_INIT(7);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 8)
-// 	IRQ_INIT(8);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 9)
-// 	IRQ_INIT(9);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 10)
-// 	IRQ_INIT(10);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 11)
-// 	IRQ_INIT(11);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 12)
-// 	IRQ_INIT(12);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 13)
-// 	IRQ_INIT(13);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 14)
-// 	IRQ_INIT(14);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 15)
-// 	IRQ_INIT(15);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 16)
-// 	IRQ_INIT(16);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 17)
-// 	IRQ_INIT(17);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 18)
-// 	IRQ_INIT(18);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 19)
-// 	IRQ_INIT(19);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 20)
-// 	IRQ_INIT(20);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 21)
-// 	IRQ_INIT(21);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 22)
-// 	IRQ_INIT(22);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 23)
-// 	IRQ_INIT(23);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 24)
-// 	IRQ_INIT(24);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 25)
-// 	IRQ_INIT(25);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 26)
-// 	IRQ_INIT(26);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 27)
-// 	IRQ_INIT(27);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 28)
-// 	IRQ_INIT(28);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 29)
-// 	IRQ_INIT(29);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 30)
-// 	IRQ_INIT(30);
-// #endif
-// #if DT_INST_IRQ_HAS_IDX(0, 31)
-// 	IRQ_INIT(31);
-// #endif
 }
 
 static const struct gpio_mindgrove_config gpio_mindgrove_config0 ={
-    // .common = {
-    //     .port_pin_mask  = GPIO_PORT_PIN_MASK_FROM_DT_INST(0),
-    // },
     .gpio_base_addr     = GPIO_START,
     .gpio_irq_base      = GPIO_IRQ_BASE,
     .gpio_cfg_func      = gpio_mindgrove_cfg,
@@ -349,7 +197,5 @@ DEVICE_DT_INST_DEFINE(inst, \
                 &gpio_mindgrove_data0, &gpio_mindgrove_config0, \
                 PRE_KERNEL_1, CONFIG_GPIO_INIT_PRIORITY, \
                 &gpio_mindgrove_driver); 
-
-// IRQ_CONNECT(1, 1, gpio_mindgrove_isr, DEVICE_DT_GET(DT_NODELABEL(gpio0)), 0));
 
 DT_INST_FOREACH_STATUS_OKAY(GPIO_INIT)

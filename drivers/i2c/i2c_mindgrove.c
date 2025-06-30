@@ -14,14 +14,17 @@
  * @copyright Copyright (c) Mindgrove Technologies Pvt. Ltd 2023. All rights reserved.
  * 
  */
+
+#include <stdint.h>
+#include <stdlib.h>
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/init.h>
-#define DT_DRV_COMPAT mindgrove_i2c
-#include <stdint.h>
-#include <stdlib.h>
-#include <zephyr/drivers/i2c.h>
 #include <zephyr/sys/sys_io.h>
+#include <zephyr/drivers/i2c.h>
+
+#define DT_DRV_COMPAT mindgrove_i2c
+
 /**baremetal driver defines*/
 #define I2C_PIN 0x80
 #define I2C_ESO 0x40
@@ -48,15 +51,11 @@
 #define I2C_NACK          (I2C_ESO)
 #define I2C_DISABLE       (I2C_PIN|I2C_ACK)
 
-
 #define I2C_READ 1
 #define I2C_WRITE 0
 #define MAX_I2C_COUNT 2
 #define DELAY 17
 #define DELAY_FREQ_BASE 40000000
-
-/**baremetal driver defines*/
-
 
 /*******Zephyr defines*********/
 #define I2C_STANDARD_MODE 100000
@@ -66,9 +65,9 @@
 #define I2C_DATA     0x10
 #define I2C_STATUS   0x18
 #define I2C_SCL_DIV  0x38
-#define WRITE_TO_REG(confg,offset,value)   *((uint32_t*)((((struct i2c_mindgrove_cfg*)(confg))->base)+offset)) = value
-#define READ_REG(confg,offset) *((uint32_t*)((((struct i2c_mindgrove_cfg*)(confg))->base)+offset))
-#define READ_REG_8BIT(confg,offset) *((uint8_t*)((((struct i2c_mindgrove_cfg*)(confg))->base)+offset))
+#define WRITE_TO_REG(config,offset,value)   *((uint32_t*)((((struct i2c_mindgrove_cfg*)(config))->base)+offset)) = value
+#define READ_REG(config,offset) *((uint32_t*)((((struct i2c_mindgrove_cfg*)(config))->base)+offset))
+#define READ_REG_8BIT(config,offset) *((uint8_t*)((((struct i2c_mindgrove_cfg*)(config))->base)+offset))
 /* Struct to access I2C registers as 32 bit registers */
 
 typedef struct
@@ -140,10 +139,7 @@ typedef struct
     uint32_t   scl_rsvd;    //reserved
 } i2c_struct __attribute__((__packed__));
 
-
 i2c_struct* i2c_instance[MAX_I2C_COUNT];
-
-
 
 struct i2c_mindgrove_cfg{
     uint32_t base;
@@ -151,7 +147,6 @@ struct i2c_mindgrove_cfg{
     uint32_t sys_clk;
    struct k_mutex mutex;
 };
-
 
 static void i2c_start_bit_(const struct device *dev);
 static void i2c_end(const struct device *dev);
@@ -167,44 +162,44 @@ static int i2c_mindgrove_write_msg(const struct device *dev,struct i2c_msg *msg,
 static int i2c_mindgrove_read_msg(const struct device *dev,struct i2c_msg *msg,uint16_t addr);
 static int i2c_mindgrove_transfer(const struct device *dev,struct i2c_msg *msgs,uint8_t num_msgs,uint16_t addr);		       
 
-
-
 static void waitfor(unsigned int secs)
 {
 	unsigned int time = 0;
 	while (time++ < secs);
 	
 }
+
 static void delayms(long delay)
 {
   for(int i=0;i<(3334*delay*(DELAY_FREQ_BASE/40000000));i++){
     __asm__ volatile("NOP");
   }
 }
+
 static void i2c_start_bit_(const struct device *dev){
-    struct i2c_mindgrove_cfg *confg = (struct i2c_mindgrove_cfg *)dev->config;
- WRITE_TO_REG(confg,I2C_CONTROL,I2C_START);
-#ifdef I2C_DEBUG
- printf("\nStart bit is transmitted!!!");
-#endif
+    struct i2c_mindgrove_cfg *config = (struct i2c_mindgrove_cfg *)dev->config;
+    WRITE_TO_REG(config,I2C_CONTROL,I2C_START);
+    #ifdef I2C_DEBUG
+    printf("\nStart bit is transmitted!!!");
+    #endif
 }
 
 static void i2c_end(const struct device *dev){
-    struct i2c_mindgrove_cfg *confg = (struct i2c_mindgrove_cfg *)dev->config;
-  delayms(1);
-  WRITE_TO_REG(confg,I2C_CONTROL,I2C_STOP);
-  k_sched_unlock();
-  //waitfor(1000);
-#ifdef I2C_DEBUG
-  printf("\nStop bit is transmitted!!!");
-#endif
+    struct i2c_mindgrove_cfg *config = (struct i2c_mindgrove_cfg *)dev->config;
+    delayms(1);
+    WRITE_TO_REG(config,I2C_CONTROL,I2C_STOP);
+    k_sched_unlock();
+    //waitfor(1000);
+    #ifdef I2C_DEBUG
+    printf("\nStop bit is transmitted!!!");
+    #endif
 }
 
 static void wait_till_txrx_operation_Completes_(const struct device *dev)
 {
-    struct i2c_mindgrove_cfg *confg = (struct i2c_mindgrove_cfg *)dev->config;
+    struct i2c_mindgrove_cfg *config = (struct i2c_mindgrove_cfg *)dev->config;
     uint8_t timeout = 4;
-    while ((READ_REG(confg,I2C_STATUS) & 0x01) && (--timeout)){
+    while ((READ_REG(config,I2C_STATUS) & 0x01) && (--timeout)){
 	    delayms(DELAY);
         //waitfor(100000);
     }
@@ -214,60 +209,54 @@ static void wait_till_txrx_operation_Completes_(const struct device *dev)
     printf("\nTransmission Completed");
     else
     printf("\nTransmission timeout!!");
-#endif
+    #endif
 }
-
-
-
 
 static void wait_till_I2c_bus_free_(const struct device *dev)
 {
-    struct i2c_mindgrove_cfg *confg = (struct i2c_mindgrove_cfg *)dev->config;
-     volatile uint8_t temp =(READ_REG(confg,I2C_STATUS));
-while (!((READ_REG(confg,I2C_STATUS))& 0x01)){
-#ifdef I2C_DEBUG
-        printf("\nBus is busy...\n");
-#endif
-        }
-#ifdef I2C_DEBUG
-    printf("\nBus is free now\n");
-#endif
+    struct i2c_mindgrove_cfg *config = (struct i2c_mindgrove_cfg *)dev->config;
+    volatile uint8_t temp =(READ_REG(config,I2C_STATUS));
+    while (!((READ_REG(config,I2C_STATUS))& 0x01)){
+    #ifdef I2C_DEBUG
+            printf("\nBus is busy...\n");
+    #endif
+            }
+    #ifdef I2C_DEBUG
+        printf("\nBus is free now\n");
+    #endif
 }
-
-
-
-
 
 static void i2c_target_address(const struct device *dev,uint8_t slave_address,uint8_t mode)
 {
-  uint8_t dummy;
-   struct i2c_mindgrove_cfg *confg = (struct i2c_mindgrove_cfg *)dev->config;
-   k_sched_lock();
-  wait_till_I2c_bus_free_(dev);//wait till bus is free
-  //printf("slave addr:%#x mode:%d ",slave_address,mode);
-  WRITE_TO_REG(confg,I2C_DATA,(slave_address<<1)|(mode));//write data in data register
-  i2c_start_bit_(dev);// as soon as start is initiated after start bit is given slave address along with r/~w is transmitted
-  wait_till_txrx_operation_Completes_(dev);// wait till the eight bits completely get transmitted
-  delayms(DELAY);
-  //waitfor(2000);
-  if(mode==I2C_READ){
-  WRITE_TO_REG(confg,I2C_CONTROL,I2C_NACK);
-  //printf("NACK is set\n");
-  volatile uint8_t dummy=READ_REG_8BIT(confg,I2C_DATA);
-  //printf("dummy read complete:%#x\n",dummy);
-  wait_till_txrx_operation_Completes_(dev);
-  delayms(DELAY);
-  //waitfor(1000);
-  }
- #ifdef I2C_DEBUG 
-  if(!(i2c_instance[i2c_number]->lrb))//check whether ack is receieved from slave if LRB is cleared ack is recieved
-    printf("\nAck received after writing slave address\n");
-  else
-    printf("\nAck not received after writing slave address!Slave is not detected\n");
-#endif
+    uint8_t dummy;
+    struct i2c_mindgrove_cfg *config = (struct i2c_mindgrove_cfg *)dev->config;
+    k_sched_lock();
+    wait_till_I2c_bus_free_(dev);//wait till bus is free
+    //printf("slave addr:%#x mode:%d ",slave_address,mode);
+    WRITE_TO_REG(config,I2C_DATA,(slave_address<<1)|(mode));//write data in data register
+    i2c_start_bit_(dev);// as soon as start is initiated after start bit is given slave address along with r/~w is transmitted
+    wait_till_txrx_operation_Completes_(dev);// wait till the eight bits completely get transmitted
+    delayms(DELAY);
+    //waitfor(2000);
+    if(mode==I2C_READ){
+    WRITE_TO_REG(config,I2C_CONTROL,I2C_NACK);
+    //printf("NACK is set\n");
+    volatile uint8_t dummy=READ_REG_8BIT(config,I2C_DATA);
+    //printf("dummy read complete:%#x\n",dummy);
+    wait_till_txrx_operation_Completes_(dev);
+    delayms(DELAY);
+    //waitfor(1000);
+    }
+    #ifdef I2C_DEBUG 
+    if(!(i2c_instance[i2c_number]->lrb))//check whether ack is receieved from slave if LRB is cleared ack is recieved
+        printf("\nAck received after writing slave address\n");
+    else
+        printf("\nAck not received after writing slave address!Slave is not detected\n");
+    #endif
 }
 
-static void i2c_write_page(const struct device *dev,uint8_t *data,uint32_t length){
+static void i2c_write_page(const struct device *dev,uint8_t *data,uint32_t length)
+{
     delayms(DELAY);
     for (uint32_t i=0;i<length;i++){
         i2c_write_byte(dev,*(data++));
@@ -275,49 +264,50 @@ static void i2c_write_page(const struct device *dev,uint8_t *data,uint32_t lengt
     }
 }
 
-static void i2c_write_byte(const struct device *dev,uint8_t data){
-  struct i2c_mindgrove_cfg *confg = (struct i2c_mindgrove_cfg *)dev->config;
-  WRITE_TO_REG(confg,I2C_DATA,data);// write the data in data register
-  wait_till_txrx_operation_Completes_(dev);// wait till the eight bits completely get transmitted
-  delayms(DELAY);
-  //waitfor(1000);
-  #ifdef I2C_DEBUG
-  if(!(i2c_instance[i2c_number]->lrb))//check whether ack is receieved from slave
-    printf("\nAck received after writing data\n");
-  else
-        printf("\nAck not received after writing data\n");
-  #endif
+static void i2c_write_byte(const struct device *dev,uint8_t data)
+{
+    struct i2c_mindgrove_cfg *config = (struct i2c_mindgrove_cfg *)dev->config;
+    WRITE_TO_REG(config,I2C_DATA,data);// write the data in data register
+    wait_till_txrx_operation_Completes_(dev);// wait till the eight bits completely get transmitted
+    delayms(DELAY);
+    //waitfor(1000);
+    #ifdef I2C_DEBUG
+    if(!(i2c_instance[i2c_number]->lrb))//check whether ack is receieved from slave
+        printf("\nAck received after writing data\n");
+    else
+            printf("\nAck not received after writing data\n");
+    #endif
 }
 
-static uint8_t i2c_read_byte(const struct device *dev){
-  struct i2c_mindgrove_cfg *confg = (struct i2c_mindgrove_cfg *)dev->config;
-  uint8_t data = READ_REG_8BIT(confg,I2C_DATA);// write the data in data register
- // printf("Data recieved: %#x",data);
-  delayms(DELAY);
-  //waitfor(1000);
-  return data;
+static uint8_t i2c_read_byte(const struct device *dev)
+{
+    struct i2c_mindgrove_cfg *config = (struct i2c_mindgrove_cfg *)dev->config;
+    uint8_t data = READ_REG_8BIT(config,I2C_DATA);// write the data in data register
+    // printf("Data recieved: %#x",data);
+    delayms(DELAY);
+    //waitfor(1000);
+    return data;
 }
+
 static int i2c_mindgrove_init(const struct device *dev)
 {
-    const struct i2c_mindgrove_cfg *confg = dev->config;
-    uint32_t dev_config = confg->scl_clk;
+    const struct i2c_mindgrove_cfg *config = dev->config;
+    uint32_t dev_config = config->scl_clk;
     i2c_mindgrove_configure(dev,dev_config);
     return 0;
-
 }
 static int i2c_mindgrove_configure(const struct device *dev,uint32_t dev_config)
 {
-   //printk("Configuring I2C0!!!");
-   struct i2c_mindgrove_cfg *confg = (struct i2c_mindgrove_cfg *)dev->config;
-   uint32_t prescale = 1;
-   uint32_t scl_div = (confg->sys_clk/((prescale+1)*confg->scl_clk))-1;
-   WRITE_TO_REG(confg,I2C_CONTROL,I2C_PIN);
-   WRITE_TO_REG(confg,I2C_PRESCALE,prescale);
-   WRITE_TO_REG(confg,I2C_SCL_DIV,scl_div);
-   WRITE_TO_REG(confg,I2C_CONTROL,I2C_IDLE);
-   k_mutex_init(&(confg->mutex));
+    struct i2c_mindgrove_cfg *config = (struct i2c_mindgrove_cfg *)dev->config;
+    uint32_t prescale = 1;
+    uint32_t scl_div = (config->sys_clk/((prescale+1)*config->scl_clk))-1;
+    WRITE_TO_REG(config,I2C_CONTROL,I2C_PIN);
+    WRITE_TO_REG(config,I2C_PRESCALE,prescale);
+    WRITE_TO_REG(config,I2C_SCL_DIV,scl_div);
+    WRITE_TO_REG(config,I2C_CONTROL,I2C_IDLE);
+    k_mutex_init(&(config->mutex));
+    return 0;
 }
-
 
 static int i2c_mindgrove_write_msg(const struct device *dev,struct i2c_msg *msg,uint16_t addr)
 {
@@ -328,6 +318,7 @@ static int i2c_mindgrove_write_msg(const struct device *dev,struct i2c_msg *msg,
     i2c_end(dev);
     return 0;
 }
+
 static int i2c_mindgrove_read_msg(const struct device *dev,struct i2c_msg *msg,uint16_t addr)
 {
     uint8_t length = msg->len;
@@ -342,31 +333,34 @@ static int i2c_mindgrove_read_msg(const struct device *dev,struct i2c_msg *msg,u
     {
         return 1;
     }
+    return 0;
 }
+
 static int i2c_mindgrove_transfer(const struct device *dev,struct i2c_msg *msgs,uint8_t num_msgs,uint16_t addr)		       
 {
-	/* Check for NULL pointers */
-	if (dev == NULL) {
-		//LOG_ERR("Device handle is NULL");
-		return -EINVAL;
-	}
-	if (dev->config == NULL) {
-		//LOG_ERR("Device config is NULL");
-		return -EINVAL;
-	}
-	if (msgs == NULL) {
-		return -EINVAL;
-	}
-k_mutex_lock(&(((struct i2c_mindgrove_cfg*)(dev->config))->mutex),K_FOREVER);
+    /* Check for NULL pointers */
+    if (dev == NULL) {
+        // LOG_ERR("Device handle is NULL");
+        return -EINVAL;
+    }
+    if (dev->config == NULL) {
+        //LOG_ERR("Device config is NULL");
+        return -EINVAL;
+    }
+    if (msgs == NULL) {
+        return -EINVAL;
+    }
+    k_mutex_lock(&(((struct i2c_mindgrove_cfg*)(dev->config))->mutex),K_FOREVER);
     for (int i = 0; i < num_msgs; i++) {
         delayms(10);
         if (msgs[i].flags & I2C_MSG_READ) {
-	    	i2c_mindgrove_read_msg(dev, &(msgs[i]), addr);
-	    } else {
-	    	i2c_mindgrove_write_msg(dev, &(msgs[i]), addr);
-	    }
-  k_mutex_unlock(&(((struct i2c_mindgrove_cfg*)(dev->config))->mutex));
+            i2c_mindgrove_read_msg(dev, &(msgs[i]), addr);
+        } else {
+            i2c_mindgrove_write_msg(dev, &(msgs[i]), addr);
+        }
+    k_mutex_unlock(&(((struct i2c_mindgrove_cfg*)(dev->config))->mutex));
     }
+    return 0;
 }
 
 static struct i2c_driver_api i2c_mindgrove_api = {

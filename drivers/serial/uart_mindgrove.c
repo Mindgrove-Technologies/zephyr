@@ -1,5 +1,5 @@
 /* 
- * SPDX-License-Identifier: Apache-2.0
+ * Copyright (c) Mindgrove Technologies Pvt. Ltd 2023.
  */
 
 /**
@@ -374,12 +374,6 @@ static int uart_mindgrove_init(const struct device *dev)
 {
 	struct uart_mindgrove_config * const cfg = DEV_CFG(dev);
 	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
-
-	//uart->base_addr = 0x11300;
-
-	/* Enable TX and RX channels */
-	//uart->txctrl = TXCTRL_TXEN | CTRL_CNT(cfg->rxcnt_irq);
-	//uart->rxctrl = RXCTRL_RXEN | CTRL_CNT(cfg->txcnt_irq);
 
 	/* Set baud rate */
 	uart->div = (cfg->sys_clk_freq / cfg->baud_rate) / 16;

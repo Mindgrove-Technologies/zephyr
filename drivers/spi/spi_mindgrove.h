@@ -205,14 +205,14 @@ typedef struct{
  * settings of the SPI (Synchronous Serial Peripheral Interface) module. It may include settings such
  * as clock polarity, clock phase, data order, and master/slave mode.
  */
-    uint32_t    comm_control;
+    volatile uint32_t    comm_control;
 /**
  * @var uint32_t clk_control
  * The clk_control property is a 32-bit register that controls the
  * clock signal used by the SPI (Synchronous Serial Peripheral Interface) module. It can be used to
  * set the clock frequency, phase, and polarity.
  */
-    uint32_t    clk_control;
+    volatile uint32_t    clk_control;
 /** 
 * @var Data data_tx
 * The above code is declaring a structure named "Data" and a variable named "data_tx" of that
@@ -220,7 +220,7 @@ typedef struct{
 * used to hold data for transmission in a Serial Peripheral Interface (SPI) communication protocol.
 * The comment indicates that the data size can be 8, 16, or 32 bits. 
 */
-    Data        data_tx; 
+    volatile Data        data_tx; 
 /**
 * @var Data     data_rx;
 * The above code is declaring a structure named "Data" and a variable named "data_rx" of that
@@ -229,7 +229,7 @@ typedef struct{
 * to read the data received from the SPI device during data transfer operations.
 * The comment indicates that the data size can be 8, 16, or 32 bits. " 
 */
-    Data        data_rx;
+    volatile Data        data_rx;
 /**
  * @var uint32_t intr_en
  * The "intr_en" property is a 32-bit register that controls the
@@ -237,14 +237,14 @@ typedef struct{
  * module. These events include transmit buffer empty, receive buffer full, and various error
  * conditions. By setting the appropriate bits in this register, the interrupt will be enbled or disabled.
  */
-    uint32_t    intr_en;
+    volatile uint32_t    intr_en;
 /**
  * @var uint32_t fifo_status
  * The fifo_status property is an 32-bit register that indicates the
  * status of the FIFO (First-In-First-Out) buffer in the SPI (Synchronous Serial Peripheral Interface)
  * module. It can be used to determine if the FIFO is full, empty, or partially full.
  */
-    uint32_t    fifo_status;
+    volatile uint32_t    fifo_status;
 /**
  * @var uint16_t comm_status
  * The SPI Communication Status Register is an 16-bit register that
@@ -252,14 +252,14 @@ typedef struct{
  * such as whether the communication is currently active, whether there are any errors in the
  * communication, or whether the communication has been completed successfully.
  */
-    uint16_t    comm_status;
+    volatile uint16_t    comm_status;
 /**
  * @var uint16_t reserve0
  * This is a 16-bit field that is reserved for future use and currently
  * has no defined purpose or functionality. It is included in the structure for potential future
  * expansion or compatibility with other systems.
  */
-    uint16_t    reserve0;
+    volatile uint16_t    reserve0;
 /**
  * @var uint8_t qual
  * The "qual" property is the SPI Input Qualification Control Register,
@@ -267,21 +267,21 @@ typedef struct{
  * register determines the minimum pulse width required for the SPI receiver to recognize a valid
  * input signal. 
  */
-    uint8_t     qual;
+    volatile uint8_t     qual;
 /**
  * @var uint8_t reserve5
  * The reserve5 is an 8-bit reserved field in the spi_struct. It is not
  * used for any specific purpose and is left unused for future modifications or updates to the
  * structure.
  */
-    uint8_t     reserve1;
+    volatile uint8_t     reserve1;
 /**
  * @var uint16_t reserve6
  * This is a 16-bit field that is reserved for future use and currently
  * has no defined purpose or functionality. It is included in the structure for potential future
  * expansion or compatibility with other systems.
  */
-    uint16_t    reserve2;
+    volatile uint16_t    reserve2;
 }spi_struct;
 
 struct spi_mindgrove_data {
