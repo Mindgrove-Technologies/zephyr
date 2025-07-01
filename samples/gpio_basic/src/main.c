@@ -23,5 +23,11 @@ void main(){
         ret = gpio_port_toggle_bits(dev, 0);
         ret = gpio_port_toggle_bits(dev, 1);
         ret = gpio_port_toggle_bits(dev, 2);
+        // ret = gpio_port_set_bits_raw(dev, 0);
+        // ret = gpio_port_set_bits_raw(dev, 1);
+        // ret = gpio_port_set_bits_raw(dev, 2);
+        // ret = gpio_port_clear_bits_raw(dev, 0);
+        // ret = gpio_port_clear_bits_raw(dev, 1);
+        // ret = gpio_port_clear_bits_raw(dev, 2);
     }
 }

@@ -71,7 +71,7 @@ int gpio_mindgrove_pin_configure (const struct device *dev,
     volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
     const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
     if(flags & GPIO_OUTPUT){
-        gpio->direction =-1;
+        gpio->direction |= (1 << pin);
     }
     else{
         gpio->direction &= ~(1 << pin);
