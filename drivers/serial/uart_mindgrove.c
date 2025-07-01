@@ -12,8 +12,6 @@
 
 #define DT_DRV_COMPAT mindgrove_uart
 
-#define CONFIG_UART_MINDGROVE_PORT 1
-
 #ifdef CONFIG_BOARD_SHAKTI_VAJRA
 
 #define SHAKTI_UART_0_CLK_FREQUENCY 50000000
@@ -445,8 +443,8 @@ static struct uart_driver_api uart_mindgrove_driver_api = {
         .port = DT_INST_REG_ADDR(n), \
         .sys_clk_freq = DT_INST_PROP(n, clock_frequency), \
         .baud_rate = DT_INST_PROP(n, current_speed), \
-        .rxcnt_irq = 0, \
-        .txcnt_irq = 0, \
+        .rxcnt_irq = CONFIG_UART_MINDGROVE_PORT_RXCNT_IRQ, \
+        .txcnt_irq = CONFIG_UART_MINDGROVE_PORT_TXCNT_IRQ, \
         UART_MINDGROVE_CFG_FUNC(n) \
     }; \
     static struct uart_mindgrove_data uart_mindgrove_data_##n; \

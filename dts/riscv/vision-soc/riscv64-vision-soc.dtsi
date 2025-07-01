@@ -126,6 +126,7 @@
 			                <&cpu2_intc 11>, <&cpu2_intc 9>,
 			                <&cpu3_intc 11>, <&cpu3_intc 9>;
 			interrupt-controller;
+			// compatible = "mindgrove,plic0";
 			compatible = "sifive,plic-1.0.0";
 			#address-cells = < 0x00 >;
 			#interrupt-cells = < 0x02 >;

@@ -35,14 +35,13 @@ config 2ND_LVL_INTR_00_OFFSET
 config 2ND_LVL_INTR_01_OFFSET
 	default 4
 
-
 config MAX_IRQ_PER_AGGREGATOR
     int
-    default 1023          # Must cover highest IRQ
+    default 58          # Must cover highest IRQ
 
 config NUM_IRQS
     int
-    default 2048          # Total IRQs = highest IRQ + 1 (58 + 1)
+    default 59          # Total IRQs = highest IRQ + 1 (58 + 1)
 
 config RISCV_HAS_CPU_IDLE
     bool
@@ -68,7 +67,11 @@ config RISCV_HAS_PLIC
 
 config PLIC
     bool
-    default y           # Enable PLIC driver
+    default y
+
+config MINDGROVE_PLIC
+    bool
+    default n           # Enable Mindgrove PLIC driver
 
 config RISCV_MACHINE_TIMER
     bool

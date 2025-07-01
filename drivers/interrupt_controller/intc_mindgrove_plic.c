@@ -12,8 +12,8 @@
 
 // Zephyr-plic_shakti
 
-#define DT_DRV_COMPAT shakti_plic0
-#define PLIC_BASE_ADDRESS DT_INST_PROP(0, base)
+#define DT_DRV_COMPAT mindgrove_plic0
+#define PLIC_BASE_ADDRESS DT_INST_REG_ADDR(0)
 
 //--------------------------------
 
@@ -25,6 +25,7 @@
 #include <zephyr/sw_isr_table.h>
 #include <zephyr/drivers/interrupt_controller/riscv_plic.h>
 #include <zephyr/irq.h>
+#include <zephyr/arch/riscv/arch_inlines.h>
 
 //Defines
 
@@ -42,7 +43,7 @@
 #define PLIC_EN_SIZE                    ((uint32_t)(PLIC_MAX_INTERRUPT_SRC/32) * (sizeof(uint32_t))) 
 #define PLIC_PRIORITY_SHIFT_PER_INT     2 // to calculate offset for priority reg
 
-typedef struct plic_shakti_regs_t
+typedef struct mindgrove_plic_regs_t
 {
     uint32_t priority_thershold;
     uint32_t claim_register;
@@ -52,6 +53,21 @@ typedef struct plic_shakti_regs_t
 
 static int track_irq_num;
 volatile int key=0;
+
+static uint32_t save_irq[CONFIG_MP_MAX_NUM_CPUS];
+static const struct device *save_dev[CONFIG_MP_MAX_NUM_CPUS];
+
+/**
+ * @brief Get riscv PLIC causing an interrupt
+ *
+ * This routine returns the RISCV PLIC device causing an interrupt.
+ *
+ * @return PLIC device causing an interrupt.
+ */
+const struct device *riscv_plic_get_dev(void)
+{
+	return save_dev[arch_curr_cpu()->id];
+}
 
 // plic_fptr_t isr_table[PLIC_MAX_INTERRUPT_SRC];
 // interrupt_data_t hart0_interrupt_matrix[PLIC_MAX_INTERRUPT_SRC];
@@ -233,7 +249,7 @@ unsigned int riscv_plic_get_irq(void)
  * @details A single bit that enables an interrupt. The bit position corresponds to the interrupt id
  * @param uint32_t interrupt_id
  */
-void plic_irq_enable(uint32_t interrupt_id)
+void riscv_plic_irq_enable(uint32_t irq)
 {
 	uint32_t *interrupt_enable_addr;
 	uint32_t current_value = 0x00, new_value;
@@ -246,7 +262,7 @@ void plic_irq_enable(uint32_t interrupt_id)
 	// 		,PLIC_BASE_ADDRESS, PLIC_ENABLE_OFFSET);
 	interrupt_enable_addr = (uint32_t *) (PLIC_BASE_ADDRESS +
 			PLIC_ENABLE_OFFSET +
-			(((interrupt_id / 32)-1)*sizeof(uint32_t)));
+			(((irq / 32)-1)*sizeof(uint32_t)));
 
 	current_value = *interrupt_enable_addr;
 
@@ -254,7 +270,7 @@ void plic_irq_enable(uint32_t interrupt_id)
 	// 		interrupt_enable_addr, current_value);
 
 	/*set the bit corresponding to the interrupt src*/
-	new_value = current_value | (0x1 << ((interrupt_id % 32)+1)); //Changed thissssss
+	new_value = current_value | (0x1 << ((irq % 32)+1)); //Changed thissssss
 
 	key = irq_lock();
 	*((uint32_t*)interrupt_enable_addr) = new_value;
@@ -356,10 +372,10 @@ void plic_shakti_set_irq_threshold(uint32_t priority_value)
 /** @fn void set_interrupt_priority(uint32_t priority_value, uint32_t int_id)
  * @brief set priority for an interrupt source
  * @details set priority for each interrupt. This is a 4 byte field.
- * @param uint32_t priority_value
- * @param uint32_t int_id
+ * @param uint32_t priority
+ * @param uint32_t irq
  */
-void plic_shakti_set_priority(uint32_t priority_value, uint32_t int_id)
+void riscv_plic_set_priority(uint32_t irq, uint32_t priority)
 {
 	// log_trace("\n set interrupt priority entered %x\n", priority_value);
 
@@ -371,14 +387,14 @@ void plic_shakti_set_priority(uint32_t priority_value, uint32_t int_id)
 
 	interrupt_priority_address = (uint32_t *) (PLIC_BASE_ADDRESS +
 						   PLIC_PRIORITY_OFFSET +
-						   (int_id <<
+						   (irq <<
 						    PLIC_PRIORITY_SHIFT_PER_INT));
 
 	// log_debug("interrupt_priority_address = %x\n", interrupt_priority_address);
 
 	// log_debug("current data at interrupt_priority_address = %x\n", *interrupt_priority_address);
 
-	*interrupt_priority_address = priority_value;
+	*interrupt_priority_address = priority;
 
 	// log_debug(" new data at interrupt_priority_address = %x\n", *interrupt_priority_address);
 

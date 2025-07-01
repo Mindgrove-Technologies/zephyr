@@ -6,40 +6,39 @@
 #
 
 menuconfig UART_MINDGROVE
-	bool "MINDGROVE serial driver"
+	bool "Mindgrove serial driver"
 	depends on SOC_FAMILY_MINDGROVE
 	select SERIAL_HAS_DRIVER
 	select SERIAL_SUPPORT_INTERRUPT
 	help
-	  This option enables the MINDGROVE serial driver.
+	  This option enables the Mindgrove serial driver.
 
 # ---------- Port 0 ----------
 
-menuconfig UART_MINDGROVE_PORT_0
-	bool "Enable MINDGROVE Port 0"
+menuconfig UART_MINDGROVE_PORT
+	bool "Enable Mindgrove UART Ports"
 	depends on UART_MINDGROVE
 	help
 	  This tells the driver to configure the UART port at boot, depending on
 	  the additional configure options below.
 
-config UART_MINDGROVE_PORT_0_IRQ_PRIORITY
-	int "Port 0 Interrupt Priority"
+config UART_MINDGROVE_PORT_IRQ_PRIORITY
+	int "Mindgrove UART Interrupt Priority"
 	default 1
-	depends on UART_MINDGROVE_PORT_0
+	depends on UART_MINDGROVE_PORT
 	help
-	  Port 0 Interrupt Priority
+	  Mindgrove UART Interrupt Priority
 
-config UART_MINDGROVE_PORT_0_RXCNT_IRQ
-	int "Port 0 RX Interrupt Threshold Count"
+config UART_MINDGROVE_PORT_RXCNT_IRQ
+	int "Mindgrove UART RX Interrupt Threshold Count"
 	default 0
-	depends on UART_MINDGROVE_PORT_0
+	depends on UART_MINDGROVE_PORT
 	help
-	  Port 0 RX Threshold at which the RX FIFO interrupt triggers.
+	  Mindgrove UART RX Threshold at which the RX FIFO interrupt triggers.
 
-config UART_MINDGROVE_PORT_0_TXCNT_IRQ
-	int "Port 0 TX Interrupt Threshold Count"
+config UART_MINDGROVE_PORT_TXCNT_IRQ
+	int "Mindgrove UART TX Interrupt Threshold Count"
 	default 0
-	depends on UART_MINDGROVE_PORT_0
+	depends on UART_MINDGROVE_PORT
 	help
-	  Port 0 TX Threshold at which the TX FIFO interrupt triggers.
-
+	  Mindgrove UART TX Threshold at which the TX FIFO interrupt triggers.

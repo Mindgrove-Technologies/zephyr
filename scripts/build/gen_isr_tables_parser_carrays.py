@@ -213,6 +213,8 @@ typedef void (* ISR)(const void *);
         fp.write("};\n")
 
     def __write_shared_table(self, fp):
+        # if not self.__config.check_sym("CONFIG_DYNAMIC_INTERRUPTS"):
+        #     fp.write("const ")
         fp.write("struct z_shared_isr_table_entry __shared_sw_isr_table"
                 " z_shared_sw_isr_table[%d] = {\n" % self.__nv)
 
@@ -256,6 +258,8 @@ typedef void (* ISR)(const void *);
         if not self.__swt:
             return
 
+        # if not self.__config.check_sym("CONFIG_DYNAMIC_INTERRUPTS"):
+        #     fp.write("const ")
         fp.write("struct _isr_table_entry __sw_isr_table _sw_isr_table[%d] = {\n"
                 % self.__nv)
 
