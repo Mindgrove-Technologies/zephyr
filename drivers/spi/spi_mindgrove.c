@@ -30,9 +30,7 @@ LOG_MODULE_REGISTER(spi_mindgrove);
 
 /*HELPER FUNCTIONS*/
 int spi_number;
-spi_struct *spi_instance[SPI_MAX_COUNT];
-
-#define CLEAR_MASK                         0x0000
+volatile spi_struct *spi_instance[SPI_MAX_COUNT];
 
 typedef struct 
 {
@@ -56,6 +54,10 @@ static int spi_mindgrove_transceive(const struct device *dev,
 			  const struct spi_buf_set *rx_bufs)
 {
   uint32_t len;
+  char *spi_inst; 
+  spi_inst = dev->name;
+  struct spi_mindgrove_cfg *confg = (struct spi_mindgrove_cfg *)dev->config;
+  spi_number = spi_inst[6] - '0';
   volatile uint32_t temp = 0;
   SPI_Config_t spi_config;
   while (1){
@@ -73,7 +75,9 @@ static int spi_mindgrove_transceive(const struct device *dev,
   }
   else
   {
+    #ifdef SPI_DEBUG
     printk("Slave is not supported\n");
+    #endif
     return 1;
   }
   
@@ -86,7 +90,9 @@ static int spi_mindgrove_transceive(const struct device *dev,
     spi_config.pha = 0;
   }
   else{
+    #ifdef SPI_DEBUG
     printk("Invalid pol and pha combination \n");
+    #endif
     return 0;
   }
 
@@ -114,11 +120,12 @@ static int spi_mindgrove_transceive(const struct device *dev,
     spi_config.spi_size = DATA_SIZE_32;
   }
   else {
+    #ifdef SPI_DEBUG
     printk("Invalid data size \n");
+    #endif
     return 0;
   }
 
-  
   if((config -> operation & HALFDUPLEX) ==  HALFDUPLEX){
     spi_config.comm_mode = HALF_DUPLEX;
   }
@@ -134,10 +141,12 @@ static int spi_mindgrove_transceive(const struct device *dev,
     spi_config.comm_mode = SIMPLEX_RX;
   }
   else{
+    #ifdef SPI_DEBUG
     printk("Mode is not supported \n");
+    #endif
     return 0;
   } 
-  spi_config.prescale = 10;
+  spi_config.prescale = 90;
   spi_config.setup_time = 0x0;
   spi_config.hold_time = 0x0;
 
@@ -151,10 +160,8 @@ static int spi_mindgrove_transceive(const struct device *dev,
   if ((spi_config.pol == 0 && spi_config.pha == 1)||(spi_config.pol == 1 && spi_config.pha == 0)) return 1;
 
   k_mutex_lock(&(((struct spi_mindgrove_cfg*)(dev->config))->mutex),K_FOREVER);
-  spi_instance[spi_number]->clk_control = CLEAR_MASK;
   spi_instance[spi_number]->clk_control = SPI_CLK_POLARITY(spi_config.pol) | SPI_CLK_PHASE(spi_config.pha) | SPI_PRESCALE(spi_config.prescale) | SPI_SS2TX_DELAY(spi_config.setup_time) | SPI_TX2SS_DELAY(spi_config.hold_time);
 
-  spi_instance[spi_number]->comm_control = CLEAR_MASK;
   if (spi_config.spi_mode == MASTER)
   {
     spi_instance[spi_number]->comm_control = SPI_MASTER(spi_config.spi_mode) | SPI_LSB_FIRST(spi_config.lsb_first) | SPI_COMM_MODE(spi_config.comm_mode) | SPI_TOTAL_BITS_TX(spi_config.spi_size) | SPI_TOTAL_BITS_RX(spi_config.spi_size) | SPI_OUT_EN_SCLK(1) | SPI_OUT_EN_NCS(1) | SPI_OUT_EN_MOSI(1) | SPI_OUT_EN_MISO(0);
@@ -175,17 +182,14 @@ static int spi_mindgrove_transceive(const struct device *dev,
       if ((spi_config.spi_size == DATA_SIZE_8) && ((spi_instance[spi_number]->fifo_status & SPI_TX_FULL) != SPI_TX_FULL))
       {
         spi_instance[spi_number]->data_tx.data_8 = ((uint8_t*)(tx_bufs->buffers->buf))[i];
-        printk("tx_data= %d\n", spi_instance[spi_number]->data_tx.data_8);
       }
       else if ((spi_config.spi_size == DATA_SIZE_16) && (((spi_instance[spi_number]->fifo_status & SPI_TX_30 == SPI_TX_30) && ((spi_instance[spi_number]->comm_status & SPI_TX_FIFO(7)) == SPI_TX_FIFO(7))) || ((spi_instance[spi_number]->comm_status & SPI_TX_FIFO(7)) < SPI_TX_FIFO(7))))
       {
         spi_instance[spi_number]->data_tx.data_16 = ((uint16_t*)(tx_bufs->buffers->buf))[i];
-        printk("tx_data= %d\n", spi_instance[spi_number]->data_tx.data_16);
       }
       else if ((spi_config.spi_size == DATA_SIZE_32) && (((spi_instance[spi_number]->fifo_status & SPI_TX_28 == SPI_TX_28) && ((spi_instance[spi_number]->comm_status & SPI_TX_FIFO(7)) == SPI_TX_FIFO(6))) || ((spi_instance[spi_number]->comm_status & SPI_TX_FIFO(7)) < SPI_TX_FIFO(6))))
       {
         spi_instance[spi_number]->data_tx.data_32 = ((uint32_t*)(tx_bufs->buffers->buf))[i];
-        printk("tx_data= %d\n", spi_instance[spi_number]->data_tx.data_32);
       }
       while (1)
       {
@@ -241,7 +245,6 @@ static int spi_mindgrove_transceive(const struct device *dev,
           }
         }
         ((uint8_t*)(rx_bufs->buffers->buf))[i] = spi_instance[spi_number]->data_rx.data_8;
-        printk("rx_data= %d\n", ((uint8_t*)(rx_bufs->buffers->buf))[i]);
       }
       else if (spi_config.spi_size == DATA_SIZE_16)
       {
@@ -255,7 +258,6 @@ static int spi_mindgrove_transceive(const struct device *dev,
           }          
         }
         ((uint16_t*)(rx_bufs->buffers->buf))[i] = spi_instance[spi_number]->data_rx.data_16;
-        printk("rx_data= %d\n", ((uint16_t*)(rx_bufs->buffers->buf))[i]);
       }
       else if (spi_config.spi_size == DATA_SIZE_32)
       {
@@ -269,14 +271,12 @@ static int spi_mindgrove_transceive(const struct device *dev,
           }          
         }
         ((uint32_t*)(rx_bufs->buffers->buf))[i] = spi_instance[spi_number]->data_rx.data_32;
-        printk("rx_data= %d\n", ((uint32_t*)(rx_bufs->buffers->buf))[i]);
       }
     } 
   }
   
   else if (spi_config.comm_mode == FULL_DUPLEX || spi_config.comm_mode == HALF_DUPLEX)
   {
-    printk("mode = %d\n", spi_config.comm_mode);
     for (int i = 0; i < len; i++)
     {
       if ((spi_config.spi_size == DATA_SIZE_8) && ((spi_instance[spi_number]->fifo_status & SPI_TX_FULL) != SPI_TX_FULL))
@@ -285,12 +285,10 @@ static int spi_mindgrove_transceive(const struct device *dev,
       }
       else if ((spi_config.spi_size == DATA_SIZE_16) && (((spi_instance[spi_number]->fifo_status & SPI_TX_30 == SPI_TX_30) && ((spi_instance[spi_number]->comm_status & SPI_TX_FIFO(7)) == SPI_TX_FIFO(7))) || ((spi_instance[spi_number]->comm_status & SPI_TX_FIFO(7)) < SPI_TX_FIFO(7))))
       {
-        printk("tx_data= %d\n", spi_instance[spi_number]->data_tx.data_16);
         spi_instance[spi_number]->data_tx.data_16 = ((uint16_t*)(tx_bufs->buffers->buf))[i];
       }
       else if ((spi_config.spi_size == DATA_SIZE_32) && (((spi_instance[spi_number]->fifo_status & SPI_TX_28 == SPI_TX_28) && ((spi_instance[spi_number]->comm_status & SPI_TX_FIFO(7)) == SPI_TX_FIFO(6))) || ((spi_instance[spi_number]->comm_status & SPI_TX_FIFO(7)) < SPI_TX_FIFO(6))))
       {
-        printk("tx_data= %d\n", spi_instance[spi_number]->data_tx.data_32);
         spi_instance[spi_number]->data_tx.data_16 = ((uint16_t*)(tx_bufs->buffers->buf))[i];
       }
       while (1)
@@ -339,7 +337,6 @@ static int spi_mindgrove_transceive(const struct device *dev,
             break;
           }          
         }
-        printk("rx_data= %d\n", ((uint8_t*)(rx_bufs->buffers->buf))[i]);
         ((uint16_t*)(rx_bufs->buffers->buf))[i] = spi_instance[spi_number]->data_rx.data_16;
       }
       else if (spi_config.spi_size == DATA_SIZE_32)
@@ -353,7 +350,6 @@ static int spi_mindgrove_transceive(const struct device *dev,
             break;
           }          
         }
-        printk("rx_data= %d\n", ((uint8_t*)(rx_bufs->buffers->buf))[i]);
         ((uint32_t*)(rx_bufs->buffers->buf))[i] = spi_instance[spi_number]->data_rx.data_32;
       }
     }    
@@ -368,10 +364,8 @@ int spi_mindgrove_init(const struct device *dev)
   char *spi_inst; 
   spi_inst = dev->name;
   struct spi_mindgrove_cfg *confg = (struct spi_mindgrove_cfg *)dev->config;
-  printk("SPI: %s\n", spi_inst);
   spi_number = spi_inst[6] - '0';
   gpio_pin_configure_dt(&(((struct spi_mindgrove_cfg*)(dev->config))->ncs),1);
-  printk("SPI NUMBER: %d\n", spi_number);
   k_mutex_init(&(confg->mutex));
   if (spi_number < SPI_MAX_COUNT & spi_number >= 0){
     spi_instance[spi_number] = (spi_struct*) ( (SPI0_BASE_ADDRESS + ( spi_number * SPI_BASE_OFFSET) ) );
