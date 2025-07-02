@@ -15,7 +15,7 @@ chosen {
 &uart0 {
 	status = "okay";
 	current-speed = <115200>;
-	clock-frequency = <40000000>;
+	clock-frequency = <700000000>;
 };
 
 &uart1 {
