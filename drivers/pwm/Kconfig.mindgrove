@@ -6,3 +6,9 @@ config PWM_MINDGROVE
 	default y
 	help
 	  Enable the PWM driver for the Mindgrove Freedom platform
+
+config PWM_CLOCK_FREQUENCY
+    int "PWM clock frequency"
+    default 700000000
+    help
+      This option sets the input clock frequency for the PWM peripheral.
