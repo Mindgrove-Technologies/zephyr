@@ -3,8 +3,8 @@
 / {
   #address-cells = <2>;
   #size-cells = <2>;
-  compatible = "shakti,spike-bare-dev";
-  model = "shakti,spike-bare";
+  compatible = "mindgrove,spike-bare-dev";
+  model = "mindgrove,spike-bare";
   cpus {
     #address-cells = <1>;
     #size-cells = <0>;
@@ -34,7 +34,7 @@
   soc {
     #address-cells = <1>;
 		#size-cells = <1>;
-    compatible = "shakti,spike-bare-soc", "simple-bus";
+    compatible = "mindgrove,spike-bare-soc", "simple-bus";
     ranges;
 
     clint@2000000 {
