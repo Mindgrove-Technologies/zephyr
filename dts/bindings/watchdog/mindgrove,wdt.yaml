@@ -10,12 +10,15 @@ properties:
   reg:
     type: array
     required: true
-  
-  rcycles:
+    description: Base address and size of the WDT register block
+
+  clock-frequency:
     type: int
     required: true
-    
-  wcycles:
-    type: int
+    description: The input clock frequency in Hz
+
+  status:
+    type: string
     required: true
+    description: Indicates whether the device is enabled ("okay") or not
   
