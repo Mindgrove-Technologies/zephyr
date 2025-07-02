@@ -19,13 +19,13 @@ void uart_loopback_test(void)
 	k_busy_wait(1000); // 1 ms delay (1000 microseconds)
 
     // Receive message
-    // printk("Trying to read back:\n");
-    // for (int i = 0; msg[i] != '\0'; i++) {
-    //     if (uart_poll_in(dev, &recv_char) == 0) {
-    //         printk("%c", recv_char);
-    //     }
-    // }
-    // printk("\n");
+    printk("Receive message:\n");
+    for (int i = 0; msg[i] != '\0'; i++) {
+        if (uart_poll_in(dev, &recv_char) == 0) {
+            printk("%c", recv_char);
+        }
+    }
+    printk("\n");
 }
 
 void main(void)
