@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Wind River Systems, Inc.
+ * Copyright (c) 2025 Mindgrove Technologies Pvt Ltd.
  *
  * SPDX-License-Identifier: Apache-2.0
  */

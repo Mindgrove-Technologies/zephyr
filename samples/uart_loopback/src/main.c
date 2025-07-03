@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2025 Mindgrove Technologies Pvt Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #include <stdio.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/uart.h>

@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2025 Mindgrove Technologies Pvt Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
