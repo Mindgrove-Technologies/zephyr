@@ -1,0 +1,14 @@
+# Copyright (c) 2025 Mindgrove Technologies Private Limited.
+# SPDX-License-Identifier: Apache-2.0
+
+config PWM_MINDGROVE
+	bool "Mindgrove Silicon's PWM driver"
+	default y
+	help
+	  Enable the PWM driver for the Mindgrove Freedom platform
+
+config PWM_CLOCK_FREQUENCY
+    int "PWM clock frequency"
+    default 700000000
+    help
+      This option sets the input clock frequency for the PWM peripheral.

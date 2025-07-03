@@ -1,0 +1,24 @@
+# Copyright (c) 2025 Mindgrove Technologies Private Limited.
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Mindgrove Watchdog timer.
+
+compatible: "mindgrove,wdt"
+
+properties:
+  reg:
+    type: array
+    required: true
+    description: Base address and size of the WDT register block
+
+  clock-frequency:
+    type: int
+    required: true
+    description: The input clock frequency in Hz
+
+  status:
+    type: string
+    required: true
+    description: Indicates whether the device is enabled ("okay") or not
+  
