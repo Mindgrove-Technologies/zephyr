@@ -1,5 +1,7 @@
 /*
-   Global interrupt data maintenance structure
+ * @copyright Copyright (c) Mindgrove Technologies Pvt. Ltd 2025. All rights reserved.
+ *
+ *  Global interrupt data maintenance structure
 */
 
 #define DT_DRV_COMPAT mindgrove_plic

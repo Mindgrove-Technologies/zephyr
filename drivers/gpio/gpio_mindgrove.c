@@ -1,3 +1,9 @@
+/* 
+ * @copyright Copyright (c) Mindgrove Technologies Pvt. Ltd 2025. All rights reserved.
+ * 
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #include <stdio.h>
 #include <errno.h>
 #include <zephyr/kernel.h>
