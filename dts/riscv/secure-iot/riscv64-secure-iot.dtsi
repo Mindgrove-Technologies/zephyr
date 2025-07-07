@@ -3,8 +3,8 @@
 / {
   #address-cells = <2>;
   #size-cells = <2>;
-  compatible = "shakti,spike-bare-dev";
-  model = "shakti,spike-bare";
+  compatible = "mindgrove,spike-bare-dev";
+  model = "mindgrove,spike-bare";
   cpus {
     #address-cells = <1>;
     #size-cells = <0>;
@@ -34,7 +34,7 @@
   soc {
     #address-cells = <1>;
 		#size-cells = <1>;
-    compatible = "shakti,spike-bare-soc", "simple-bus";
+    compatible = "mindgrove,spike-bare-soc", "simple-bus";
     ranges;
 
     clint@2000000 {
@@ -50,7 +50,7 @@
     plic: interrupt-controller@c000000 {
       #address-cells = <0>;
 			#interrupt-cells = <2>;
-      compatible = "shakti,plic0";
+      compatible = "mindgrove,plic";
       interrupt-controller;
       reg = <0x0c000000 0x00000080
 			       0x0c002000 0x00000008
@@ -62,32 +62,44 @@
     };
 
     uart0: serial@11300 {
-        compatible = "shakti,uart0";
-        reg= < 0x0 0x11300 0x0 0x100>;
+        compatible = "mindgrove,uart";
+        reg= <0x11300 0x100>;
     };
 
     uart1: serial@11400 {
-        compatible = "shakti,uart1";
-        reg= < 0x0 0x11400 0x0 0x100>;
+        compatible = "mindgrove,uart";
+        reg= <0x11400 0x100>;
     };    
+
+    uart2: serial@11500 {
+        compatible = "mindgrove,uart";
+        reg= <0x11500 0x100>;
+    }; 
 
     spi0: spi@20000 {
             #address-cells = <1>;
             #size-cells = <0>;
-            compatible = "shakti,spi";
+            compatible = "mindgrove,spi";
             reg = <0x0 0x20000 0x0 0x100>;
     };
 
     spi1: spi@20100 {
            #address-cells = <1>;
 			     #size-cells = <0>;
-           compatible = "shakti,spi";
+           compatible = "mindgrove,spi";
            reg = <0x0 0x20100 0x0 0x100>;
+    };
+
+    spi2: spi@20200 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      compatible = "mindgrove,spi";
+      reg = <0x0 0x20200 0x0 0x100>;
     };
 
     gpio0: gpio@40200 {
                 #gpio-cells = <0x2>;
-                compatible = "shakti,gpio";
+                compatible = "mindgrove,gpio";
                 reg = < 0x0 0x40200 0x0 0x08>;
                 config_gpio = <GPIO_OUTPUT>;
                 interrupt-parent = <&plic>;
@@ -103,13 +115,60 @@
     };
     
     i2c0: i2c@44000 {
-           compatible = "shakti,i2c0";
+           compatible = "mindgrove,i2c";
            reg= <0x0 0x44000 0x0 0x100>;
     };
-    // i2c1: i2c@44100 {
-    //   compatible = "shakti,i2c0";
-    //   reg= <0x0 0x44100 0x0 0x100>;
-    // };
+    
+    i2c1: i2c@44100 {
+      compatible = "mindgrove,i2c";
+      reg= <0x0 0x44100 0x0 0x100>;
+    };
 
+
+    watchdog0: watchdog@40400 {
+        compatible = "mindgrove,wdt";
+        reg = <0x40400 0x20>;
+        clock-frequency = <700000000>;
+        status = "okay";
+      };
+    pwm0: pwm@30000 {
+      compatible = "mindgrove,pwm";
+      reg= < 0x0 0x30000 0x0 0x100>;
+    };
+    
+    pwm1: pwm@30100 {
+      compatible = "mindgrove,pwm";
+      reg= < 0x0 0x30100 0x0 0x100>;
+    };
+
+    pwm2: pwm@30200 {
+      compatible = "mindgrove,pwm";
+      reg= < 0x0 0x30200 0x0 0x100>;
+    };
+
+    pwm3: pwm@30300 {
+      compatible = "mindgrove,pwm";
+      reg= < 0x0 0x30300 0x0 0x100>;
+    };
+    
+    pwm4: pwm@30400 {
+      compatible = "mindgrove,pwm";
+      reg= < 0x0 0x30400 0x0 0x100>;
+    };
+    
+    pwm5: pwm@30500 {
+      compatible = "mindgrove,pwm";
+      reg= < 0x0 0x30500 0x0 0x100>;
+    };
+    
+    pwm6: pwm@30600 {
+      compatible = "mindgrove,pwm";
+      reg= < 0x0 0x30600 0x0 0x100>;
+    };
+    
+    pwm7: pwm@30700 {
+      compatible = "mindgrove,pwm";
+      reg= < 0x0 0x30700 0x0 0x100>;
+    };
   };
 };

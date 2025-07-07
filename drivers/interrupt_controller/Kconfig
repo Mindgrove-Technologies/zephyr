@@ -102,6 +102,6 @@ source "drivers/interrupt_controller/Kconfig.nxp_pint"
 
 source "drivers/interrupt_controller/Kconfig.vim"
 
-source "drivers/interrupt_controller/Kconfig.shakti_plic"
+source "drivers/interrupt_controller/Kconfig.mindgrove_plic"
 
 endmenu

@@ -6,6 +6,7 @@
  */
 #define DT_DRV_COMPAT ilitek_ili9341_driver
 
+#include <stdio.h>
 #include "ili9341_driver.h"
 // #include "display_ili9xxx.h"
 // #include <zephyr/dt-bindings/display/ili9xxx.h>
