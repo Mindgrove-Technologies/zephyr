@@ -1,0 +1,14 @@
+# Copyright (c) 2025 Mindgrove Technologies Private Limited.
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig GPIO_MINDGROVE
+	bool "Mindgrove GPIO driver"
+	default y
+	help
+	  This option enables the Mindgrove GPIO driver.
+
+config GPIO_INIT_PRIORITY
+	int "GPIO init priority"
+	default KERNEL_INIT_PRIORITY_DEFAULT
+	help
+	  GPIO driver device initialization priority.

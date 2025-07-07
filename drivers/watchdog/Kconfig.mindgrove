@@ -1,0 +1,10 @@
+# seciot Freedom WDT configuration
+
+# Copyright (C) 2020 Katsuhiro Suzuki
+# SPDX-License-Identifier: Apache-2.0
+
+config WDT_MINDGROVE
+	bool "seciot Watchdog (WDT) Driver"
+	default y
+	help
+	  This option enables WDT driver for seciot Freedom.

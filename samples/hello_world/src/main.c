@@ -1,17 +1,17 @@
 /*
- * Copyright (c) 2012-2014 Wind River Systems, Inc.
+ * Copyright (c) 2025 Mindgrove Technologies Pvt Ltd.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <stdio.h>
-#include <stdint.h>
-uint8_t data=23;
-uint8_t data1=34;
-const uint32_t data2=45;
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/uart.h>
+#include <zephyr/devicetree.h>
+
 int main(void)
 {
-	uint8_t local=90;
-	printf("Hello World! %s\n", CONFIG_BOARD);
+	printk("Hello World! %s\n", CONFIG_BOARD);
 	return 0;
 }
