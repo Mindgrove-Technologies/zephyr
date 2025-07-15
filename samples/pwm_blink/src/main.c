@@ -26,6 +26,6 @@ void main()
 	pwm_get_cycles_per_sec(dev0, 0, &cycle0);
 	pwm_get_cycles_per_sec(dev1, 0, &cycle1);
 
-    printf("Frequency of PWM0 : Hz%u\n",cycle0);
-    printf("Frequency of PWM1 : Hz%u\n",cycle1);
+    printf("Frequency of PWM0 : %uHz\n",cycle0);
+    printf("Frequency of PWM1 : %uHz\n",cycle1);
 }
