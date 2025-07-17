@@ -89,11 +89,17 @@
  */
 #define CTRL_CNT(x)    (((x) & 0x07) << 16)
 
+typedef union{
+  uint32_t data_32;
+  uint16_t data_16;
+  uint8_t data_8;
+} Data;
+
 struct uart_shakti_regs_t {
     uint16_t div;
     uint16_t reserv0;
-    uint32_t tx;
-    uint32_t rx;
+    Data tx;
+    Data rx;
     unsigned short  status;
     uint16_t reserv2;
     uint16_t delay;
@@ -156,7 +162,7 @@ static unsigned char uart_shakti_poll_out(struct device *dev,
 	while (uart->status & STS_TX_FULL)
 		;
 
-	uart->tx = (int)c;
+	uart->tx.data_8 = (uint8_t)c;
 
 	return c; 
 }
@@ -176,7 +182,7 @@ static int uart_shakti_poll_in(struct device *dev, unsigned char *c)
 	if (uart->status & STS_RX_NOT_EMPTY==0)
 		return -1;
 
-	volatile uint32_t read_val = uart->rx;
+	volatile uint32_t read_val = uart->rx.data_8;
 	*c = (unsigned char)(read_val & RXDATA_MASK);
 
 	return 0;
@@ -200,8 +206,8 @@ static int uart_shakti_fifo_fill(struct device *dev,
 	volatile struct uart_shakti_regs_t *uart = DEV_UART(dev);
 	int i;
 
-	for (i = 0; i < size && !(uart->tx & TXDATA_FULL); i++)
-		uart->tx = (int)tx_data[i];
+	for (i = 0; i < size && !(uart->tx.data_8 & TXDATA_FULL); i++)
+		uart->tx.data_8 = (uint8_t)tx_data[i];
 
 	return i;
 }
@@ -224,7 +230,7 @@ static int uart_shakti_fifo_read(struct device *dev,
 	uint32_t val;
 
 	for (i = 0; i < size; i++) {
-		val = uart->rx;
+		val = uart->rx.data_8;
 
 		if (val & RXDATA_EMPTY)
 			break;
@@ -292,7 +298,7 @@ static int uart_shakti_irq_tx_complete(struct device *dev)
 	 * No TX EMTPY flag for this controller,
 	 * just check if TX FIFO is not full
 	 */
-	return !(uart->tx & TXDATA_FULL);
+	return !(uart->tx.data_8 & TXDATA_FULL);
 }
 
 /**
@@ -471,14 +477,17 @@ static void uart_shakti_irq_cfg_func_2 (void){
 
 	// #ifdef CONFIG_UART_INTERRUPT_DRIVEN \
 	// .cfg_func	  = uart_shakti_irq_cfg_func_##n 					\
-	// #endif \
+	// #endif 
+	
+	/*.sys_clk_freq = 1000000000,							\
+	.baud_rate    = 12500000,					\ */
 
-#define UART_SHAKTI_INIT(n) \
+	#define UART_SHAKTI_INIT(n) \
 	static struct uart_shakti_device_config uart_shakti_dev_cfg_##n = { \
 	.port         = DT_INST_PROP(n, base),							\
-	.sys_clk_freq = 1000000000,							\
-	.baud_rate    = 12500000,					\
-	.cfg_func     =	 &uart_shakti_irq_cfg_func_##n,                   \
+	.sys_clk_freq = 100000000,							\
+	.baud_rate    = 1250000,					\
+	.cfg_func     =	&uart_shakti_irq_cfg_func_##n,                   \
 	.rxcnt_irq    = 0,                                              \	
 	.txcnt_irq    = 0,		                                        \
 										                        \	
