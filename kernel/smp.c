@@ -162,11 +162,8 @@ static void start_cpu(int id, struct cpu_start_cb *csc)
 	/* Wait until the newly powered up CPU to signal that
 	 * it has powered up.
 	 */
-	// int temp = atomic_get(&ready_flag);
-	// while (!temp) {
 	while (!atomic_get(&ready_flag)) {
 		local_delay();
-		// temp = atomic_get(&ready_flag);
 	}
 }
 
