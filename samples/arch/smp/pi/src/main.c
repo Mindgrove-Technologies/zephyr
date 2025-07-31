@@ -14,7 +14,7 @@
  * Amount of digits of Pi to calculate, must be a multiple of 4,
  * as used algorithm spits 4 digits on every iteration.
  */
-#define DIGITS_NUM	66
+#define DIGITS_NUM	240
 
 #define LENGTH		((DIGITS_NUM / 4) * 14)
 #define STACK_SIZE	((LENGTH * sizeof(int) + 1280))
@@ -87,7 +87,7 @@ int main(void)
 	int i;
 
 	printk("Calculate first %d digits of Pi independently by %d threads, on %d cores.\n",
-	       DIGITS_NUM-2, THREADS_NUM, CORES_NUM);
+	       DIGITS_NUM, THREADS_NUM, CORES_NUM);
 
 	/* Capture initial time stamp */
 	start_time = k_cycle_get_32();

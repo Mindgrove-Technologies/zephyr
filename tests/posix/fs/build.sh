@@ -1,0 +1,1 @@
+rm -rf build/ && mkdir build && cd build && cmake -DBOARD=vision-soc .. && make && riscv64-unknown-elf-elf2hex --bit-width 64 --input zephyr/zephyr.elf --output zephyr/code-mini.mem && python3 ../line_extend.py -i zephyr/code-mini.mem -o zephyr/code.mem -n 4194304 && cp -r zephyr/code.mem zephyr/zephyr.lst ../../../../../MULTI_CORE_LLC_V1.6/bin/. && cd ..

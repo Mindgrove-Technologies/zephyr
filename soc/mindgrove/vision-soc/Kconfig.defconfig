@@ -2,7 +2,7 @@ if SOC_VISION_SOC
 
 config SYS_CLOCK_HW_CYCLES_PER_SEC
     int
-    default 1000000000
+    default 500000000
 
 config SYS_CLOCK_TICKS_PER_SEC
     int
