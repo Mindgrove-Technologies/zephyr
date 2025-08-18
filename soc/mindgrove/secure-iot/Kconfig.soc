@@ -1,0 +1,10 @@
+# Kconfig - RISCV64 SHAKTI VAJRA SOC implementation
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+config SOC_SECURE_IOT
+	bool "Mindgrove SECURE IOT implementation"
+	select RISCV
+	select 64BIT
+	select SOC_FAMILY_MINDGROVE

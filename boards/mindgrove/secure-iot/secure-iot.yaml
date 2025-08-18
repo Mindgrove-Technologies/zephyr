@@ -6,6 +6,8 @@ simulation: qemu
 toolchain:
   - cross-compile
   - zephyr
+  - gcc
+  - llvm
 ram: 128
 testing:
   ignore_tags:

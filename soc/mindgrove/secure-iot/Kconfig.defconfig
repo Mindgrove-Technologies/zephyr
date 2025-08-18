@@ -1,0 +1,80 @@
+if SOC_SECURE_IOT
+
+config SYS_CLOCK_HW_CYCLES_PER_SEC
+    int
+    default 1000000000  # 1 GHz clock
+
+config SYS_CLOCK_TICKS_PER_SEC
+    int
+    default 1000        # 1 ms system tick
+
+# Interrupt Configuration
+config RISCV_SOC_INTERRUPT_INIT
+    bool
+    default y           # Custom SoC interrupt init
+
+config MULTI_LEVEL_INTERRUPTS
+    bool
+    default y           # Enable hierarchical interrupts
+
+config 1ST_LEVEL_INTERRUPT_BITS
+	default 4
+
+config NUM_2ND_LEVEL_AGGREGATORS
+	default 2
+
+config 2ND_LEVEL_INTERRUPT_BITS
+	default 11
+
+config 2ND_LVL_ISR_TBL_OFFSET
+	default 12
+
+config 2ND_LVL_INTR_00_OFFSET
+	default 11
+
+config 2ND_LVL_INTR_01_OFFSET
+	default 4
+
+config MAX_IRQ_PER_AGGREGATOR
+    int
+    default 58          # Must cover highest IRQ
+
+config NUM_IRQS
+    int
+    default 59          # Total IRQs = highest IRQ + 1 (58 + 1)
+
+config RISCV_HAS_CPU_IDLE
+    bool
+    default y          # Enable CPU idle states
+
+# CPU/RAM Configuration
+config MP_MAX_NUM_CPUS
+    int
+    default 4           # Quad-core
+
+config RISCV_RAM_BASE_ADDR
+    hex
+    default 0x80000000  # Standard RISC-V RAM base
+
+config RISCV_RAM_SIZE
+    hex
+    default 0x200000    # 2 MB RAM
+
+# PLIC Configuration
+config RISCV_HAS_PLIC
+    bool
+    default y           # SoC uses PLIC
+
+config PLIC
+    bool
+    default y
+
+config MINDGROVE_PLIC
+    bool
+    default n           # Enable Mindgrove PLIC driver
+
+config RISCV_MACHINE_TIMER
+    bool
+    default y           # Use machine-mode timer
+
+endif
