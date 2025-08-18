@@ -29,6 +29,7 @@ source "modules/Kconfig.esp32"
 source "modules/Kconfig.infineon"
 source "modules/Kconfig.libmetal"
 source "modules/lvgl/Kconfig"
+source "modules/coremark/Kconfig"
 source "modules/Kconfig.microchip"
 source "modules/Kconfig.nuvoton"
 source "modules/Kconfig.open-amp"
@@ -116,6 +117,9 @@ comment "Segger module not available."
 
 comment "LVGL module not available."
 	depends on !ZEPHYR_LVGL_MODULE
+
+comment "Coremark module not available."
+	depends on !ZEPHYR_COREMARK_MODULE
 
 comment "cmsis module not available."
 	depends on !ZEPHYR_CMSIS_MODULE
