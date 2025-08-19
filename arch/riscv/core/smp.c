@@ -44,11 +44,9 @@ void arch_cpu_start(int cpu_num, k_thread_stack_t *stack, int sz,
 	}
 #endif
 
-	// printk("ON arch_cpu_start: CPU%d: riscv_cpu_boot_flag=%d, CPU_WAKE_FLAG=%d\n\r",_kernel.cpus[cpu_num].arch.hartid, riscv_cpu_boot_flag, riscv_cpu_wake_flag);
 	while (riscv_cpu_boot_flag == 0U) {
 		riscv_cpu_wake_flag = _kernel.cpus[cpu_num].arch.hartid;
 	}
-	// printk("AFTER arch_cpu_start: CPU%d: riscv_cpu_boot_flag=%d, CPU_WAKE_FLAG=%d\n\r",_kernel.cpus[cpu_num].arch.hartid, riscv_cpu_boot_flag, riscv_cpu_wake_flag);
 }
 
 void arch_secondary_cpu_init(int hartid)
@@ -59,17 +57,9 @@ void arch_secondary_cpu_init(int hartid)
 	for (i = 0; i < CONFIG_MP_MAX_NUM_CPUS; i++) {
 		if (_kernel.cpus[i].arch.hartid == hartid) {
 			cpu_num = i;
-			printk("z_riscv_secondary_cpu_init: IF: CPU_NUM:%d kernel_hartid=%ld, hart_id=%d\n\r", cpu_num, _kernel.cpus[i].arch.hartid, hartid);
 		}
-
-		printk("z_riscv_secondary_cpu_init: CPU%d, kernel_hartid=%ld, hartid=%d\n\r", i, _kernel.cpus[i].arch.hartid, hartid);
-
 	}
 	csr_write(mscratch, &_kernel.cpus[cpu_num]);
-	struct _cpu *scratch;
-	scratch = (struct _cpu_t *)csr_read(mscratch);
-	printk("MSCRATCH Value: 0x%x\n\r", scratch->id);
-
 #ifdef CONFIG_SMP
 	_kernel.cpus[cpu_num].arch.online = true;
 #endif
