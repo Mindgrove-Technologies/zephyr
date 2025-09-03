@@ -1,9 +1,9 @@
 
 if(CONFIG_SOC_VISION_SOC)
     if (CONFIG_RISCV_GENERIC_TOOLCHAIN)
-        zephyr_compile_options(-march=rv64imafdc_zicsr_zifencei -mabi=lp64d -mcmodel=medany -O3)
+        zephyr_compile_options(-march=rv64imafdc_zicsr_zifencei -mabi=lp64d -mcmodel=medany)
     else()
-        zephyr_compile_options(-march=rv64imafdc_zicsr_zifencei -mabi=lp64d -mcmodel=medany -O3)
+        zephyr_compile_options(-march=rv64imafdc_zicsr_zifencei -mabi=lp64d -mcmodel=medany)
     endif()
 endif()
 

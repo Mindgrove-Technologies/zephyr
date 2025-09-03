@@ -12,6 +12,10 @@
 
 /* Basic CoreMark configuration */
 
+#ifdef CONFIG_COREMARK_DEBUG
+#define CORE_DEBUG 1
+#endif
+
 /* Configuration : HAS_FLOAT
  *Define to 1 if the platform supports floating point.
  */
@@ -98,7 +102,7 @@
 #endif
 
 #ifndef COMPILER_FLAGS
-  #define COMPILER_FLAGS CONFIG_COMPILER_OPT " + see compiler flags added by Zephyr"
+  #define COMPILER_FLAGS CONFIG_COMPILER_OPT
 #endif
 
 /* Configuration : MEM_METHOD
@@ -143,7 +147,15 @@
 #endif
 
 #if (MULTITHREAD > 1)
-  #define PARALLEL_METHOD "Zephyr Threads"
+  #ifdef CONFIG_COREMARK_PTHREADS
+    #define USE_PTHREAD 1
+    #define PARALLEL_METHOD "POSIX Threads"
+    #include "pthread.h"
+  #elif defined(CONFIG_COREMARK_ZTHREADS)
+    #define USE_ZTHREAD 1
+    #define PARALLEL_METHOD "Zephyr Threads"
+    #include "zephyr/kernel/thread.h"
+  #endif
 #endif
 
 /* Depending on the benchmark run type different data size is required.
@@ -193,8 +205,16 @@ typedef clock_t	CORE_TICKS;
  */
 #define align_mem(x) (void *)(4 + (((ee_ptr_int)(x) - 1) & ~3))
 
+/*
+ * Define the portable structure with appropriate thread fields
+ */
 typedef struct CORE_PORTABLE_S {
-	ee_u8 portable_id;
+    ee_u8 portable_id;
+#if defined(CONFIG_COREMARK_PTHREADS)
+    pthread_t thread;
+#elif defined(CONFIG_COREMARK_ZTHREADS)
+    k_tid_t thread_id;
+#endif
 } core_portable;
 
 /* Variable : default_num_contexts

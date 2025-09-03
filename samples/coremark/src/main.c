@@ -2,11 +2,12 @@
  * Copyright (c) 2025 Mindgrove Technologies
  */
 
+/*
+ * Main function implementation
+ */
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-
-#include "coremark_zephyr.h"
 
 LOG_MODULE_REGISTER(app, LOG_LEVEL_INF);
 
@@ -17,36 +18,44 @@ static atomic_t coremark_in_progress;
 
 static void main_thread_priority_cooperative_set(void)
 {
-	BUILD_ASSERT(CONFIG_MAIN_THREAD_PRIORITY >= 0);
-	k_thread_priority_set(k_current_get(), COOP_PRIO);
+    BUILD_ASSERT(CONFIG_MAIN_THREAD_PRIORITY >= 0);
+    k_thread_priority_set(k_current_get(), COOP_PRIO);
 }
 
 int main(void)
 {
-	/* Drivers need to be run from a non-blocking thread.
-	 * We need preemptive priority during init.
-	 * Later we prefer cooperative priority to ensure no interference with the benchmark.
-	 */
-	main_thread_priority_cooperative_set();
+    /* Drivers need to be run from a non-blocking thread.
+     * We need preemptive priority during init.
+     * Later we prefer cooperative priority to ensure no interference with the benchmark.
+     */
+    main_thread_priority_cooperative_set();
 
-	printk("CoreMark sample for %s\n\r", CONFIG_BOARD_TARGET);
+    printk("CoreMark sample for %s\n\r", CONFIG_BOARD_TARGET);
+
+#if defined(CONFIG_COREMARK_PTHREADS)
+    printk("Threading: POSIX pthreads with spinlocks\n\r");
+#elif defined(CONFIG_COREMARK_ZTHREADS)
+    printk("Threading: Zephyr k_threads with spinlocks\n\r");
+#else
+    printk("Threading: Single-threaded\n\r");
+#endif
 
     (void)atomic_set(&coremark_in_progress, true);
-	k_sem_give(&start_coremark);
+    k_sem_give(&start_coremark);
     
-	while (true) {
-		k_sem_take(&start_coremark, K_FOREVER);
+    while (true) {
+        k_sem_take(&start_coremark, K_FOREVER);
 
-		printk("CoreMark started!\n\r");
-		printk("Threads: %d\n\r", CONFIG_COREMARK_THREADS_NUMBER);  
-		printk("Iterations: %d\n\r", CONFIG_COREMARK_ITERATIONS);
+        printk("CoreMark started!\n\r");
+        printk("Threads: %d\n\r", CONFIG_COREMARK_THREADS_NUMBER);  
+        printk("Iterations Per-Core: %d\n\r", CONFIG_COREMARK_ITERATIONS);
 
-		coremark_run();
+        coremark_run();
         
         printk("CoreMark finished!\n\r");
 
-		(void)atomic_set(&coremark_in_progress, false);
-	};
+        (void)atomic_set(&coremark_in_progress, false);
+    };
 
-	return 0;
+    return 0;
 }

@@ -11,6 +11,12 @@ menuconfig COREMARK
 
 if COREMARK
 
+config COREMARK_DEBUG
+	bool "Coremarks Debug"
+	default n
+	help
+	  Debug the Coremarks Code with additional print statements.
+
 config COREMARK_ITERATIONS
 	int "Number of iterations to run"
 	range 1 1000000
@@ -28,6 +34,26 @@ config COREMARK_THREADS_NUMBER
 	  Specify the number of threads to use for the CoreMark execution.
 	  1 - means the execution only from the main thread.
 	  Each thread will execute the CoreMark algorithm COREMARK_ITERATIONS number of times in parallel.
+
+config COREMARK_PTHREADS
+	bool "Configure the Coremarks to run on POSIX Threads"
+	default n
+	depends on COREMARK_THREADS_NUMBER > 1
+	select POSIX_THREADS
+	select POSIX_API
+	select POSIX_READER_WRITER_LOCKS
+	select POSIX_THREADS_EXT
+	select PTHREAD_IPC
+	select POSIX_SPINLOCKS
+	help
+	   y - Will do a POSIX Thread based implementation on core_start_parallel() & core_stop_parallel()
+
+config COREMARK_ZTHREADS
+	bool "Configure the Coremarks to run on Zephyr's KThreads"
+	default n
+	depends on COREMARK_THREADS_NUMBER > 1
+	help
+	   y - Will do a Zephyr KThread based implementation on core_start_parallel() & core_stop_parallel()
 
 config COREMARK_THREADS_PRIORITY
 	int "CoreMark thread priority"
