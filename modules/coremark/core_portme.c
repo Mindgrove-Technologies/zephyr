@@ -103,11 +103,13 @@ void portable_fini(core_portable *p) {
 }
 
 #if (MULTITHREAD > 1)
+
 #if defined(CONFIG_COREMARK_PTHREADS) // POSIX Threads
 
 // POSIX spinlock for thread synchronization
 static pthread_spinlock_t thread_spinlock;
 static bool spinlock_initialized = false;
+static volatile int thread_cpu_counter = 0;  // For load balancing hints
 
 static void init_pthread_spinlock(void) {
     if (!spinlock_initialized) {
@@ -124,7 +126,32 @@ ee_u8 core_start_parallel(core_results *res)
     init_pthread_spinlock();
     
     pthread_spin_lock(&thread_spinlock);
-    int ret = pthread_create(&(res->port.thread), NULL, (void*(*)(void*))iterate, (void *)res);
+    
+    // Create thread with attributes but NO CPU affinity (not supported in Zephyr)
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    
+    // Use different scheduling parameters to encourage CPU distribution
+    struct sched_param param;
+    int policy = SCHED_OTHER;
+    
+    // Alternate priorities to encourage different CPU usage
+    param.sched_priority = (thread_cpu_counter % 2 == 0) ? 0 : 1;
+    
+    pthread_attr_setschedpolicy(&attr, policy);
+    pthread_attr_setschedparam(&attr, &param);
+    pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+    
+    int ret = pthread_create(&(res->port.thread), &attr, (void*(*)(void*))iterate, (void *)res);
+    
+    if (ret == 0) {
+        int cpu_hint = thread_cpu_counter % CONFIG_MP_MAX_NUM_CPUS;
+        thread_cpu_counter++;
+        ee_printf("POSIX Thread %d created with priority %d (CPU hint: %d)\n", 
+                 thread_cpu_counter-1, param.sched_priority, cpu_hint);
+    }
+    
+    pthread_attr_destroy(&attr);
     pthread_spin_unlock(&thread_spinlock);
     
     return (ee_u8)ret;
@@ -133,11 +160,7 @@ ee_u8 core_start_parallel(core_results *res)
 ee_u8 core_stop_parallel(core_results *res)
 {
     void *retval;
-    
-    pthread_spin_lock(&thread_spinlock);
     int ret = pthread_join(res->port.thread, &retval);
-    pthread_spin_unlock(&thread_spinlock);
-    
     return (ee_u8)ret;
 }
 

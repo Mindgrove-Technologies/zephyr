@@ -151,6 +151,7 @@
     #define USE_PTHREAD 1
     #define PARALLEL_METHOD "POSIX Threads"
     #include "pthread.h"
+    #include "sched.h"
   #elif defined(CONFIG_COREMARK_ZTHREADS)
     #define USE_ZTHREAD 1
     #define PARALLEL_METHOD "Zephyr Threads"
