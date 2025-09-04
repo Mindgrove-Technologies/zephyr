@@ -6,7 +6,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/util.h>
 
-#define THREAD_STACK_SIZE   (8192)  // Increased for CoreMark requirements
+#define THREAD_STACK_SIZE   (2048)
 
 /*
  * Predefined seed values are required by CoreMark for given run types.
@@ -106,62 +106,31 @@ void portable_fini(core_portable *p) {
 
 #if defined(CONFIG_COREMARK_PTHREADS) // POSIX Threads
 
-// POSIX spinlock for thread synchronization
-static pthread_spinlock_t thread_spinlock;
-static bool spinlock_initialized = false;
-static volatile int thread_cpu_counter = 0;  // For load balancing hints
-
-static void init_pthread_spinlock(void) {
-    if (!spinlock_initialized) {
-        if (pthread_spin_init(&thread_spinlock, PTHREAD_PROCESS_PRIVATE) != 0) {
-            ee_printf("ERROR: Failed to initialize pthread spinlock\n");
-            k_panic();
-        }
-        spinlock_initialized = true;
-    }
-}
+static volatile uint8_t cpu_hint_counter = 0;
 
 ee_u8 core_start_parallel(core_results *res)
 {
-    init_pthread_spinlock();
-    
-    pthread_spin_lock(&thread_spinlock);
-    
-    // Create thread with attributes but NO CPU affinity (not supported in Zephyr)
     pthread_attr_t attr;
     pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, THREAD_STACK_SIZE);
     
-    // Use different scheduling parameters to encourage CPU distribution
+    // CPU distribution hint via alternating priorities
     struct sched_param param;
-    int policy = SCHED_OTHER;
-    
-    // Alternate priorities to encourage different CPU usage
-    param.sched_priority = (thread_cpu_counter % 2 == 0) ? 0 : 1;
-    
-    pthread_attr_setschedpolicy(&attr, policy);
+    param.sched_priority = cpu_hint_counter % 3;  // 3 different priorities
     pthread_attr_setschedparam(&attr, &param);
-    pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
     
-    int ret = pthread_create(&(res->port.thread), &attr, (void*(*)(void*))iterate, (void *)res);
+    int ret = pthread_create(&res->port.thread, &attr, (void*(*)(void*))iterate, res);
     
-    if (ret == 0) {
-        int cpu_hint = thread_cpu_counter % CONFIG_MP_MAX_NUM_CPUS;
-        thread_cpu_counter++;
-        ee_printf("POSIX Thread %d created with priority %d (CPU hint: %d)\n", 
-                 thread_cpu_counter-1, param.sched_priority, cpu_hint);
-    }
-    
+    cpu_hint_counter++;
     pthread_attr_destroy(&attr);
-    pthread_spin_unlock(&thread_spinlock);
-    
+
     return (ee_u8)ret;
 }
 
 ee_u8 core_stop_parallel(core_results *res)
 {
     void *retval;
-    int ret = pthread_join(res->port.thread, &retval);
-    return (ee_u8)ret;
+    return (ee_u8)pthread_join(res->port.thread, &retval);
 }
 
 #elif defined(CONFIG_COREMARK_ZTHREADS) // Zephyr KThreads
