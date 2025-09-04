@@ -113,7 +113,7 @@ ee_u8 core_start_parallel(core_results *res)
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setstacksize(&attr, THREAD_STACK_SIZE);
-    
+
     // CPU distribution hint via alternating priorities
     struct sched_param param;
     param.sched_priority = cpu_hint_counter % 3;  // 3 different priorities
@@ -174,67 +174,67 @@ static void coremark_thread(void *id, void *pres, void *p3) {
 
 ee_u8 core_start_parallel(core_results *res)
 {
-    k_spinlock_key_t key = k_spin_lock(&thread_spinlock);
+    // k_spinlock_key_t key = k_spin_lock(&thread_spinlock);
     
-    if (thread_cnt >= CONFIG_COREMARK_THREADS_NUMBER) {
-        ee_printf("ERROR: Reached max number of threads (%d)\n", CONFIG_COREMARK_THREADS_NUMBER);
-        k_spin_unlock(&thread_spinlock, key);
-        return 1;
-    }
+    // if (thread_cnt >= CONFIG_COREMARK_THREADS_NUMBER) {
+    //     ee_printf("ERROR: Reached max number of threads (%d)\n", CONFIG_COREMARK_THREADS_NUMBER);
+    //     k_spin_unlock(&thread_spinlock, key);
+    //     return 1;
+    // }
 
     k_tid_t tid = k_thread_create(&thread_descriptors[thread_cnt],
                                   thread_stacks[thread_cnt],
                                   THREAD_STACK_SIZE,
-                                  coremark_thread,
-                                  (void *)(intptr_t)thread_cnt,
+                                  iterate,
                                   res,
+                                  NULL,
                                   NULL,
                                   CONFIG_COREMARK_THREADS_PRIORITY, 
                                   0, 
                                   K_NO_WAIT);
 
-    if (tid == NULL) {
-        ee_printf("ERROR: Failed to create thread %d\n", thread_cnt);
-        k_spin_unlock(&thread_spinlock, key);
-        return 1;
-    }
+    // if (tid == NULL) {
+    //     ee_printf("ERROR: Failed to create thread %d\n", thread_cnt);
+    //     // k_spin_unlock(&thread_spinlock, key);
+    //     return 1;
+    // }
 
     // Store the thread ID in the results structure for this specific thread
     res->port.thread_id = tid;
     thread_cnt++;
     
-    k_spin_unlock(&thread_spinlock, key);
+    // k_spin_unlock(&thread_spinlock, key);
     return 0;
 }
 
 ee_u8 core_stop_parallel(core_results *res)
 {
     int ret = 0;
-    k_spinlock_key_t key = k_spin_lock(&thread_spinlock);
+    // k_spinlock_key_t key = k_spin_lock(&thread_spinlock);
 
-    if (thread_cnt <= 0) {
-        ee_printf("ERROR: Can't have negative or zero number of active threads\n");
-        k_spin_unlock(&thread_spinlock, key);
-        return 1;
-    }
+    // if (thread_cnt <= 0) {
+    //     ee_printf("ERROR: Can't have negative or zero number of active threads\n");
+    //     k_spin_unlock(&thread_spinlock, key);
+    //     return 1;
+    // }
 
-    thread_cnt--;
+    // thread_cnt--;
     k_tid_t thread_to_join = res->port.thread_id;
     
-    k_spin_unlock(&thread_spinlock, key);
+    // k_spin_unlock(&thread_spinlock, key);
 
     // Join the specific thread for this results structure (outside spinlock to avoid deadlock)
     if (thread_to_join != NULL) {
         ret = k_thread_join(thread_to_join, K_MSEC(CONFIG_COREMARK_THREADS_TIMEOUT_MS));
-        if (ret == -EAGAIN) {
-            ee_printf("ERROR: Thread join timed out after %d ms. "
-                     "Consider increasing CONFIG_COREMARK_THREADS_TIMEOUT_MS\n",
-                     CONFIG_COREMARK_THREADS_TIMEOUT_MS);
-            return 1;
-        } else if (ret != 0) {
-            ee_printf("ERROR: Thread join failed with error: %d\n", ret);
-            return 1;
-        }
+        // if (ret == -EAGAIN) {
+        //     ee_printf("ERROR: Thread join timed out after %d ms. "
+        //              "Consider increasing CONFIG_COREMARK_THREADS_TIMEOUT_MS\n",
+        //              CONFIG_COREMARK_THREADS_TIMEOUT_MS);
+        //     return 1;
+        // } else if (ret != 0) {
+        //     ee_printf("ERROR: Thread join failed with error: %d\n", ret);
+        //     return 1;
+        // }
     }
     
     return 0;

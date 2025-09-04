@@ -33,9 +33,9 @@ int main(void)
     printk("CoreMark sample for %s\n\r", CONFIG_BOARD_TARGET);
 
 #if defined(CONFIG_COREMARK_PTHREADS)
-    printk("Threading: POSIX pthreads with spinlocks\n\r");
+    printk("Threading: POSIX pthreads\n\r");
 #elif defined(CONFIG_COREMARK_ZTHREADS)
-    printk("Threading: Zephyr k_threads with spinlocks\n\r");
+    printk("Threading: Zephyr k_threads\n\r");
 #else
     printk("Threading: Single-threaded\n\r");
 #endif
