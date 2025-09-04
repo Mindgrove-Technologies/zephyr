@@ -75,7 +75,7 @@
  * 1 - platform does not support returning a value from main
  */
 #ifndef MAIN_HAS_NORETURN
-  #define MAIN_HAS_NORETURN 1
+  #define MAIN_HAS_NORETURN 0
 #endif
 
 /* Configuration : SEED_METHOD
