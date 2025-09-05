@@ -51,19 +51,19 @@ int main(void)
         printk("Iterations Per-Core: %d\n\r", CONFIG_COREMARK_ITERATIONS);
 
         long unsigned total_ticks = coremark_run();
+	    
+        __asm__ volatile (
+		      "li a0, %0\n\t"
+		      "csrs mstatus, a0\n\t"
+		      "csrwi fcsr, 0\n\t"
+		      : // no outputs
+		      : "i" (MSTATUS_FS & (MSTATUS_FS >> 1))
+		      : "a0", "memory"
+		  );
+       
+        float coremarks_per_mhz = ((CONFIG_COREMARK_THREADS_NUMBER*CONFIG_COREMARK_ITERATIONS*1000000)/total_ticks);
 
-		__asm__ volatile (
-		    "li a0, %0\n\t"
-		    "csrs mstatus, a0\n\t"
-		    "csrwi fcsr, 0\n\t"
-		    : // no outputs
-		    : "i" (MSTATUS_FS & (MSTATUS_FS >> 1))
-		    : "a0", "memory"
-		);
-
-		double coremarks_per_mhz = (double)((CONFIG_COREMARK_THREADS_NUMBER*CONFIG_COREMARK_ITERATIONS*1000000)/(long unsigned)total_ticks);
-
-		printf("CoreMark/MHz is %f\n\r", coremarks_per_mhz);
+		printk("CoreMark/MHz is %.4f\n\r", coremarks_per_mhz);
 
         printk("CoreMark finished!\n\r");
 

@@ -106,22 +106,49 @@ void portable_fini(core_portable *p) {
 
 #if defined(CONFIG_COREMARK_PTHREADS) // POSIX Threads
 
-static volatile uint8_t cpu_hint_counter = 0;
+#define _COREMARK_PTHREAD_STACK_ARRAY_ITEM(n, _) CONCAT(CONCAT(coremark_pthread_, n), _stack)
+
+#define _COREMARK_PTHREAD_STACK_DEFINE(n, _) \
+    K_THREAD_STACK_DEFINE(_COREMARK_PTHREAD_STACK_ARRAY_ITEM(n, _), THREAD_STACK_SIZE)
+
+#define COREMARK_PTHREAD_STACK_INSTANCE_DEFINE(_name, _instance_num) \
+    LISTIFY(_instance_num, _COREMARK_PTHREAD_STACK_DEFINE, (;)); \
+    static k_thread_stack_t *_name[] = { \
+        LISTIFY(_instance_num, _COREMARK_PTHREAD_STACK_ARRAY_ITEM, (,)) \
+    }
+
+// Create static stack arrays for pthreads
+COREMARK_PTHREAD_STACK_INSTANCE_DEFINE(pthread_stacks, CONFIG_COREMARK_THREADS_NUMBER);
+
+static volatile int pthread_cnt = 0;
+static volatile int cpu_hint_counter = 0;
 
 ee_u8 core_start_parallel(core_results *res)
 {
+    // if (pthread_cnt >= CONFIG_COREMARK_THREADS_NUMBER) {
+    //     return 1;
+    // }
+
     pthread_attr_t attr;
     pthread_attr_init(&attr);
-    pthread_attr_setstacksize(&attr, THREAD_STACK_SIZE);
-
+    
+    // Use static pre-allocated stack instead of setscacksize
+    pthread_attr_setstack(&attr, pthread_stacks[pthread_cnt], THREAD_STACK_SIZE);
+    
     // CPU distribution hint via alternating priorities
     struct sched_param param;
-    param.sched_priority = cpu_hint_counter % 3;  // 3 different priorities
+    param.sched_priority = cpu_hint_counter % 3;
     pthread_attr_setschedparam(&attr, &param);
+    pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
     
     int ret = pthread_create(&res->port.thread, &attr, (void*(*)(void*))iterate, res);
     
-    cpu_hint_counter++;
+    // if (ret == 0) {
+        cpu_hint_counter++;
+        pthread_cnt++;
+    // }
+    
     pthread_attr_destroy(&attr);
 
     return (ee_u8)ret;
@@ -130,7 +157,13 @@ ee_u8 core_start_parallel(core_results *res)
 ee_u8 core_stop_parallel(core_results *res)
 {
     void *retval;
-    return (ee_u8)pthread_join(res->port.thread, &retval);
+    int ret = pthread_join(res->port.thread, &retval);
+    
+    // if (ret == 0) {
+    //     pthread_cnt--;
+    // }
+    
+    return (ee_u8)ret;
 }
 
 #elif defined(CONFIG_COREMARK_ZTHREADS) // Zephyr KThreads
