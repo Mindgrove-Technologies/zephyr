@@ -1,9 +1,9 @@
 # Copyright (c) 2018, SiFive Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-description: SHAKTI GPIO node
+description: Mindgrove GPIO node
 
-compatible: "shakti,gpio"
+compatible: "mindgrove,gpio"
 
 # include: [gpio-controller.yaml, base.yaml]
 
@@ -16,13 +16,21 @@ properties:
     type: array
     required: true
 
+  interrupt-names:
+    type: string-array
+    required: true
+
   "#gpio-cells":
     type: int
     const: 2
 
   config_gpio:
     type: int
-    required: true
+    required: true  
+
+  gpio-controller:
+    type: boolean
+    description: Identifies a node as a GPIO controller.
 
 gpio-cells:
   - pin

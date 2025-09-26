@@ -1,9 +1,12 @@
+/* 
+ * @copyright Copyright (c) Mindgrove Technologies Pvt. Ltd 2025. All rights reserved.
+ * 
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-// #ifndef ZEPHYR_INCLUDE_DRIVERS_GPIO_GPIO_SHAKTI_H_
-// #define ZEPHYR_INCLUDE_DRIVERS_GPIO_GPIO_SHAKTI_H_
 
 #include <stdint.h>
 #include <errno.h>
@@ -16,7 +19,7 @@ extern "C" {
 #include <zephyr/device.h>
 #include <zephyr/dt-bindings/gpio/gpio.h>
 #include <zephyr/kernel.h>
-
+#include <zephyr/drivers/gpio.h>
 typedef uint8_t gpio_pin_t;
 typedef uint32_t gpio_flags_t;
 
