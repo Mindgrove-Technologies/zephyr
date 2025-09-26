@@ -1,0 +1,50 @@
+# Copyright (c) 2018, SiFive Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+description: Mindgrove RISC-V PLIC
+
+compatible: "mindgrove,plic"
+
+include: riscv,plic0.yaml
+
+properties:
+  compatible:
+    type: string-array
+    required: true
+
+  reg:
+    type: array
+    required: true
+    description: PLIC register space
+  
+  interrupt-controller:
+    type: boolean
+    required: true
+    description: Marks node as interrupt controller
+
+  '#interrupt-cells':
+    type: int
+    required: true
+    const: 2
+    description: Number of cells to encode an interrupt specifier
+
+  '#address-cells':
+    type: int
+    required: true
+    const: 0
+    description: Number of cells to encode a target address
+
+  riscv,max-priority:
+    type: int
+    required: true
+    description: Maximum interrupt priority
+  
+  riscv,ndev:
+    type: int
+    description: Number of external interrupts supported
+    required: false
+
+  # interrupts-extended:
+  #   type: phandle-array
+  #   required: false
+  #   description: Extended interrupt specifiers

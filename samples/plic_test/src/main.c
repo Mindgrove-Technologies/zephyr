@@ -70,15 +70,16 @@ int main(void)
     gpio_pin_interrupt_configure(dev, GPIO_PIN, 1);
 
 	// Initialize interrupt from PLIC side
-	plic_irq_enable(INT_ID);
+	irq_enable(INT_ID);
 		
 	// Install user-defined ISR() into zephyr's isr_table
 	isr_installer();
 
-
+	int val = gpio_pin_get(dev, GPIO_PIN);
+	
 	while(1)
 	{
-		printf("GPIO Pin Status : %x\n", gpio_port_get_raw(dev, GPIO_PIN));
+		printf("GPIO Pin %d Status : %d\n", GPIO_PIN, val);
 	}
 
 	return 0;
