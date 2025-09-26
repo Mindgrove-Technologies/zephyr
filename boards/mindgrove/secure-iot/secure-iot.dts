@@ -3,8 +3,8 @@
 #include <secure-iot/riscv64-secure-iot.dtsi>
 
 / {
-	model = "mindgrove,spike-bare";
-	compatible = "mindgrove,spike-bare-dev";
+	model = "mindgrove,secureiot";
+	compatible = "mindgrove,secureiot";
 
 chosen {
 		zephyr,console = &uart0;
@@ -13,14 +13,20 @@ chosen {
 
 &uart0 {
 	status = "okay";
+	reg = <0x11300 0x100>;
 	current-speed = <115200>;
 	clock-frequency = <700000000>;
+	interrupts = <47 1>; 
+	interrupt-names = "txnrx";
 };
 
 &uart1 {
 	status = "okay";
+	reg = <0x11400 0x100>;
 	current-speed = <115200>;
 	clock-frequency = <700000000>;
+	interrupts = <48 1>; 
+	interrupt-names = "txnrx";
 };
 
 &i2c0 {
@@ -54,7 +60,9 @@ chosen {
 };
 
 &plic {
-
 	status = "okay";
-	base = <0xc000000>;
+};
+
+&gpio0 {
+	status = "okay";
 };
