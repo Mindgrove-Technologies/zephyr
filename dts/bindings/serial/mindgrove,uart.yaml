@@ -14,11 +14,8 @@ properties:
     reg:
       required: true
     interrupts:
-      required: true  
+      required: true
     clock-frequency:
       required: true
     current-speed:
-      required: true
-    interrupt-names: 
-      type: string-array
       required: true

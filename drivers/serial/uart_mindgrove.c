@@ -90,7 +90,7 @@ typedef void (*irq_cfg_func_t)(void);
 #endif
 
 struct uart_mindgrove_config {
-	uint32_t       base;
+	uint32_t       port;
 	uint32_t       sys_clk_freq;
 	uint32_t       baud_rate;
 	uint32_t	   irq_number;
@@ -111,7 +111,7 @@ struct uart_mindgrove_data {
 
 #define DEV_CFG(dev) ((struct uart_mindgrove_config * const)(dev)->config)
 
-#define DEV_UART(dev) ((struct uart_mindgrove_regs_t *)(uintptr_t)(DEV_CFG(dev)->base))
+#define DEV_UART(dev) ((struct uart_mindgrove_regs_t *)(uintptr_t)(DEV_CFG(dev)->port))
 
 #define DEV_DATA(dev) ((struct uart_mindgrove_data * const)(dev)->data)
 
@@ -432,24 +432,22 @@ static struct uart_driver_api uart_mindgrove_driver_api = {
 
 
 #define UART_MINDGROVE_INIT(n) \
-	PINCTRL_DT_INST_DEFINE(n);	\
-	UART_MINDGROVE_IRQ_CONFIG_FUNC(n); \
-	UART_MINDGROVE_CFG_FUNC(n); \
     static struct uart_mindgrove_config uart_mindgrove_config_##n = { \
-        .base = DT_INST_REG_ADDR(n), \
+        .port = DT_INST_REG_ADDR(n), \
         .sys_clk_freq = DT_INST_PROP(n, clock_frequency), \
         .baud_rate = DT_INST_PROP(n, current_speed), \
-        .irq_number = DT_INST_IRQ_BY_NAME(n, txnrx, irq), \
+		.irq_number = DT_INST_IRQ_BY_NAME(n, tx, irq),	\
+		.irq_number = DT_INST_IRQ_BY_NAME(n, rx, irq),	\
     }; \
     static struct uart_mindgrove_data uart_mindgrove_data_##n; \
     DEVICE_DT_INST_DEFINE(n, \
         uart_mindgrove_init, \
-        PINCTRL_DT_INST_GET(n), \
+        NULL, \
         &uart_mindgrove_data_##n, \
         &uart_mindgrove_config_##n, \
-        PRE_KERNEL_1, \
-        CONFIG_SERIAL_INIT_PRIORITY, \
+        POST_KERNEL, \
+        CONFIG_KERNEL_INIT_PRIORITY_DEVICE, \
         &uart_mindgrove_driver_api, \
-        NULL);
+        NULL)
 	
-DT_INST_FOREACH_STATUS_OKAY(UART_MINDGROVE_INIT)
+DT_INST_FOREACH_STATUS_OKAY(UART_MINDGROVE_INIT);

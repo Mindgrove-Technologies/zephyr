@@ -9,3 +9,11 @@ config MINDGROVE_PLIC
 	help
 	  Platform Level Interrupt Controller provides support
 	  for external interrupt lines defined by the RISC-V SoC.
+
+config PLIC_MEIP_PRIORITY
+    int "Priority for the Machine External Interrupt (MEIP)"
+    default 3
+    range 1 7 # Or whatever the supported range is for your PLIC
+    help
+      This sets the priority for the PLIC's interrupt in the CPU's local
+      interrupt controller (CLINT/LINTC).

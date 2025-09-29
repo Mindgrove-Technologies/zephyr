@@ -5,7 +5,7 @@ description: Mindgrove RISC-V PLIC
 
 compatible: "mindgrove,plic"
 
-include: riscv,plic0.yaml
+include: [base.yaml, interrupt-controller.yaml]
 
 properties:
   compatible:
@@ -17,16 +17,13 @@ properties:
     required: true
     description: PLIC register space
   
-  interrupt-controller:
+  "interrupt-controller":
     type: boolean
     required: true
-    description: Marks node as interrupt controller
+    description: Convey's this node is an interrupt controller
 
-  '#interrupt-cells':
-    type: int
-    required: true
-    const: 2
-    description: Number of cells to encode an interrupt specifier
+  "#interrupt-cells":
+    const: 1
 
   '#address-cells':
     type: int
@@ -48,3 +45,6 @@ properties:
   #   type: phandle-array
   #   required: false
   #   description: Extended interrupt specifiers
+
+interrupt-cells:
+  - line

@@ -15,11 +15,7 @@ properties:
   interrupts:
     type: array
     required: true
-
-  interrupt-names:
-    type: string-array
-    required: true
-
+    
   "#gpio-cells":
     type: int
     const: 2
