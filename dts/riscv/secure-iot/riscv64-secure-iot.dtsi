@@ -76,25 +76,25 @@
 			  #address-cells = <0>;
         interrupt-names = "tx", "rx";
         interrupt-parent = <&plic>;
-        clock-frequency = <700000000>;
+        clock-frequency = <30000000>;
         current-speed = <115200>;
         status = "okay";
     };
 
-    uart1: serial@11400 {
-        compatible = "mindgrove,uart";
-        reg= < 0x11400 0x100>;
-        interrupts = <48 1>;             // <irq_number priority>
-			  interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
-        interrupt-controller;
-        #interrupt-cells = <1>; 
-			  #address-cells = <0>;
-        interrupt-names = "tx", "rx";
-        interrupt-parent = <&plic>;
-        clock-frequency = <700000000>;
-        current-speed = <115200>;
-        status = "okay";
-    };    
+    // uart1: serial@11400 {
+    //     compatible = "mindgrove,uart";
+    //     reg= < 0x11400 0x100>;
+    //     interrupts = <48 1>;             // <irq_number priority>
+		// 	  interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
+    //     interrupt-controller;
+    //     #interrupt-cells = <1>; 
+		// 	  #address-cells = <0>;
+    //     interrupt-names = "tx", "rx";
+    //     interrupt-parent = <&plic>;
+    //     clock-frequency = <30000000>;
+    //     current-speed = <115200>;
+    //     status = "okay";
+    // };    
 
     spi0: spi@20000 {
             #address-cells = <1>;
