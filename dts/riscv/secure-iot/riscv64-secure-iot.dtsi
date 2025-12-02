@@ -54,17 +54,17 @@
 			reg-names = "mtime", "mtimecmp";
 		};
 
-    plic: interrupt-controller@c000000 {
-			compatible = "mindgrove,plic";
-			reg = <0x0c000000 0x04000000>;
-			interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
-			interrupt-controller;
-			#interrupt-cells = <1>; 
-			#address-cells = <0>;
-			riscv,max-priority = <7>;
-			riscv,ndev = < 59 >;
-      status = "okay";
-		};
+    plic0: interrupt-controller@c000000 {
+        compatible = "mindgrove,plic";        
+        reg = <0xc000000 0x400000>;              
+        interrupt-controller;
+        #interrupt-cells = <2>;
+        #address-cells = <0>;
+        interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;            
+        riscv-irq-aggregator-offset = <0>;
+        riscv,max-priority = <7>;      
+        riscv,ndev = <57>;
+    };
 
     uart0: serial@11300 {
         compatible = "mindgrove,uart";
@@ -74,8 +74,8 @@
         interrupt-controller;
         #interrupt-cells = <1>; 
 			  #address-cells = <0>;
-        interrupt-names = "tx", "rx";
-        interrupt-parent = <&plic>;
+        interrupt-names = "irq";
+        interrupts-extended = <&plic0 6 1>;
         clock-frequency = <30000000>;
         current-speed = <115200>;
         status = "okay";
@@ -109,25 +109,22 @@
            compatible = "shakti,spi";
            reg = <0x0 0x20100 0x0 0x100>;
     };
-
+    
     gpio0: gpio@40200 {
-                #gpio-cells = <2>;
-                compatible = "mindgrove,gpio";
-                reg = < 0x0 0x40200 0x0 0x08>;
-                config_gpio = <0>;
-                interrupt-parent = <&plic>;
-                interrupts = <32 1>;
-                // interrupt-names = "gpio-int";
-                // interrupts = <1 1>, <2 1>, <3 1>, <4 1>,
-                //           <5 1>, <6 1>, <7 1>, <8 1>,
-                //           <9 1>, <10 1>, <11 1>, <12 1>,
-                //           <13 1>, <14 1>, <15 1>, <16 1>,
-                //           <17 1>, <18 1>, <19 1>, <20 1>,
-                //           <21 1>, <22 1>, <23 1>, <24 1>,
-                //           <25 1>, <26 1>, <27 1>, <28 1>,
-                //           <29 1>, <30 1>, <31 1>, <32 1>;
-                gpio-controller;
-
+        #gpio-cells = <2>;
+        compatible = "mindgrove,gpio";
+        reg = <0x40200 0x08>;
+        config_gpio = <GPIO_OUTPUT>; 
+        interrupt-parent = <&plic0>;
+        interrupts = <1 1>, <2 1>, <3 1>, <4 1>,
+                      <5 1>, <6 1>, <7 1>, <8 1>,
+                      <9 1>, <10 1>, <11 1>, <12 1>,
+                      <13 1>, <14 1>, <15 1>, <16 1>,
+                      <17 1>, <18 1>, <19 1>, <20 1>,
+                      <21 1>, <22 1>, <23 1>, <24 1>,
+                      <25 1>, <26 1>, <27 1>, <28 1>,
+                      <29 1>, <30 1>, <31 1>, <32 1>;                
+        gpio-controller; 
     };
     
     i2c0: i2c@44000 {
@@ -138,6 +135,5 @@
       compatible = "shakti,i2c0";
       reg= <0x0 0x44100 0x0 0x100>;
     };
-
   };
 };

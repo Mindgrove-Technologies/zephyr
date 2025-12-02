@@ -19,7 +19,7 @@
 #include <gen_offset.h>
 
 #ifdef CONFIG_RISCV_SOC_CONTEXT_SAVE
-#include <soc_context.h>
+#include <soc.h>
 #endif
 #ifdef CONFIG_RISCV_SOC_OFFSETS
 #include <soc_offsets.h>

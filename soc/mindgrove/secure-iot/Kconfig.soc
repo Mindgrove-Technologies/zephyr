@@ -8,3 +8,13 @@ config SOC_SECURE_IOT
 	select RISCV
 	select 64BIT
 	select SOC_FAMILY_MINDGROVE
+  select MULTI_LEVEL_INTERRUPTS
+  select GEN_SW_ISR_TABLE
+  select INTC_SINGLE_AGGREGATOR
+
+config RISCV_CORE_NUM_IRQS
+    int
+    default 16
+    help
+      Defines the number of IRQs in the CPU's primary interrupt vector table.
+      Must be large enough to include the MEIP (IRQ 11) for the PLIC.	

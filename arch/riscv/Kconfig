@@ -465,4 +465,22 @@ config ARCH_HAS_STACKWALK
 
 rsource "Kconfig.isa"
 
+# Add this section to /zephyrproject/zephyr/arch/riscv/Kconfig
+
+config INTC_SINGLE_AGGREGATOR
+	bool "System has a single interrupt aggregator"
+	default n
+	help
+	  This option enables support for a single interrupt aggregator,
+	  such as a PLIC. This is needed for the multi-level interrupt
+	  mechanism to properly calculate the software interrupt table offset.
+
+if INTC_SINGLE_AGGREGATOR
+
+config INTC_AGGREGATOR_LEVEL
+	int
+	default 1
+
+endif # INTC_SINGLE_AGGREGATOR
+
 endmenu

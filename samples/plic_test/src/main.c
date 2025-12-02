@@ -1,86 +1,89 @@
-/* This sample describes the step by step procedure to be followed for using PLIC in zephyr*/
-
-
-/*
- * Copyright (c) 2012-2014 Wind River Systems, Inc.
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
-#include <stdio.h>
 #include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/devicetree.h>
-#include <zephyr/irq.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/interrupt_controller/riscv_plic.h>
-#include <zephyr/sw_isr_table.h>
+#include <zephyr/irq.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/drivers/interrupt_controller/intc_mindgrove_plic.h>
 
+#define GPIO0_NODE         DT_NODELABEL(gpio0) 
 
-#define GPIO_PIN 		6
-#define GPIO_PIN_FLAG 	1
+// --- Configuration based on vendor IRQ mapping ---
+#define GPIO_PIN_NUM       1        // Using pin 1 for the interrupt test
+#define IRQ_PIN_OFFSET     32       // PLIC IRQ ID offset for GPIO
+#define MY_DEV_IRQ         (uint32_t)(GPIO_PIN_NUM + IRQ_PIN_OFFSET) // PLIC IRQ ID = 33
+#define MY_DEV_PRIO        1        // Priority for the PLIC source
+#define MY_IRQ_FLAGS       0
 
-/* 
-	First 32 indices in isr_tables.c are reserved for system level exceptions. 
-	Always add 32 to the IRQ_LINE number (refer platform.h in bare-metal for IRQ_LINE number).
-	IRQ_LINE_NUM = 0 -> No interrupt 
-*/
+static const struct device *gpio_dev;
 
-#define INT_ID 			(uint32_t)(GPIO_PIN + 32)
-
-/**
- * @fn void gpio_application_isr(const void*)
- * @brief The function is an example for user-defined ISR() from application side.
- * @param void* The parameter \a void* is a null pointer to array of arguments that can be passed to isr().
- */
-
-int gpio_application_isr(const void*)
+// 1. Declare the ISR using the direct method macro
+ISR_DIRECT_DECLARE(my_gpio_isr)
 {
-    printk("Entered ISR from application side\n");
-    return 1;
+    printk(">>> ISR TRIGGERED: GPIO pin %d (IRQ ID: %d) <<<\n", GPIO_PIN_NUM, MY_DEV_IRQ);
+    
+    // In this context, the Zephyr kernel handles the PLIC EOI.
+    // We only print and return.
+    
+    // The macro returns 0 by default, which is required for PLIC.
+    return 0;
 }
 
-/**
- * @fn void isr_installer(const void*)
- * @brief This function installs the irq service for a specific peripheral and lined.
- * @param void 
- */
-
-
-static void isr_installer(void)
+void main(void)
 {
-	IRQ_CONNECT(INT_ID, 1, gpio_application_isr, NULL, 0);
-	irq_enable(INT_ID);
+    printk("GPIO + ISR test starting...\n");
+
+    gpio_dev = DEVICE_DT_GET(GPIO0_NODE);
+
+    if (!device_is_ready(gpio_dev)) {
+        printk("GPIO device not ready\n");
+        return;
+    }
+
+    int ret;
+
+    // 1. Connect the direct ISR to the PLIC source ID 
+    // NOTE: This must be called before irq_enable, and before using the pin.
+    IRQ_DIRECT_CONNECT(MY_DEV_IRQ, MY_DEV_PRIO, my_gpio_isr, MY_IRQ_FLAGS);
+    
+    // 2. Enable the IRQ line in the PLIC
+    irq_enable(MY_DEV_IRQ);
+    printk("PLIC IRQ %d enabled and connected directly.\n", MY_DEV_IRQ);
+
+
+    // 3. Configure the GPIO pin interrupt settings (Falling Edge)
+    ret = gpio_pin_interrupt_configure(gpio_dev,
+                                 GPIO_PIN_NUM,
+                                 GPIO_INT_EDGE_FALLING); 
+    
+    if (ret != 0) {
+        printk("Error configuring GPIO interrupt: %d\n", ret);
+        return;
+    }
+    
+    // 4. Configure GPIO pin 1 as INPUT with PULL-UP resistor
+    ret = gpio_pin_configure(gpio_dev, 
+                                 GPIO_PIN_NUM, 
+                                 GPIO_INPUT | GPIO_PULL_UP);
+
+    if (ret != 0) {
+        printk("Error configuring GPIO pin: %d\n", ret);
+        return;
+    }
+    
+    printk("System Ready. Waiting for interrupt...\n");
+
+    int current_pin_val;
+    
+    while (1) {
+        current_pin_val = gpio_pin_get_raw(gpio_dev, GPIO_PIN_NUM);
+        
+        if (current_pin_val >= 0) {
+            printk("[Polling] Pin %d Status: %d\n", GPIO_PIN_NUM, current_pin_val);
+        } else {
+            printk("[Polling] Failed to read GPIO pin\n");
+        }
+
+        k_sleep(K_SECONDS(1)); 
+    }
 }
 
-/**
- * @fn int main(void)
- * @brief The main function describes the steps to initialize interrupts
- * @param void 
- */
-
-int main(void)
-{
-
-	const struct device *dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
-	printf("Entered main.c\n");
-
-	// Initialize interrupt from peripheral(GPIO) side.
-	gpio_pin_configure(dev, GPIO_PIN, 0);
-    gpio_pin_interrupt_configure(dev, GPIO_PIN, 1);
-
-	// Initialize interrupt from PLIC side
-	irq_enable(INT_ID);
-		
-	// Install user-defined ISR() into zephyr's isr_table
-	isr_installer();
-
-	int val = gpio_pin_get(dev, GPIO_PIN);
-	
-	while(1)
-	{
-		printf("GPIO Pin %d Status : %d\n", GPIO_PIN, val);
-	}
-
-	return 0;
-}

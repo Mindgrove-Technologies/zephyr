@@ -25,3 +25,6 @@ config SOC_SECURE_IOT
 	select INCLUDE_RESET_VECTOR
 	# select SOC_EARLY_INIT_HOOK
 	# imply XIP
+    select ARCH_HAS_DIRECT_IRQS
+    select GEN_IRQ_VECTOR_TABLE 
+	

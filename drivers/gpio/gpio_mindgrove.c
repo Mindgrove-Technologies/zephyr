@@ -4,207 +4,230 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <stdio.h>
-#include <errno.h>
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
-#include <soc.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/irq.h>
-#include <zephyr/drivers/interrupt_controller/riscv_plic.h>
-#include <zephyr/sw_isr_table.h>
-#include <zephyr/devicetree.h>
-#include <zephyr/drivers/gpio/gpio_utils.h>
 #include <zephyr/drivers/gpio.h>
-#include "gpio_mindgrove.h"
+#include <zephyr/drivers/gpio/gpio_utils.h>
+#include <zephyr/sys/util.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/irq.h> // Provides irq_connect_dynamic
+
+LOG_MODULE_REGISTER(gpio_mindgrove, CONFIG_GPIO_LOG_LEVEL);
 
 #define DT_DRV_COMPAT mindgrove_gpio
 
-typedef void (*gpio_mindgrove_cfg_func_t)(void);
+/* Register Offsets (relative to 0x40200 base address) */
+#define OFF_DIRECTION      0x00 // GPIO_DIRECTION_CTRL_REG
+#define OFF_DATA           0x08 // GPIO_DATA_REG
+#define OFF_SET            0x10 // GPIO_SET_REG
+#define OFF_CLEAR          0x18 // GPIO_CLEAR_REG
+#define OFF_TOGGLE         0x20 // GPIO_TOGGLE_REG
+// #define OFF_INTR_CONFIG    0x30 // GPIO_INTR_REG
 
-typedef struct gpio_mindgrove_regs_t
-{
-    uint32_t  direction;               /*! direction register */
-    uint32_t  reserved0;                /*! reserved for future use */
-    uint32_t  data;                    /*! data register */
-    uint32_t  reserved1;                /*! reserved for future use */
-    uint32_t  set;                 /*! set register */
-    uint32_t  reserved2;                /*! reserved for future use */
-    uint32_t  clear;                   /*! clear register */
-    uint32_t  reserved3;                /*! reserved for future use */
-    uint32_t  toggle;               /*! toggle register */
-    uint32_t  reserved4;                /*! reserved for future use */
-    uint8_t  qualification;    /*! qualification register */
-    uint8_t  reserved5;                /*! reserved for future use */
-    uint16_t  reserved6;              /*! reserved for future use */
-    uint32_t  reserved12;              /*! reserved for future use */
-    uint32_t  intr_config;     /*! interrupt configuration register */
-    uint32_t  reserved7;              /*! reserved for future use */
-};
+// Placeholder for GPIO register offsets (in bytes)
+#define OFF_DATA_INPUT          0x00 // Common location for input/data register
+#define OFF_INTR_ENABLE         0x30 // To enable/disable the pin interrupt (Used for Write)
+#define OFF_INTR_STATUS_REG     0x4C // Read status (trial: try 0x4C)
 
-
-struct gpio_mindgrove_config
-{
+/* Configuration Structure */
+struct gpio_mindgrove_config {
     struct gpio_driver_config common;
-    uintptr_t gpio_base_addr;
-    uint32_t gpio_irq_base;
-    gpio_mindgrove_cfg_func_t gpio_cfg_func;
-    uint32_t gpio_mode;
+    uintptr_t base;
+    /* Interrupt properties */
+    int irq_num;
+    int irq_priority;
 };
 
-struct gpio_mindgrove_data 
-{
+/* Data Structure */
+struct gpio_mindgrove_data {
     struct gpio_driver_data common;
     sys_slist_t cb;
-
 };
 
-/* Helper Macros for GPIO */
-#define DEV_GPIO_CFG(dev)						\
-	((const struct gpio_mindgrove_config * const)(dev)->config)
-#define DEV_GPIO(dev)							\
-	((volatile struct gpio_mindgrove_regs_t *)(DEV_GPIO_CFG(dev))->gpio_base_addr)
-#define DEV_GPIO_DATA(dev)				\
-	((struct gpio_mindgrove_data *)(dev)->data)
+/* Helper Macros */
+#define DEV_CFG(dev) ((const struct gpio_mindgrove_config *)(dev)->config)
+#define DEV_DATA(dev) ((struct gpio_mindgrove_data *)(dev)->data)
+#define DEV_REGS(dev) ((volatile uint32_t *)((const struct gpio_mindgrove_config *)(dev)->config)->base)
 
-int gpio_mindgrove_pin_configure (const struct device *dev, 
-                        gpio_pin_t pin, 
-                        gpio_flags_t flags)
+static int gpio_mindgrove_pin_configure(const struct device *dev,
+                                        gpio_pin_t pin,
+                                        gpio_flags_t flags)
 {
-    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
-    const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
-    if(flags & GPIO_OUTPUT){
-        gpio->direction |= (1 << pin);
+    volatile uint32_t *base = DEV_REGS(dev);
+    
+    if (DEV_CFG(dev)->base == 0) {
+        LOG_ERR("Invalid base address for %s", dev->name);
+        return -EINVAL;
     }
-    else{
-        gpio->direction &= ~(1 << pin);
+
+    // 1. Configure Direction (Input/Output)
+    if (flags & GPIO_OUTPUT) {
+        // Set bit for output (1)
+        base[OFF_DIRECTION / 4] |= (1u << pin);
+    } else {
+        // Clear bit for input (0)
+        base[OFF_DIRECTION / 4] &= ~(1u << pin);
     }
+
+    // 2. Clear output latch if set, based on initial state flags (optional)
+    if (flags & GPIO_OUTPUT_INIT_HIGH) {
+        base[OFF_SET / 4] = (1u << pin);
+    } else if (flags & GPIO_OUTPUT_INIT_LOW) {
+        base[OFF_CLEAR / 4] = (1u << pin);
+    }
+    
     return 0;
 }
 
-int gpio_mindgrove_pin_get_raw(const struct device *dev,
-                    gpio_port_value_t *pin)
+static int gpio_mindgrove_port_get_raw(const struct device *dev,
+                                       gpio_port_value_t *value)
 {
-    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
-    return gpio->data;
-}
-
-int gpio_mindgrove_pin_set_raw(const struct device *dev,
-                    gpio_port_value_t pin)
-{
-    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);   
-    const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
-    gpio ->set = pin;
+    volatile uint32_t *base = DEV_REGS(dev);
+    *value = base[OFF_DATA / 4];
     return 0;
 }
 
-int gpio_mindgrove_pin_toggle(const struct device *dev,
-                    gpio_port_value_t pin)
+static int gpio_mindgrove_port_set_bits_raw(const struct device *dev,
+                                            gpio_port_pins_t pins)
 {
-    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
-    gpio ->toggle = pin;
+    volatile uint32_t *base = DEV_REGS(dev);
+    base[OFF_SET / 4] = pins;
     return 0;
 }
 
-int gpio_mindgrove_pin_clear_raw(const struct device *dev,
-                    gpio_port_value_t pin)
+static int gpio_mindgrove_port_clear_bits_raw(const struct device *dev,
+                                              gpio_port_pins_t pins)
 {
-    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);   
-    gpio ->clear = pin;
+    volatile uint32_t *base = DEV_REGS(dev);
+    base[OFF_CLEAR / 4] = pins;
     return 0;
 }
 
-static void gpio_mindgrove_isr(const void *data)
+static int gpio_mindgrove_port_toggle_bits(const struct device *dev,
+                                           gpio_port_pins_t pins)
 {
-    const struct device *dev = (const struct device *)data;
-    const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
-    struct gpio_mindgrove_data *gpio_data = DEV_GPIO_DATA(dev);
-    volatile struct gpio_mindgrove_regs_t *gpio_reg = DEV_GPIO(dev);
-    
-    // Read the config to find which pin caused the interrupt
-    uint32_t status = gpio_reg->intr_config;
-    
-    // Clear the interrupt status for the pins that were triggered
-    gpio_reg->intr_config = status;
-    
-    // Fire the GPIO callbacks for the triggered pins
-    gpio_fire_callbacks(&gpio_data->cb, dev, status);
+    volatile uint32_t *base = DEV_REGS(dev);
+    base[OFF_TOGGLE / 4] = pins;
+    return 0;
 }
 
-static int gpio_mindgrove_pin_interrupt_configure(const struct device *dev, 
-                                                gpio_pin_t pin, 
-                                                enum gpio_int_mode mode,
-					                            enum gpio_int_trig trig)
+static int gpio_mindgrove_pin_interrupt_configure(const struct device *dev,
+                                                  gpio_pin_t pin,
+                                                  enum gpio_int_mode mode,
+                                                  enum gpio_int_trig trig)
 {
-    const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
-    volatile struct gpio_mindgrove_regs_t *gpio_reg = DEV_GPIO(dev);
-    
-    // Disable interrupt for given pin
-    gpio_reg->intr_config &= ~(1 << pin);
+    volatile uint32_t *base = DEV_REGS(dev);
+    uint32_t mask = (1u << pin);
+    uint32_t intr_reg = base[OFF_INTR_ENABLE / 4];
 
-    // Configure the trigger mode
-    if (trig == GPIO_INT_TRIG_HIGH)
-    {
-        gpio_reg->intr_config |= (1 << pin);
+    // 1. Disable interrupt: Clear the enable bit for the pin
+    intr_reg &= ~mask;
+
+    if (mode != GPIO_INT_MODE_DISABLED) {
+        // 2. Configure mode/trigger
+        if (trig == GPIO_INT_TRIG_HIGH) { // Assuming High/Rising Edge
+            // Set bit (assuming high/rising edge is '1')
+            intr_reg |= mask;
+        } else if (trig == GPIO_INT_TRIG_LOW) { // Assuming Low/Falling Edge
+            // Clear bit (assuming low/falling edge is '0')
+            intr_reg &= ~mask;
+        }
+        
+        // 3. Enable interrupt bit in the local GPIO register
+        intr_reg |= mask; 
     }
-    else
-    {
-        gpio_reg->intr_config &= ~(1 << pin);
-    }
-    
-    // Enable the interrupt if the mode is not disabled
-    if (mode != GPIO_INT_MODE_DISABLED)
-    {
-        gpio_reg->intr_config |= (1 << pin);
-    }
+
+    base[OFF_INTR_ENABLE / 4] = intr_reg;
     return 0;
 }
+
+/* Common ISR for Direct Interrupts (Single IRQ line for all GPIOs) */
+static void gpio_mindgrove_isr(const void *arg)
+{
+    const struct device *dev = (const struct device *)arg;
+    struct gpio_mindgrove_data *data = DEV_DATA(dev);
+    
+    volatile uint32_t *base = DEV_REGS(dev);
+    uint32_t status = base[0x40 / 4]; 
+
+    if (status) {
+        // Clear pending interrupts
+        base[0x40 / 4] = status; 
+        
+        gpio_fire_callbacks(&data->cb, dev, status);
+    }
+}
+
+static int gpio_mindgrove_manage_callback(const struct device *dev,
+                                          struct gpio_callback *callback, bool set)
+{
+    struct gpio_mindgrove_data *data = DEV_DATA(dev);
+    return gpio_manage_callback(&data->cb, callback, set);
+}
+
 
 static int gpio_mindgrove_init(const struct device *dev)
-{    
-    volatile struct gpio_mindgrove_regs_t *gpio = DEV_GPIO(dev);
-    const struct gpio_mindgrove_config *cfg = DEV_GPIO_CFG(dev);
-    
-    int irq_number = DT_INST_IRQ_BY_NAME(0, gpio_int, irq);
+{
+    const struct gpio_mindgrove_config *cfg = DEV_CFG(dev);
+    struct gpio_mindgrove_data *data = DEV_DATA(dev);
 
-    irq_connect_dynamic(irq_number, 
-                        DT_INST_IRQ_BY_NAME(0, gpio_int, priority), 
-                        gpio_mindgrove_isr, 
-                        (void *)dev, 
-                        0);
+    if (cfg->base == 0) {
+        LOG_ERR("Base address is zero. Check 'reg' property in DTS.");
+        return -ENODEV;
+    }
+
+    sys_slist_init(&data->cb);
+
+    // Direct Interrupt Configuration (if IRQ is present in DT)
+    if (cfg->irq_num > 0) {
+        // standard Zephyr function irq_connect_dynamic
+        if (irq_connect_dynamic(cfg->irq_num, 
+                                       cfg->irq_priority, 
+                                       gpio_mindgrove_isr,
+                                       (void *)dev, 
+                                       0) < 0) {
+            LOG_ERR("Failed to connect IRQ %d", cfg->irq_num);
+            return -EIO;
+        }
+        
+        irq_enable(cfg->irq_num);
+        LOG_DBG("GPIO %s IRQ %d connected and enabled.", dev->name, cfg->irq_num);
+    } else {
+        LOG_DBG("GPIO %s configured without IRQ.", dev->name);
+    }
+
     return 0;
 }
 
-static const struct gpio_driver_api gpio_mindgrove_driver = {
-    .pin_configure              = gpio_mindgrove_pin_configure,
-    .port_get_raw               = gpio_mindgrove_pin_get_raw,   
-    .port_set_bits_raw          = gpio_mindgrove_pin_set_raw,    
-    .port_clear_bits_raw        = gpio_mindgrove_pin_clear_raw,
-    .port_toggle_bits           = gpio_mindgrove_pin_toggle, 
-    .pin_interrupt_configure    = gpio_mindgrove_pin_interrupt_configure,  
+static const struct gpio_driver_api gpio_mindgrove_api = {
+    .pin_configure = gpio_mindgrove_pin_configure,
+    .port_get_raw = gpio_mindgrove_port_get_raw,
+    .port_set_bits_raw = gpio_mindgrove_port_set_bits_raw,
+    .port_clear_bits_raw = gpio_mindgrove_port_clear_bits_raw,
+    .port_toggle_bits = gpio_mindgrove_port_toggle_bits,
+    .pin_interrupt_configure = gpio_mindgrove_pin_interrupt_configure,
+    .manage_callback = gpio_mindgrove_manage_callback,
 };
 
-static void gpio_mindgrove_cfg(void)
-{
-    uint32_t gpio_pin;
-    gpio_pin = (1 << gpio_pin);
-}
-
-static const struct gpio_mindgrove_config gpio_mindgrove_config0 ={
-    .gpio_base_addr     = GPIO_START,
-    .gpio_irq_base      = GPIO_IRQ_BASE,
-    .gpio_cfg_func      = gpio_mindgrove_cfg,
-    .gpio_mode          = DT_PROP(DT_NODELABEL(gpio0), config_gpio)
-};
-
-static struct gpio_mindgrove_data gpio_mindgrove_data0;
-
-#define GPIO_INIT(inst)	\
-DEVICE_DT_INST_DEFINE(inst, \
-                gpio_mindgrove_init,  \
-                NULL, \
-                &gpio_mindgrove_data0, &gpio_mindgrove_config0, \
-                PRE_KERNEL_2, CONFIG_GPIO_INIT_PRIORITY, \
-                &gpio_mindgrove_driver); 
+/* Device Instantiation Macros */
+#define GPIO_INIT(n) \
+    static const struct gpio_mindgrove_config gpio_mindgrove_config_##n = { \
+        .common = { \
+            .port_pin_mask = GPIO_PORT_PIN_MASK_FROM_DT_INST(n), \
+        }, \
+        .base = DT_INST_REG_ADDR(n), \
+        .irq_num = DT_INST_IRQN(n), \
+        .irq_priority = DT_INST_IRQ_BY_IDX(n, 0, priority), \
+    }; \
+    static struct gpio_mindgrove_data gpio_mindgrove_data_##n; \
+    DEVICE_DT_INST_DEFINE(n, \
+                          gpio_mindgrove_init, \
+                          NULL, \
+                          &gpio_mindgrove_data_##n, \
+                          &gpio_mindgrove_config_##n, \
+                          POST_KERNEL, \
+                          CONFIG_GPIO_INIT_PRIORITY, \
+                          &gpio_mindgrove_api);
 
 DT_INST_FOREACH_STATUS_OKAY(GPIO_INIT)
+

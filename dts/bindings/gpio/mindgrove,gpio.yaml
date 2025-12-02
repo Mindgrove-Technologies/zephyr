@@ -5,7 +5,7 @@ description: Mindgrove GPIO node
 
 compatible: "mindgrove,gpio"
 
-# include: [gpio-controller.yaml, base.yaml]
+include: [gpio-controller.yaml, base.yaml]
 
 properties:
   reg:
@@ -15,10 +15,14 @@ properties:
   interrupts:
     type: array
     required: true
-    
+  
+  interrupt-names:
+    type: string-array
+    required: false
+
   "#gpio-cells":
     type: int
-    const: 2
+    # const: 2
 
   config_gpio:
     type: int

@@ -4,3 +4,10 @@ config BOARD_SECURE_IOT
         select HAS_DTS
         select RISCV_HAS_FPU
         select CPU_HAS_FPU
+
+config RISCV_CORE_NUM_IRQS
+    int
+    default 16
+    help
+      Defines the number of IRQs in the CPU's primary interrupt vector table.
+      Must be large enough to include the MEIP (IRQ 11) for the PLIC.

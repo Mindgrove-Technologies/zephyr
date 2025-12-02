@@ -13,6 +13,9 @@ config RISCV_SOC_INTERRUPT_INIT
     bool
     default y           # Custom SoC interrupt init
 
+config RISCV_HAS_CLIC
+	default n
+
 config MULTI_LEVEL_INTERRUPTS
     bool
     default y           # Enable hierarchical interrupts
@@ -65,16 +68,30 @@ config RISCV_HAS_PLIC
     bool
     default y           # SoC uses PLIC
 
+config RISCV_PLIC
+    bool
+    default y    
+
 config PLIC
+    bool
+    default y
+
+config RISCV_VECTORED_MODE
     bool
     default y
 
 config MINDGROVE_PLIC
     bool
-    default n           # Enable Mindgrove PLIC driver
+    default y           # Enable Mindgrove PLIC driver
 
 config RISCV_MACHINE_TIMER
     bool
     default y           # Use machine-mode timer
+
+config NUM_2ND_LEVEL_AGGREGATORS
+	default 1
+
+config 2ND_LVL_INTR_00_OFFSET
+	default 2
 
 endif

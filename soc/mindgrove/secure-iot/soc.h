@@ -76,4 +76,13 @@
 
 /* clang-format on */
 
+#ifdef CONFIG_RISCV_SOC_CONTEXT_SAVE
+
+	#define SOC_ESF_MEMBERS
+
+	#define SOC_ESF_INIT
+
+#endif  /* CONFIG_RISCV_SOC_CONTEXT_SAVE */
+
+
 #endif /* __SOC_COMMON_H_ */

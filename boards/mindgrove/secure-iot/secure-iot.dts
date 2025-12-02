@@ -53,10 +53,11 @@ chosen {
 
 };
 
-&plic {
+&plic0 {
     status = "okay";
 };
 
 &gpio0 {
 	status = "okay";
 };
+

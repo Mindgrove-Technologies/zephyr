@@ -1,9 +1,7 @@
 /* 
- * Copyright (c) Mindgrove Technologies Pvt. Ltd 2023.
- */
-
-/**
- * @brief UART driver for the Mindgrove Processor
+ * Copyright (c) Mindgrove Technologies Pvt. Ltd 2025.
+ *
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <zephyr/kernel.h>
@@ -94,9 +92,9 @@ struct uart_mindgrove_config {
 	uint32_t       port;
 	uint32_t       sys_clk_freq;
 	uint32_t       baud_rate;
-	// uint32_t	   irq_number;
-	uint32_t       rxcnt_irq;
-	uint32_t       txcnt_irq;
+	uint32_t	   irq_number;
+	// uint32_t       rxcnt_irq;
+	// uint32_t       txcnt_irq;
 	const struct	pinctrl_dev_config *pcfg;
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	uart_irq_config_func_t cfg_func;
@@ -437,8 +435,7 @@ static struct uart_driver_api uart_mindgrove_driver_api = {
         .port = DT_INST_REG_ADDR(n), \
         .sys_clk_freq = DT_INST_PROP(n, clock_frequency), \
         .baud_rate = DT_INST_PROP(n, current_speed), \
-		.txcnt_irq = DT_INST_IRQ_BY_NAME(n, tx, irq),	\
-		.rxcnt_irq = DT_INST_IRQ_BY_NAME(n, rx, irq),	\
+		.irq_number =  DT_INST_IRQ_BY_NAME(n, irq, irq), \
 		UART_MINDGROVE_CFG_FUNC(n) \
     }; \
     static struct uart_mindgrove_data uart_mindgrove_data_##n; \

@@ -3,4 +3,10 @@ if BOARD_SECURE_IOT
 config BOARD
 	default "Secure IoT"
 
+config RISCV_HAS_CLIC
+    default n
+
+config NUM_IRQS_AGGREGATOR
+    int
+    default 16
 endif

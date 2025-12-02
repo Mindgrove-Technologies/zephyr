@@ -5,7 +5,7 @@ description: Mindgrove RISC-V PLIC
 
 compatible: "mindgrove,plic"
 
-include: [base.yaml, interrupt-controller.yaml]
+include: riscv,plic0.yaml
 
 properties:
   compatible:
@@ -23,7 +23,9 @@ properties:
     description: Convey's this node is an interrupt controller
 
   "#interrupt-cells":
-    const: 1
+    type: int
+    const: 2
+    required: true
 
   '#address-cells':
     type: int
@@ -45,6 +47,15 @@ properties:
   #   type: phandle-array
   #   required: false
   #   description: Extended interrupt specifiers
+  riscv-irq-aggregator-offset:
+    type: int
+    required: true
+    description: |
+        The offset into the system's software interrupt table 
+        where this aggregator's interrupt table starts. Must be 0 
+        for the first (and typically only) PLIC instance.
 
 interrupt-cells:
-  - line
+  - irq
+  - priority
+  
