@@ -7,7 +7,6 @@
 #include <zephyr/kernel.h>
 #include <zephyr/arch/cpu.h>
 #include <zephyr/drivers/uart.h>
-#include <zephyr/drivers/clock_control.h>
 
 #define DT_DRV_COMPAT mindgrove_uart
 
@@ -62,11 +61,17 @@
  */
 #define CTRL_CNT(x)    (((x) & 0x07) << 16)
 
+typedef union{
+  uint32_t data_32;
+  uint16_t data_16;
+  uint8_t data_8;
+} Data;
+
 struct uart_mindgrove_regs_t {
     uint16_t div;
     uint16_t reserv0;
-    uint8_t tx;
-    uint32_t rx;
+    Data tx;
+    Data rx;
     unsigned short  status;
     uint16_t reserv2;
     uint16_t delay;
@@ -85,19 +90,18 @@ struct uart_mindgrove_regs_t {
 };
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-typedef void (*uart_irq_config_func_t)(void);
+typedef void (*irq_cfg_func_t)(void);
 #endif
 
 struct uart_mindgrove_config {
 	uint32_t       port;
 	uint32_t       sys_clk_freq;
 	uint32_t       baud_rate;
-	uint32_t	   irq_number;
-	// uint32_t       rxcnt_irq;
-	// uint32_t       txcnt_irq;
+	uint32_t       rxcnt_irq;
+	uint32_t       txcnt_irq;
 	const struct	pinctrl_dev_config *pcfg;
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	uart_irq_config_func_t cfg_func;
+	irq_cfg_func_t cfg_func;
 #endif
 };
 
@@ -110,7 +114,7 @@ struct uart_mindgrove_data {
 
 #define DEV_CFG(dev) ((struct uart_mindgrove_config * const)(dev)->config)
 
-#define DEV_UART(dev) ((volatile struct uart_mindgrove_regs_t *)(uintptr_t)(DEV_CFG(dev)->port))
+#define DEV_UART(dev) ((struct uart_mindgrove_regs_t *)(uintptr_t)(DEV_CFG(dev)->port))
 
 #define DEV_DATA(dev) ((struct uart_mindgrove_data * const)(dev)->data)
 
@@ -130,9 +134,10 @@ static void uart_mindgrove_poll_out(const struct device *dev,
   	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
 
 	// Wait while TX FIFO is full
-	while (uart->status & STS_TX_FULL);
+	while (uart->status & STS_TX_FULL)
+		;
 
-	uart->tx = c;
+	uart->tx.data_8 = (int)c;
 }
 
 /**
@@ -148,7 +153,7 @@ static int uart_mindgrove_poll_in(const struct device *dev, unsigned char *c)
 	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
 
 	while ((uart->status & STS_RX_NOT_EMPTY) == 0);
-	volatile uint32_t read_val = uart->rx;
+	volatile uint32_t read_val = uart->rx.data_8;
 	*c = (unsigned char)(read_val & RXDATA_MASK);
 
 	return 0;
@@ -389,7 +394,7 @@ static int uart_mindgrove_init(const struct device *dev)
 	return 0;
 }
 
-static struct uart_driver_api uart_mindgrove_driver_api = {
+static const struct uart_driver_api uart_mindgrove_driver_api = {
 	.poll_in          = uart_mindgrove_poll_in,
 	.poll_out         = uart_mindgrove_poll_out,
 	.err_check        = NULL,
@@ -430,13 +435,14 @@ static struct uart_driver_api uart_mindgrove_driver_api = {
 
 
 #define UART_MINDGROVE_INIT(n) \
-	UART_MINDGROVE_IRQ_CONFIG_FUNC(n) \
+    UART_MINDGROVE_IRQ_CONFIG_FUNC(n) \
     static struct uart_mindgrove_config uart_mindgrove_config_##n = { \
         .port = DT_INST_REG_ADDR(n), \
         .sys_clk_freq = DT_INST_PROP(n, clock_frequency), \
         .baud_rate = DT_INST_PROP(n, current_speed), \
-		.irq_number =  DT_INST_IRQ_BY_NAME(n, irq, irq), \
-		UART_MINDGROVE_CFG_FUNC(n) \
+        .rxcnt_irq = 0, \
+        .txcnt_irq = 0, \
+        UART_MINDGROVE_CFG_FUNC(n) \
     }; \
     static struct uart_mindgrove_data uart_mindgrove_data_##n; \
     DEVICE_DT_INST_DEFINE(n, \
@@ -447,6 +453,7 @@ static struct uart_driver_api uart_mindgrove_driver_api = {
         PRE_KERNEL_1, \
         CONFIG_KERNEL_INIT_PRIORITY_DEVICE, \
         &uart_mindgrove_driver_api, \
-        NULL)
+        NULL);
 	
-DT_INST_FOREACH_STATUS_OKAY(UART_MINDGROVE_INIT);
+DT_INST_FOREACH_STATUS_OKAY(UART_MINDGROVE_INIT)
+

@@ -14,13 +14,31 @@ chosen {
 &uart0 {
 	status = "okay";
 	current-speed = <115200>;
-	clock-frequency = <30000000>;
+	clock-frequency = <35000000>;
 };
 
-// &uart1 {
+&uart1 {
+	status = "okay";
+	current-speed = <115200>;
+	clock-frequency = <35000000>;
+};
+
+&uart2 {
+	status = "okay";
+	current-speed = <115200>;
+	clock-frequency = <35000000>;
+};
+
+// &uart3 {
 // 	status = "okay";
 // 	current-speed = <115200>;
-// 	clock-frequency = <30000000>;
+// 	clock-frequency = <35000000>;
+// };
+
+// &uart4 {
+// 	status = "okay";
+// 	current-speed = <115200>;
+// 	clock-frequency = <35000000>;
 // };
 
 &i2c0 {
@@ -35,6 +53,7 @@ chosen {
 	clock_frequency = <40000000>;
 	scl_frequency = <100000>;
 };
+
 &spi0 {
 		status = "okay";
 		sclk_configure = <0x0 0x0 0x10 0x0 0x0>;
