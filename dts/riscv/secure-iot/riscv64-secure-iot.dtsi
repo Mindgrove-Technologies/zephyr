@@ -171,4 +171,17 @@
       reg= < 0x0 0x30700 0x0 0x100>;
     };
   };
+    aes0: aes@0x04000000UL {
+        compatible = "mindgrove,aes";
+        reg = <0x0 0x04000000UL 0x0 0x100>;
+        status = "okay";
+    };
+
+    sha0: sha@0x03000000UL {
+        compatible = "mindgrove,sha256";
+        reg = <0x0 0x03000000UL 0x0 0x100>;
+        status = "okay";
+    };
+
+
 };

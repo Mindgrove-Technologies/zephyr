@@ -1,0 +1,19 @@
+# Mindgrove AES driver
+
+config CRYPTO_MINDGROVE_AES
+	bool "Mindgrove AES hardware accelerator"
+	depends on CRYPTO
+	depends on HAS_DTS
+	help
+	  Enable the Mindgrove hardware AES accelerator driver.
+
+	  Features:
+	  - AES-128 / AES-192 / AES-256
+	  - ECB, CBC, CFB, OFB, CTR modes
+	  - Polling-based synchronous operation
+	  - Thread-safe via mutex
+
+	  Limitations:
+	  - No async support
+	  - No PSA Crypto integration
+	  - No secure key storage
