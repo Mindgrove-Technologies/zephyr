@@ -40,6 +40,13 @@ typedef struct {
     volatile uint16_t RESERVED_END;
 } SHA256_Type;
 
+struct mindgrove_sha_dev_data {
+    volatile struct SHA256_Type *regs;
+    bool in_use;
+    long int iterated_length_bits;
+};
+
+
 /* Control register bits */
 #define SHA_CTRL_CONT_PREHASH  (1 << 0)  /* Continue with previous hash */
 
@@ -47,41 +54,6 @@ typedef struct {
 #define SHA_STATUS_READY       (1 << 0)  /* Ready for new input */
 #define SHA_STATUS_OUT_READY   (1 << 1)  /* Output digest ready */
 
-/* Session context */
-struct mindgrove_sha256_session {
-    /* Session state machine */
-    enum {
-        SESSION_IDLE = 0,      /* No active session */
-        SESSION_ACTIVE,        /* hash_begin() called */
-        SESSION_PROCESSING,    /* Data being processed */
-        SESSION_FINALIZED      /* hash_compute(finish=true) completed */
-    } state;
-    
-    /* Message tracking */
-    uint64_t total_len_bits;   /* Total message length in bits (software tracked) */
-    uint64_t processed_bits;   /* Bits processed by hardware */
-    
-    /* Block buffering */
-    uint8_t block_buffer[MINDGROVE_SHA256_BLOCK_SIZE];
-    uint32_t block_offset;
-    
-    /* Operation mode */
-    bool is_single_shot;       /* TRUE: Single-shot mode, FALSE: Streaming mode */
-};
 
-/* Device instance data */
-struct mindgrove_sha256_data {
-    struct k_mutex device_lock;        /* Hardware access mutex */
-    SHA256_Type *regs;                 /* Hardware registers */
-    struct mindgrove_sha256_session *active_session;
-    bool hardware_in_use;
-};
-
-/* Device configuration */
-struct mindgrove_sha256_config {
-    SHA256_Type *base;
-    uint32_t irq_num;
-    void (*irq_config_func)(const struct device *dev);
-};
 
 #endif /* ZEPHYR_DRIVERS_CRYPTO_CRYPTO_MINDGROVE_SHA_H */

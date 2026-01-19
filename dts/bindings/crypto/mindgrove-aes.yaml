@@ -6,7 +6,7 @@ description: |
   Supports AES-128/192/256 in ECB, CBC, CFB, OFB and CTR modes.
   Polling-based, synchronous operation only.
 
-compatible: "mindgrove,aes"
+compatible: "mindgrove-aes"
 
 include: base.yaml
 
@@ -20,7 +20,4 @@ properties:
     required: false
     description: |
       Not used. AES driver operates in polling mode only.
-
-required:
-  - reg
 
