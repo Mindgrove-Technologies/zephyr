@@ -1,0 +1,14 @@
+# dts/bindings/crypto/mindgrove,sha256.yaml
+description: MindGrove SHA-256 Hardware Accelerator
+
+compatible: "mindgrove-sha256"
+
+include: [base.yaml]
+
+properties:
+  reg:
+    required: true
+    description: Register address and size
+    
+  status:
+    required: false

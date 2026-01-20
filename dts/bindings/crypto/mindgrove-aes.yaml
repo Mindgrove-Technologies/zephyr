@@ -1,0 +1,22 @@
+# Copyright (c) 2025 Mindgrove
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Mindgrove hardware AES accelerator.
+  Supports AES-128/192/256 in ECB, CBC, CFB, OFB and CTR modes.
+  Polling-based, synchronous operation only.
+
+compatible: "mindgrove-aes"
+
+include: base.yaml
+
+properties:
+  reg:
+    required: true
+    description: |
+      Memory-mapped register space for the AES hardware engine.
+
+  interrupts:
+    required: false
+    description: |
+      Not used. AES driver operates in polling mode only.
