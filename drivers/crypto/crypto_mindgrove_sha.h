@@ -1,7 +1,9 @@
 #ifndef ZEPHYR_DRIVERS_CRYPTO_CRYPTO_MINDGROVE_SHA_H
 #define ZEPHYR_DRIVERS_CRYPTO_CRYPTO_MINDGROVE_SHA_H
 
-#include <zephyr/drivers/crypto.h>
+#include <stdint.h>
+#include <stdbool.h>
+
 
 /* SHA256 Constants */
 #define MINDGROVE_SHA256_BLOCK_SIZE     64    /* 512 bits in bytes */
@@ -9,6 +11,7 @@
 #define MINDGROVE_SHA256_BITS_PER_BYTE  8
 #define MINDGROVE_SHA256_BLOCK_BITS     (MINDGROVE_SHA256_BLOCK_SIZE * MINDGROVE_SHA256_BITS_PER_BYTE)
 #define MINDGROVE_SHA256_MAX_INPUT_BITS 64    /* Based on register constraints */
+#define SUCCESS 0 
 
 /* Hardware register definitions */
 typedef struct {
@@ -39,12 +42,6 @@ typedef struct {
     
     volatile uint16_t RESERVED_END;
 } SHA256_Type;
-
-struct mindgrove_sha_dev_data {
-    volatile struct SHA256_Type *regs;
-    bool in_use;
-    long int iterated_length_bits;
-};
 
 
 /* Control register bits */

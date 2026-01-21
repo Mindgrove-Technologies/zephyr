@@ -1,3 +1,5 @@
+#define DT_DRV_COMPAT mindgrove_aes
+
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
 #include <zephyr/crypto/crypto.h>
@@ -17,6 +19,8 @@
 #define AES_ENC  0
 #define AES_DEC  1
 
+
+
 static AES_Type *aes_reg;
 
 /* ---- Session ---- */
@@ -33,26 +37,50 @@ static void input_text_to_aes(uint8_t *input_text)
 {
     for (int i = 0; i < 2; i++) {
         uint64_t v = 0;
+
         for (int j = 0; j < 8; j++) {
             v = (v << 8) | *(input_text++);
         }
+
+        printk("AES_INPUT[%d] write = 0x%016llx\n",
+               i, (unsigned long long)v);
+
         aes_reg->AES_INPUT = v;
+
+        /* Readback probe */
+        uint64_t rb = aes_reg->AES_INPUT;
+        printk("AES_INPUT[%d] read  = 0x%016llx\n",
+               i, (unsigned long long)rb);
     }
 }
+
 
 static void input_key_to_aes(uint8_t *key, int hex_key_len)
 {
     int key_len_mode = (int)(hex_key_len >> 1);
+
+    printk("KEY zero fill count = %d\n", (2 - key_len_mode));
+
     for (int i = 0; i < (2 - key_len_mode); i++) {
         aes_reg->AES_KEY = 0;
+        printk("AES_KEY write = 0x0000000000000000\n");
     }
 
     for (int i = 0; i < (4 - (2 - key_len_mode)); i++) {
         uint64_t v = 0;
+
         for (int j = 0; j < 8; j++) {
             v = (v << 8) | *(key++);
         }
+
+        printk("AES_KEY[%d] write = 0x%016llx\n",
+               i, (unsigned long long)v);
+
         aes_reg->AES_KEY = v;
+
+        uint64_t rb = aes_reg->AES_KEY;
+        printk("AES_KEY[%d] read  = 0x%016llx\n",
+               i, (unsigned long long)rb);
     }
 }
 
@@ -60,12 +88,22 @@ static void input_iv_to_aes(uint8_t *iv)
 {
     for (int i = 0; i < 2; i++) {
         uint64_t v = 0;
+
         for (int j = 0; j < 8; j++) {
             v = (v << 8) | *(iv++);
         }
+
+        printk("AES_IV[%d] write = 0x%016llx\n",
+               i, (unsigned long long)v);
+
         aes_reg->AES_IV = v;
+
+        uint64_t rb = aes_reg->AES_IV;
+        printk("AES_IV[%d] read  = 0x%016llx\n",
+               i, (unsigned long long)rb);
     }
 }
+
 
 static void get_output(uint8_t *out)
 {
@@ -107,6 +145,37 @@ uint32_t AES_Run(uint8_t *out,
                  int encrypt,
                  uint32_t iterated_bits)
 {
+
+    printk("\n=== AES_Run ENTER ===\n");
+    printk("input_len_bits = %u\n", input_len_bits);
+    printk("key_len_bits   = %u\n", key_len_bits);
+    printk("mode           = %d\n", mode);
+    printk("encrypt        = %d\n", encrypt);
+    printk("iterated_bits  = %u\n", iterated_bits);
+
+    /* Dump plaintext */
+    printk("PLAINTEXT:\n");
+    for (int i = 0; i < 16; i++) {
+        printk("%02x ", in[i]);
+    }
+    printk("\n");
+
+    /* Dump key */
+    printk("KEY:\n");
+    for (int i = 0; i < key_len_bits / 8; i++) {
+        printk("%02x ", key[i]);
+    }
+    printk("\n");
+
+    /* Dump IV if present */
+    if (iv) {
+        printk("IV:\n");
+        for (int i = 0; i < 16; i++) {
+            printk("%02x ", iv[i]);
+        }
+        printk("\n");
+    }
+
     int rc = do_checks_params(key_len_bits, mode);
     if (rc) {
         return rc;
@@ -141,12 +210,16 @@ uint32_t AES_Run(uint8_t *out,
             input_text_to_aes(in + (i * AES_BLOCK_BYTES));
         }
 
-        while (!(aes_reg->AES_STATUS & 0x2)) {
-            ;
-        }
+        // while (!(aes_reg->AES_STATUS & 0x2)) {
+        //     ;
+        // }
 
         get_output(out + (i * AES_BLOCK_BYTES));
-    }
+
+        memcpy(out + (i * AES_BLOCK_BYTES),
+       in + (i * AES_BLOCK_BYTES),
+       AES_BLOCK_BYTES);
+    }   
 
     return 0;
 }
@@ -156,7 +229,7 @@ uint32_t AES_Run(uint8_t *out,
 static int ecb_crypt(struct cipher_ctx *ctx, struct cipher_pkt *pkt)
 {
     struct mindgrove_session *sess = ctx->drv_sessn_state;
-
+    printk("ECB REACHED \n");
     int rc = AES_Run(pkt->out_buf,
                      pkt->in_buf,
                      sess->key,
@@ -288,16 +361,22 @@ static int query_caps(const struct device *dev)
 
 static int aes_init(const struct device *dev)
 {
-    const struct mindgrove_aes_reg *cfg = dev->config;
-    aes_reg = cfg->base;
+    printk("MindGrove AES init called\n");
+    printk("DT_INST_REG_ADDR(0) = %lx\n", (long unsigned)DT_INST_REG_ADDR(0));
+
+    const struct mindgrove_aes_config *cfg = dev->config;
+    aes_reg = cfg->aes_reg;
+
+    printk("AES reg base = %p\n", aes_reg);
 
     if (!aes_reg) {
+        printk("AES device not ready!\n");
         return -ENODEV;
     }
 
-    aes_reg->AES_CTRL = 0;
     return 0;
 }
+
 
 /* ---- API ---- */
 
@@ -307,17 +386,19 @@ static const struct crypto_driver_api api = {
     .query_hw_caps        = query_caps,
 };
 
-#define DT_DRV_COMPAT mindgrove_aes
 
-static const struct mindgrove_aes_reg aes_cfg_0 = {
-    .base = (AES_Type *)DT_INST_REG_ADDR(0),
-};
 
-DEVICE_DT_INST_DEFINE(0,
-                      aes_init,
-                      NULL,
-                      NULL,
-                      &aes_cfg_0,
-                      POST_KERNEL,
-                      CONFIG_CRYPTO_INIT_PRIORITY,
-                      &api);
+#define MINDGROVE_AES_INIT(n) \
+    static const struct mindgrove_aes_config aes_cfg_##n = { \
+        .aes_reg = (AES_Type *)DT_INST_REG_ADDR(n), \
+    }; \
+    DEVICE_DT_INST_DEFINE(n, \
+                          aes_init, \
+                          NULL, \
+                          NULL, \
+                          &aes_cfg_##n, \
+                          PRE_KERNEL_1, \
+                          CONFIG_CRYPTO_INIT_PRIORITY, \
+                          &api);
+
+DT_INST_FOREACH_STATUS_OKAY(MINDGROVE_AES_INIT)

@@ -21,6 +21,6 @@ zephyr_library_sources_ifdef(
   crypto_mindgrove_aes.c
 )
 zephyr_library_sources_ifdef(
-  CONFIG_CRYPTO_MINDGROVE_SHA
+  CONFIG_CRYPTO_MINDGROVE_SHA256
   crypto_mindgrove_sha.c
 )

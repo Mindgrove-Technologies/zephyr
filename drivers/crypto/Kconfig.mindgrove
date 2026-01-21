@@ -13,11 +13,6 @@ config CRYPTO_MINDGROVE_AES
 	  - Single-session, synchronous operation
 	  - Only one active session at a time (single hardware instance)
 
-	  Limitations:
-	  - No async support
-	  - No PSA Crypto integration
-	  - No secure key storage
-
 # Enable the MindGrove SHA driver
 config ENABLE_MINDGROVE
 	bool "Enable MindGrove SHA driver"
@@ -28,29 +23,30 @@ config ENABLE_MINDGROVE
 # SHA-256 driver configuration (only if MindGrove driver enabled)
 if ENABLE_MINDGROVE
 
-config CRYPTO_MINDSGROVE_SHA
-	bool "MindGrove SHA-256 hardware accelerator"
-	depends on DT_HAS_MINDSGROVE_SHA256_ENABLED
-	help
-	  Enable MindGrove SHA-256 hardware accelerator driver.
-	  Provides a hardware implementation of SHA-256 for faster hashing.
+config CRYPTO_MINDGROVE_SHA256
+    bool "MindGrove SHA-256 hardware accelerator"
+    depends on CRYPTO
+    help
+      Enable MindGrove SHA-256 hardware accelerator driver.
+      Provides a hardware implementation of SHA-256 for faster hashing.
 
 config MINDGROVE_SHA_MAX_SESSIONS
-	int "Maximum number of concurrent SHA sessions"
-	depends on CRYPTO_MINDSGROVE_SHA
-	default 4
-	range 1 16
-	help
-	  Maximum number of concurrent SHA-256 sessions supported.
-	  Each session maintains its own state for streaming operations.
+    int "Maximum number of concurrent SHA sessions"
+    depends on CRYPTO_MINDGROVE_SHA256
+    default 4
+    range 1 16
+    help
+      Maximum number of concurrent SHA-256 sessions supported.
+      Each session maintains its own state for streaming operations.
 
 config MINDGROVE_SHA_INIT_PRIORITY
-	int "SHA driver initialization priority"
-	depends on CRYPTO_MINDSGROVE_SHA
-	default 70
-	range 0 99
-	help
-	  SHA driver initialization priority. Crypto drivers typically
-	  initialize after kernel but before application.
+    int "SHA driver initialization priority"
+    depends on CRYPTO_MINDGROVE_SHA256
+    default 70
+    range 0 99
+    help
+      SHA driver initialization priority. Crypto drivers typically
+      initialize after kernel but before application.
+
 
 endif # ENABLE_MINDGROVE
