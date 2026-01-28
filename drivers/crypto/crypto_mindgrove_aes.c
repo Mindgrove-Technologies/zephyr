@@ -21,20 +21,24 @@
 
 
 
-static AES_Type *aes_reg;
+static volatile AES_Type *aes_reg;
 
 /* ---- Session ---- */
 struct mindgrove_session {
     uint8_t *key;
+    uint8_t iv[16];          /* base IV */
     uint16_t key_bits;
-    uint8_t encrypt;
     uint32_t iterated_bits;
+    uint8_t encrypt;
 };
+
 
 /* ---- Low-level helpers ---- */
 
 static void input_text_to_aes(uint8_t *input_text)
 {
+        printk("INPUT TEXT TO AES \n");
+
     for (int i = 0; i < 2; i++) {
         uint64_t v = 0;
 
@@ -46,46 +50,39 @@ static void input_text_to_aes(uint8_t *input_text)
                i, (unsigned long long)v);
 
         aes_reg->AES_INPUT = v;
-
-        /* Readback probe */
-        uint64_t rb = aes_reg->AES_INPUT;
-        printk("AES_INPUT[%d] read  = 0x%016llx\n",
-               i, (unsigned long long)rb);
     }
 }
 
-
-static void input_key_to_aes(uint8_t *key, int hex_key_len)
+static void input_key_to_aes(unsigned char *key, int hex_key_len)
 {
-    int key_len_mode = (int)(hex_key_len >> 1);
+    printk("INPUT KEY TO AES\n");
 
-    printk("KEY zero fill count = %d\n", (2 - key_len_mode));
+    uint32_t key_len_mode = (unsigned int)hex_key_len >> 1U;
+    int blank = 0;
 
-    for (int i = 0; i < (2 - key_len_mode); i++) {
+    for (; blank < (2 - (int)key_len_mode); blank++) {
         aes_reg->AES_KEY = 0;
-        printk("AES_KEY write = 0x0000000000000000\n");
+        printk("AES_KEY[%d] write = 0x0000000000000000\n", blank);
     }
 
-    for (int i = 0; i < (4 - (2 - key_len_mode)); i++) {
+    for (int i = 0; i < (4 - blank); i++) {
         uint64_t v = 0;
 
         for (int j = 0; j < 8; j++) {
-            v = (v << 8) | *(key++);
+            v = (v << 8) | *key++;
         }
 
         printk("AES_KEY[%d] write = 0x%016llx\n",
-               i, (unsigned long long)v);
+               blank + i, (unsigned long long)v);
 
         aes_reg->AES_KEY = v;
-
-        uint64_t rb = aes_reg->AES_KEY;
-        printk("AES_KEY[%d] read  = 0x%016llx\n",
-               i, (unsigned long long)rb);
     }
 }
 
+
 static void input_iv_to_aes(uint8_t *iv)
 {
+      printk("INPUT IV TO AES \n");
     for (int i = 0; i < 2; i++) {
         uint64_t v = 0;
 
@@ -98,9 +95,6 @@ static void input_iv_to_aes(uint8_t *iv)
 
         aes_reg->AES_IV = v;
 
-        uint64_t rb = aes_reg->AES_IV;
-        printk("AES_IV[%d] read  = 0x%016llx\n",
-               i, (unsigned long long)rb);
     }
 }
 
@@ -135,6 +129,7 @@ static int do_checks_params(int key_len_bits, int mode)
 
 /* ---- AES core ---- */
 
+
 uint32_t AES_Run(uint8_t *out,
                  uint8_t *in,
                  uint8_t *key,
@@ -145,6 +140,10 @@ uint32_t AES_Run(uint8_t *out,
                  int encrypt,
                  uint32_t iterated_bits)
 {
+    int offset = 0;
+    size_t output_offset =  0;
+    
+    int number_of_blocks;
 
     printk("\n=== AES_Run ENTER ===\n");
     printk("input_len_bits = %u\n", input_len_bits);
@@ -153,35 +152,26 @@ uint32_t AES_Run(uint8_t *out,
     printk("encrypt        = %d\n", encrypt);
     printk("iterated_bits  = %u\n", iterated_bits);
 
-    /* Dump plaintext */
-    printk("PLAINTEXT:\n");
-    for (int i = 0; i < 16; i++) {
-        printk("%02x ", in[i]);
+    if (!out || !in || !key) {
+        return -EINVAL;
     }
-    printk("\n");
 
-    /* Dump key */
-    printk("KEY:\n");
-    for (int i = 0; i < key_len_bits / 8; i++) {
-        printk("%02x ", key[i]);
-    }
-    printk("\n");
-
-    /* Dump IV if present */
-    if (iv) {
-        printk("IV:\n");
-        for (int i = 0; i < 16; i++) {
-            printk("%02x ", iv[i]);
-        }
-        printk("\n");
+    if ((mode != AES_ECB) && !iv) {
+        return -EINVAL;
     }
 
     int rc = do_checks_params(key_len_bits, mode);
     if (rc) {
         return rc;
     }
+    unsigned char *output_start = out;
+    unsigned char *current_output=out;
 
-    uint8_t hex_key_len;
+    if ((input_len_bits % AES_BLOCK_BITS) != 0) {
+        return -EINVAL;
+    }
+
+    unsigned char hex_key_len;
     if (key_len_bits == 128) {
         hex_key_len = 0x00;
     } else if (key_len_bits == 192) {
@@ -190,50 +180,68 @@ uint32_t AES_Run(uint8_t *out,
         hex_key_len = 0x04;
     }
 
-    if (iterated_bits == 0) {
+    /* ---- Configure AES only once per session ---- */
+    if (iterated_bits == 0U) {
         uint8_t hex_mode = (uint8_t)mode << 3;
-        uint8_t cfg = encrypt | hex_key_len | hex_mode | 0x40;
-        aes_reg->AES_CTRL = 0;
-        aes_reg->AES_CTRL = cfg;
-    }
+        uint8_t hex_config =
+            (uint8_t)encrypt |
+            hex_key_len |
+            hex_mode |
+            0x40; /* START */
 
+        aes_reg->AES_CTRL &= 0;
+        aes_reg->AES_CTRL |= hex_config;
+    }
     int blocks = input_len_bits / AES_BLOCK_BITS;
 
-    for (int i = 0; i < blocks; i++) {
-        if ((i == 0) && (iterated_bits == 0)) {
-            input_key_to_aes(key, hex_key_len);
-            if (mode != AES_ECB) {
-                input_iv_to_aes(iv);
-            }
-            input_text_to_aes(in);
+for (int block_index = 0; block_index < blocks; block_index++) {
+    uint8_t *current_out = &output_start[output_offset];
+
+    if (block_index == 0 && iterated_bits == 0U) {
+        input_key_to_aes(key, hex_key_len);
+
+        if (mode == AES_ECB) {
+            input_iv_to_aes(in);   // input
         } else {
-            input_text_to_aes(in + (i * AES_BLOCK_BYTES));
+            input_iv_to_aes(iv);           // base IV for first block
         }
+        input_text_to_aes(in);
 
-        // while (!(aes_reg->AES_STATUS & 0x2)) {
-        //     ;
-        // }
+    }
+    else {
+        offset = ((block_index * 128) / BYTE_LENGTH);
+        input_text_to_aes(&in[offset]);
+    }
+    while (!(aes_reg->AES_STATUS & 0x2U)) {
+        ; // spin
+    }
 
-        get_output(out + (i * AES_BLOCK_BYTES));
-
-        memcpy(out + (i * AES_BLOCK_BYTES),
-       in + (i * AES_BLOCK_BYTES),
-       AES_BLOCK_BYTES);
-    }   
+    get_output(current_out);
+    output_offset += AES_BLOCK_BYTES;
+}
 
     return 0;
 }
+
+
 
 /* ---- Cipher handlers ---- */
 
 static int ecb_crypt(struct cipher_ctx *ctx, struct cipher_pkt *pkt)
 {
     struct mindgrove_session *sess = ctx->drv_sessn_state;
-    printk("ECB REACHED \n");
+
+    printk("ECB REACHED\n");
+
+    if (pkt->in_len != AES_BLOCK_BYTES) {
+        return -EINVAL;
+    }
+
+
     int rc = AES_Run(pkt->out_buf,
                      pkt->in_buf,
                      sess->key,
-                     NULL,
+                     sess->iv,          /* zero IV */
                      pkt->in_len * 8,
                      sess->key_bits,
                      AES_ECB,
@@ -248,52 +256,77 @@ static int ecb_crypt(struct cipher_ctx *ctx, struct cipher_pkt *pkt)
     return rc;
 }
 
+
 static int cbc_crypt(struct cipher_ctx *ctx,
                      struct cipher_pkt *pkt,
                      uint8_t *iv)
 {
-    struct mindgrove_session *sess = ctx->drv_sessn_state;
+    struct mindgrove_session *s = ctx->drv_sessn_state;
+
+    uint8_t iv_local[16];
+
+    if (s->iterated_bits == 0) {
+        memcpy(s->iv, iv, 16);  // Save base IV for first run
+    }
+
+    // memcpy(iv_local, s->iv, 16);  // Start with previous IV
 
     int rc = AES_Run(pkt->out_buf,
                      pkt->in_buf,
-                     sess->key,
-                     iv,
+                     s->key,
+                     s->iv,
                      pkt->in_len * 8,
-                     sess->key_bits,
+                     s->key_bits,
                      AES_CBC,
-                     sess->encrypt,
-                     sess->iterated_bits);
+                     s->encrypt,
+                     s->iterated_bits);
 
-    if (!rc) {
-        sess->iterated_bits += pkt->in_len * 8;
+    if (rc) {
+        return rc;
     }
 
+    // Update iterated bits
+    s->iterated_bits += pkt->in_len * 8;
+    printk("bits inside handler %u\n", s->iterated_bits);
+    // Update IV for next block = last ciphertext block
+    // memcpy(s->iv, pkt->out_buf + pkt->in_len - AES_BLOCK_BYTES, AES_BLOCK_BYTES);
+
     pkt->out_len = pkt->in_len;
-    return rc;
+    return 0;
 }
 
 static int ctr_crypt(struct cipher_ctx *ctx,
                      struct cipher_pkt *pkt,
                      uint8_t *iv)
 {
-    struct mindgrove_session *sess = ctx->drv_sessn_state;
+    struct mindgrove_session *s = ctx->drv_sessn_state;
 
-    int rc = AES_Run(pkt->out_buf,
-                     pkt->in_buf,
-                     sess->key,
-                     iv,
-                     pkt->in_len * 8,
-                     sess->key_bits,
-                     AES_CTR,
-                     sess->encrypt,
-                     sess->iterated_bits);
-
-    if (!rc) {
-        sess->iterated_bits += pkt->in_len * 8;
+    /* Save base IV for first run */
+    if (s->iterated_bits == 0) {
+        memcpy(s->iv, iv, AES_BLOCK_BYTES);
     }
 
+    /* Call AES_Run with hardware handling the counter */
+    int rc = AES_Run(pkt->out_buf,
+                     pkt->in_buf,
+                     s->key,
+                     s->iv,                // IV hardware will increment
+                     pkt->in_len * 8,      // input length in bits
+                     s->key_bits,
+                     AES_CTR,
+                     s->encrypt,
+                     s->iterated_bits);    // pass iterated_bits for AES session tracking
+
+    if (rc) {
+        return rc;
+    }
+
+    /* Update iterated_bits in bytes */
+    s->iterated_bits += pkt->in_len * 8;
+    printk("bits inside CTR handler %u\n", s->iterated_bits);
+
     pkt->out_len = pkt->in_len;
-    return rc;
+    return 0;
 }
 
 /* ---- Session management ---- */
@@ -317,6 +350,7 @@ static int begin_session(const struct device *dev,
     sess->key_bits = ctx->keylen * 8;
     sess->iterated_bits = 0;
     sess->encrypt = (op == CRYPTO_CIPHER_OP_ENCRYPT) ? AES_ENC : AES_DEC;
+    memset(sess->iv, 0, AES_BLOCK_BYTES);
 
     ctx->drv_sessn_state = sess;
 
