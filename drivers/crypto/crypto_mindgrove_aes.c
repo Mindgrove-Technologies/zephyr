@@ -3,6 +3,7 @@
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
 #include <zephyr/crypto/crypto.h>
+#include <zephyr/crypto/cipher.h>
 #include <errno.h>
 #include <string.h>
 #include "crypto_mindgrove_aes.h"
@@ -14,6 +15,8 @@
 
 #define AES_ECB  0
 #define AES_CBC  1
+#define AES_CFB 2
+#define AES_OFB 3
 #define AES_CTR  4
 
 #define AES_ENC  0
@@ -22,6 +25,15 @@
 
 
 static volatile AES_Type *aes_reg;
+
+void Print_inputs(const char *type, const uint8_t *data, uint16_t len)
+{
+    printk("%s (%u bytes): ", type, len);
+    for (uint16_t i = 0; i < len; i++)
+        printk("%02x", data[i]);
+    printk("\n");
+}
+
 
 /* ---- Session ---- */
 struct mindgrove_session {
@@ -209,7 +221,8 @@ for (int block_index = 0; block_index < blocks; block_index++) {
 
     }
     else {
-        offset = ((block_index * 128) / BYTE_LENGTH);
+                offset = ((block_index * 128) / BYTE_LENGTH);
+
         input_text_to_aes(&in[offset]);
     }
     while (!(aes_reg->AES_STATUS & 0x2U)) {
@@ -225,6 +238,7 @@ for (int block_index = 0; block_index < blocks; block_index++) {
 
 
 
+
 /* ---- Cipher handlers ---- */
 
 static int ecb_crypt(struct cipher_ctx *ctx, struct cipher_pkt *pkt)
@@ -236,12 +250,14 @@ static int ecb_crypt(struct cipher_ctx *ctx, struct cipher_pkt *pkt)
     if (pkt->in_len != AES_BLOCK_BYTES) {
         return -EINVAL;
     }
+    printk("ECB driver received block, iterated_bits=%u\n", sess->iterated_bits);
+    Print_inputs("Driver IN ", pkt->in_buf, 16);
 
 
     int rc = AES_Run(pkt->out_buf,
                      pkt->in_buf,
                      sess->key,
-                     sess->iv,          /* zero IV */
+                     NULL,          /* zero IV */
                      pkt->in_len * 8,
                      sess->key_bits,
                      AES_ECB,
@@ -278,6 +294,83 @@ static int cbc_crypt(struct cipher_ctx *ctx,
                      pkt->in_len * 8,
                      s->key_bits,
                      AES_CBC,
+                     s->encrypt,
+                     s->iterated_bits);
+
+    if (rc) {
+        return rc;
+    }
+
+    // Update iterated bits
+    s->iterated_bits += pkt->in_len * 8;
+    printk("bits inside handler %u\n", s->iterated_bits);
+    // Update IV for next block = last ciphertext block
+    // memcpy(s->iv, pkt->out_buf + pkt->in_len - AES_BLOCK_BYTES, AES_BLOCK_BYTES);
+
+    pkt->out_len = pkt->in_len;
+    return 0;
+}
+
+static int cfb_crypt(struct cipher_ctx *ctx,
+                     struct cipher_pkt *pkt,
+                     uint8_t *iv)
+{
+    struct mindgrove_session *s = ctx->drv_sessn_state;
+
+    uint8_t iv_local[16];
+
+    if (s->iterated_bits == 0) {
+        memcpy(s->iv, iv, 16);  // Save base IV for first run
+    }
+
+    // memcpy(iv_local, s->iv, 16);  // Start with previous IV
+
+    int rc = AES_Run(pkt->out_buf,
+                     pkt->in_buf,
+                     s->key,
+                     s->iv,
+                     pkt->in_len * 8,
+                     s->key_bits,
+                     AES_CFB,
+                     s->encrypt,
+                     s->iterated_bits);
+
+    if (rc) {
+        return rc;
+    }
+
+    // Update iterated bits
+    s->iterated_bits += pkt->in_len * 8;
+    printk("bits inside handler %u\n", s->iterated_bits);
+    // Update IV for next block = last ciphertext block
+    // memcpy(s->iv, pkt->out_buf + pkt->in_len - AES_BLOCK_BYTES, AES_BLOCK_BYTES);
+
+    pkt->out_len = pkt->in_len;
+    return 0;
+}
+
+
+static int ofb_crypt(struct cipher_ctx *ctx,
+                     struct cipher_pkt *pkt,
+                     uint8_t *iv)
+{
+    struct mindgrove_session *s = ctx->drv_sessn_state;
+
+    uint8_t iv_local[16];
+
+    if (s->iterated_bits == 0) {
+        memcpy(s->iv, iv, 16);  // Save base IV for first run
+    }
+
+    // memcpy(iv_local, s->iv, 16);  // Start with previous IV
+
+    int rc = AES_Run(pkt->out_buf,
+                     pkt->in_buf,
+                     s->key,
+                     s->iv,
+                     pkt->in_len * 8,
+                     s->key_bits,
+                     AES_OFB,
                      s->encrypt,
                      s->iterated_bits);
 
@@ -361,9 +454,15 @@ static int begin_session(const struct device *dev,
     case CRYPTO_CIPHER_MODE_CBC:
         ctx->ops.cbc_crypt_hndlr = cbc_crypt;
         break;
-    case CRYPTO_CIPHER_MODE_CTR:
+        case CRYPTO_CIPHER_MODE_CTR:
         ctx->ops.ctr_crypt_hndlr = ctr_crypt;
         break;
+    // case CRYPTO_CIPHER_MODE_CFB:
+    //     ctx->ops.cfb_crypt_hndlr = cfb_crypt;
+    //     break;
+    // case CRYPTO_CIPHER_MODE_OFB:
+    //     ctx->ops.ofb_crypt_hndlr = ofb_crypt;
+    // break;
     default:
         k_free(sess);
         return -ENOTSUP;
