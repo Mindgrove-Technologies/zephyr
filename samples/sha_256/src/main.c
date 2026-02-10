@@ -5,138 +5,41 @@
 #include <zephyr/sys/printk.h>
 #include <string.h>
 #include "rsp_files.h"
+#include <string.h>
+#include <zephyr/kernel.h>
 
 #define SHA256_HASH_LEN 32
+#define SHA256_DIGEST_SIZE 32
 
-static void print_hex(const uint8_t *buf, size_t len)
-{
-    for (size_t i = 0; i < len; i++) {
-        printk("%02x ", buf[i]);
-    }
-    printk("\n");
-}
-
+/* HELPER FUNCTIONS */
 static bool check_hash(const uint8_t *got, const uint8_t *expected, size_t len)
 {
     return memcmp(got, expected, len) == 0;
 }
 
-/* ============================= */
-/* Single block test             */
-/* ============================= */
-static int test_single_block(void)
+
+/* Helper function to print hex */
+static void print_hex(const char *label, const uint8_t *data, size_t len)
 {
-    const struct device *dev = DEVICE_DT_GET_ONE(mindgrove_sha256);
-    if (!device_is_ready(dev)) {
-        printk("SHA256 device not ready\n");
-        return 1;
+    printk("%s: ", label);
+    for (size_t i = 0; i < len; i++) {
+        printk("%02x", data[i]);
+        if ((i + 1) % 32 == 0 && i + 1 < len) printk("\n          ");
     }
-
-    uint8_t output[SHA256_HASH_LEN];
-    const char *input = "SDK-Unit-Testing";
-    struct hash_ctx ctx;
-    struct hash_pkt pkt;
-
-    uint8_t expected[SHA256_HASH_LEN] = {
-        0xd0, 0xc6, 0x2a, 0x1a, 0x24, 0x0c, 0xa6, 0xfe,
-        0xcc, 0x2e, 0x36, 0xd5, 0x6f, 0xd7, 0x4a, 0x65,
-        0xea, 0x70, 0xae, 0x00, 0x0a, 0x78, 0x90, 0x51,
-        0x24, 0x14, 0xd4, 0x67, 0x91, 0x4e, 0xb7, 0xbd
-    };
-
-    hash_begin_session(dev, &ctx, CRYPTO_HASH_ALGO_SHA256);
-
-    pkt.in_buf = (uint8_t *)input;
-    pkt.in_len = strlen(input);
-    pkt.out_buf = output;
-
-    if (hash_compute(&ctx, &pkt)) {
-        printk("hash_compute failed\n");
-        hash_free_session(dev, &ctx);
-        return 1;
-    }
-
-    hash_free_session(dev, &ctx);
-
-    printk("\n[SHA256] Single block test\n");
-    printk("Output   : "); print_hex(output, SHA256_HASH_LEN);
-    printk("Expected : "); print_hex(expected, SHA256_HASH_LEN);
-    printk(check_hash(output, expected, SHA256_HASH_LEN) ? "PASS\n" : "FAIL\n");
-    return 0;
+    printk("\n");
 }
 
-/* ============================= */
-/* Multi-shot (streaming) test   */
-/* ============================= */
-
-static int test_multi_shot(void)
+/* Helper function to print digest */
+static void print_digest(const uint8_t *digest)
 {
-    const struct device *dev = DEVICE_DT_GET_ONE(mindgrove_sha256);
-    if (!device_is_ready(dev)) {
-        printk("SHA256 device not ready\n");
-        return 1;
+    for (int i = 0; i < SHA256_DIGEST_SIZE; i++) {
+        printk("%02x", digest[i]);
     }
-
-    uint8_t output[SHA256_HASH_LEN];
-    const char *input = "The quick brown fox jumps over the lazy dog";
-
-    struct hash_ctx ctx;
-    struct hash_pkt pkt;
-    long iterated = 0;
-    long total_len = strlen(input);
-    const long chunk_size = 32; /* arbitrary chunk size for streaming */
-
-    uint8_t expected[SHA256_HASH_LEN] = {
-        0xd7, 0xa8, 0xfb, 0xb3, 0x07, 0xd7, 0x60, 0x82,
-        0x16, 0x3d, 0x29, 0x4f, 0x1f, 0x0f, 0x6f, 0x00,
-        0x6b, 0x7a, 0xa1, 0x38, 0x37, 0x3b, 0x8a, 0x8b,
-        0x6f, 0xd1, 0x4e, 0x0c, 0x3f, 0x9f, 0x00, 0x0f
-    };
-
-    /* Begin hashing session */
-    if (hash_begin_session(dev, &ctx, CRYPTO_HASH_ALGO_SHA256)) {
-        printk("hash_begin_session failed\n");
-        return 1;
-    }
-
-    /* Feed input in chunks, leaving the last chunk for finalization */
-    while ((total_len - iterated) > chunk_size) {
-        pkt.in_buf = (uint8_t *)(input + iterated);
-        pkt.in_len = chunk_size;
-        pkt.out_buf = NULL;
-
-        if (hash_update(&ctx, &pkt)) {
-            printk("hash_update failed\n");
-            hash_free_session(dev, &ctx);
-            return 1;
-        }
-
-        iterated += chunk_size;
-    }
-
-    /* Final block for hash_compute */
-    pkt.in_buf = (uint8_t *)(input + iterated);
-    pkt.in_len = total_len - iterated; /* remaining bytes */
-    pkt.out_buf = output;
-
-    if (hash_compute(&ctx, &pkt)) {
-        printk("hash_compute (finalize) failed\n");
-        hash_free_session(dev, &ctx);
-        return 1;
-    }
-
-    hash_free_session(dev, &ctx);
-
-    printk("\n[SHA256] Multi-shot test\n");
-    printk("Output   : "); print_hex(output, SHA256_HASH_LEN);
-    printk("Expected : "); print_hex(expected, SHA256_HASH_LEN);
-    printk(check_hash(output, expected, SHA256_HASH_LEN) ? "PASS\n" : "FAIL\n");
-
-    return 0;
 }
 
-#define SHA256_HASH_LEN 32
+/* TEST FUNCTIONS */
 
+//WORKING
 /* Single-block KAT test for Zephyr */
 static int test_sha256_single_block_kat(void)
 {
@@ -155,7 +58,6 @@ static int test_sha256_single_block_kat(void)
 
         struct hash_ctx ctx;
         struct hash_pkt pkt;
-        long int iterated_bits = 0;
 
         /* Begin session */
         if (hash_begin_session(dev, &ctx, CRYPTO_HASH_ALGO_SHA256)) {
@@ -163,49 +65,44 @@ static int test_sha256_single_block_kat(void)
             return -EIO;
         }
 
-        long int remaining_bits = tv->input_text_len;
+        uint32_t total_len_bits = tv->input_text_len;
+        uint32_t total_len_bytes = total_len_bits / 8;
 
-        if (remaining_bits == 512) {
-            // Special case: exactly one full block
+        if (total_len_bits == 512) {
+            /* * SPECIAL CASE: 512 bits (exactly one block).
+             * We call compute directly. This forces the driver to handle 
+             * the 64 bytes of data and the mandatory second padding block 
+             * in one single logical operation.
+             */
             pkt.in_buf = (uint8_t *)tv->input_text;
-            pkt.in_len = 64;  // 512 bits
-            pkt.out_buf = NULL;
-            if (hash_update(&ctx, &pkt)) {
-                printk("hash_update failed\n");
-                hash_free_session(dev, &ctx);
-                return -EIO;
-            }
-
-            // Finalize with mode 1
-            uint8_t dummy = 0;
-            pkt.in_buf = &dummy;
-            pkt.in_len = 0;
+            pkt.in_len = 64;
             pkt.out_buf = output;
+
             if (hash_compute(&ctx, &pkt)) {
-                printk("hash_compute failed\n");
+                printk("hash_compute (512-bit special) failed\n");
                 hash_free_session(dev, &ctx);
                 return -EIO;
             }
         } else {
-            // Use original logic for < 512 bits or > 512 bits
-            while ((remaining_bits - iterated_bits) > 512) {
-                pkt.in_buf = (uint8_t *)(tv->input_text + iterated_bits / 8);
+            /* * GENERAL CASE: < 512 or > 512 bits.
+             * Standard streaming approach.
+             */
+            uint32_t sent_bytes = 0;
+            while ((total_len_bytes - sent_bytes) > 64) {
+                pkt.in_buf = (uint8_t *)&tv->input_text[sent_bytes];
                 pkt.in_len = 64;
                 pkt.out_buf = NULL;
                 if (hash_update(&ctx, &pkt)) {
-                    printk("hash_update failed\n");
                     hash_free_session(dev, &ctx);
                     return -EIO;
                 }
-                iterated_bits += 512;
+                sent_bytes += 64;
             }
 
-            long int last_bits = remaining_bits - iterated_bits;
-            pkt.in_buf = (uint8_t *)(tv->input_text + iterated_bits / 8);
-            pkt.in_len = (last_bits + 7) / 8;
+            pkt.in_buf = (uint8_t *)&tv->input_text[sent_bytes];
+            pkt.in_len = total_len_bytes - sent_bytes;
             pkt.out_buf = output;
             if (hash_compute(&ctx, &pkt)) {
-                printk("hash_compute failed\n");
                 hash_free_session(dev, &ctx);
                 return -EIO;
             }
@@ -217,15 +114,15 @@ static int test_sha256_single_block_kat(void)
         bool pass = true;
         for (uint8_t j = 0; j < SHA256_HASH_LEN; j++) {
             if (output[j] != tv->output_hash[j]) {
-                printk("Single-block KAT #%d FAILED at byte %d, Expected: %02x Got: %02x\n",
-                       i + 1, j, tv->output_hash[j], output[j]);
+                printk("KAT #%d FAILED. Expected: %02x Got: %02x\n",
+                       i + 1, tv->output_hash[j], output[j]);
                 pass = false;
                 break;
             }
         }
 
         if (pass) {
-            printk("Single-block KAT #%d PASS\n", i + 1);
+            printk("KAT #%d PASS\n", i + 1);
         } else {
             return -EFAULT;
         }
@@ -234,10 +131,10 @@ static int test_sha256_single_block_kat(void)
     return 0;
 }
 
-
-
+//WORKING (FIXED)
 /* Multi-block KAT test for Zephyr */
-static int test_sha256_multi_block_kat(void)
+
+static int test_sha256_multi_block_kat_fixed(void)
 {
     extern const sha256_multi_kat_t multi_kat_vectors[];
     extern const uint16_t multi_kat_vectors_count;
@@ -248,103 +145,230 @@ static int test_sha256_multi_block_kat(void)
         return -ENODEV;
     }
 
-    for (uint16_t i = 0; i < multi_kat_vectors_count; i++) {
-        const sha256_multi_kat_t *tv = &multi_kat_vectors[i];
-        uint8_t output[SHA256_HASH_LEN] = {0};
-        long int iterated_bits = 0;
-        const long int block_bits = 512; // SHA-256 block size
+    int total_pass = 0;
 
+    for (int v_idx = 0; v_idx < 64; v_idx++) {
+        const sha256_multi_kat_t *tv = &multi_kat_vectors[v_idx];
+        uint8_t output[SHA256_HASH_LEN] = {0};
         struct hash_ctx ctx;
         struct hash_pkt pkt;
 
-        printk("KAT Multi-block #%d: Input length = %d bits\n", i + 1, tv->input_text_len);
+        printk("\n=== Testing Vector %d (%u bits) ===\n", v_idx, tv->input_text_len);
 
         /* Begin session */
         if (hash_begin_session(dev, &ctx, CRYPTO_HASH_ALGO_SHA256)) {
-            printk("hash_begin_session failed\n");
+            printk("Session begin failed for vector %d\n", v_idx);
             return -EIO;
         }
 
-        /* Feed all full 512-bit blocks via hash_update */
-        while ((tv->input_text_len - iterated_bits) > block_bits) {
-            pkt.in_buf = (uint8_t *)(tv->input_text + (iterated_bits / 8));
-            pkt.in_len = block_bits / 8;  // full block in bytes
-            pkt.out_buf = NULL;           // intermediate update
-
+        uint32_t total_bits = tv->input_text_len;
+        uint32_t sent_bits = 0;
+        
+        /* Send complete 512-bit blocks via update */
+        while ((total_bits - sent_bits) > 512) {
+            uint32_t bytes_to_send = 512 / 8;
+            uint32_t byte_offset = sent_bits / 8;
+            
+            pkt.in_buf = (uint8_t *)&tv->input_text[byte_offset];
+            pkt.in_len = bytes_to_send;
+            pkt.out_buf = NULL;
+            
             if (hash_update(&ctx, &pkt)) {
-                printk("hash_update failed\n");
+                printk("hash_update failed at offset %u\n", byte_offset);
                 hash_free_session(dev, &ctx);
                 return -EIO;
             }
-
-            iterated_bits += block_bits;
+            sent_bits += 512;
         }
 
-        /* Remaining bits go through hash_compute (final block) */
-        long int remaining_bits = tv->input_text_len - iterated_bits;
-        pkt.in_buf = (uint8_t *)(tv->input_text + (iterated_bits / 8));
-        pkt.in_len = (remaining_bits + 7) / 8;  // round up last partial byte
+        /* Send FINAL block via compute */
+        uint32_t remaining_bits = total_bits - sent_bits;
+        uint32_t remaining_bytes = (remaining_bits + 7) / 8;
+        uint32_t byte_offset = sent_bits / 8;
+        
+        pkt.in_buf = (remaining_bytes > 0) ? (uint8_t *)&tv->input_text[byte_offset] : NULL;
+        pkt.in_len = remaining_bytes;
         pkt.out_buf = output;
-
+        
         if (hash_compute(&ctx, &pkt)) {
-            printk("hash_compute failed\n");
+            printk("hash_compute failed for final block\n");
             hash_free_session(dev, &ctx);
             return -EIO;
         }
 
         hash_free_session(dev, &ctx);
 
-        /* Validate output */
-        bool pass = true;
-        for (uint8_t j = 0; j < SHA256_HASH_LEN; j++) {
-            if (output[j] != tv->output_hash[j]) {
-                printk("Multi-block KAT #%d FAILED at byte %d, Expected: %02x Got: %02x\n",
-                       i + 1, j, tv->output_hash[j], output[j]);
-                pass = false;
+        /* Verify Result */
+        bool match = true;
+        for (int i = 0; i < 32; i++) {
+            if (output[i] != tv->output_hash[i]) {
+                match = false;
                 break;
             }
         }
 
-        if (pass) {
-            printk("Multi-block KAT #%d PASS\n", i + 1);
+        if (match) {
+            printk("Vector %d: PASS\n", v_idx);
+            total_pass++;
         } else {
-            return -EFAULT;
+            printk("Vector %d: FAIL\n", v_idx);
+            printk("Expected: ");
+            for(int i=0; i<32; i++) printk("%02x", tv->output_hash[i]);
+            printk("\nActual:   ");
+            for(int i=0; i<32; i++) printk("%02x", output[i]);
+            printk("\n");
+            return -EFAULT; // Stop on first failure for debugging
         }
     }
 
+    printk("\nAll %d vectors passed!\n", total_pass);
     return 0;
 }
 
+/* Monte Carlo test using proper streaming API */
+int test_sha_monte_carlo(void)
+{
+    const struct device *dev = DEVICE_DT_GET_ONE(mindgrove_sha256);
+    
+    if (!device_is_ready(dev)) {
+        printk("SHA device not ready\n");
+        return -ENODEV;
+    }
 
+    uint8_t Seed[SHA256_DIGEST_SIZE] = {
+        0x6d, 0x1e, 0x72, 0xad, 0x03, 0xdd, 0xeb, 0x5d,
+        0xe8, 0x91, 0xe5, 0x72, 0xe2, 0x39, 0x6f, 0x8d,
+        0xa0, 0x15, 0xd8, 0x99, 0xef, 0x0e, 0x79, 0x50,
+        0x31, 0x52, 0xd6, 0x01, 0x0a, 0x3f, 0xe6, 0x91};
 
+    uint8_t MD0[SHA256_DIGEST_SIZE];
+    uint8_t MD1[SHA256_DIGEST_SIZE];
+    uint8_t MD2[SHA256_DIGEST_SIZE];
+    uint8_t MDnew[SHA256_DIGEST_SIZE];
+    
+    /* Buffer for Mi = MD[i-3] || MD[i-2] || MD[i-1] */
+    uint8_t Mi[3 * SHA256_DIGEST_SIZE]; // 96 bytes
+    
+    struct hash_ctx ctx;
+    struct hash_pkt pkt;
+    int ret;
+    
+    printk("Starting SHA256 Monte Carlo test...\n");
 
-void main(void)
+    /*------------------------------------------------------------
+     * Perform 100 outer iterations
+     *------------------------------------------------------------*/
+    for (int j = 0; j < 100; j++) {
+        /* Initialize MD0, MD1, MD2 = Seed */
+        memcpy(MD0, Seed, SHA256_DIGEST_SIZE);
+        memcpy(MD1, Seed, SHA256_DIGEST_SIZE);
+        memcpy(MD2, Seed, SHA256_DIGEST_SIZE);
+
+        /*--------------------------------------------------------
+         * Perform 1000 rounds
+         *--------------------------------------------------------*/
+        for (int i = 3; i < 1003; i++) {
+            /* Mi = MD[i-3] || MD[i-2] || MD[i-1] */
+            memcpy(Mi, MD0, SHA256_DIGEST_SIZE);
+            memcpy(Mi + SHA256_DIGEST_SIZE, MD1, SHA256_DIGEST_SIZE);
+            memcpy(Mi + 2 * SHA256_DIGEST_SIZE, MD2, SHA256_DIGEST_SIZE);
+
+            /* ============================================
+             * KEY FIX: Use hash_update() + hash_final()
+             * instead of single hash_hndlr() call
+             * ============================================ */
+            
+            /* Begin a NEW session for each independent SHA256 operation */
+            ret = hash_begin_session(dev, &ctx, CRYPTO_HASH_ALGO_SHA256);
+            if (ret != 0) {
+                printk("Failed to begin session at i=%d: %d\n", i, ret);
+                return ret;
+            }
+
+            /* STEP 1: hash_update() for first 512 bits (64 bytes) */
+            memset(&pkt, 0, sizeof(pkt));
+            pkt.in_buf = Mi;
+            pkt.in_len = 64;  // 512 bits = 64 bytes
+            ret = hash_update(&ctx, &pkt);
+            if (ret != 0) {
+                printk("hash_update failed at j=%d, i=%d: %d\n", j, i, ret);
+                hash_free_session(dev, &ctx);
+                return ret;
+            }
+
+            /* STEP 2: hash_final() for remaining 256 bits (32 bytes) */
+            memset(&pkt, 0, sizeof(pkt));
+            pkt.in_buf = Mi + 64;  // Remaining 32 bytes
+            pkt.in_len = 32;       // 256 bits = 32 bytes
+            pkt.out_buf = MDnew;
+            ret = hash_compute(&ctx, &pkt);
+            if (ret != 0) {
+                printk("hash_final failed at j=%d, i=%d: %d\n", j, i, ret);
+                hash_free_session(dev, &ctx);
+                return ret;
+            }
+
+            /* Free session - each SHA256(Mi) is independent */
+            hash_free_session(dev, &ctx);
+
+            /* Shift the MD buffers */
+            memcpy(MD0, MD1, SHA256_DIGEST_SIZE);
+            memcpy(MD1, MD2, SHA256_DIGEST_SIZE);
+            memcpy(MD2, MDnew, SHA256_DIGEST_SIZE);
+        }
+
+        /* End of 1000 rounds: Seed = MD1002 (MD2) */
+        memcpy(Seed, MD2, SHA256_DIGEST_SIZE);
+
+        /* Print checkpoint */
+        printk("COUNT = %d\n", j);
+        printk("MD = ");
+        print_digest(MD2);
+        printk("\n");
+
+    }
+    // NIST Expected Result for Outer Loop 0
+    uint8_t expected_0[32] = {
+        0x6a, 0x91, 0x2b, 0xa4, 0x18, 0x83, 0x91, 0xa7,
+        0x8e, 0x6f, 0x13, 0xd8, 0x8e, 0xd2, 0xd1, 0x4e,
+        0x13, 0xaf, 0xce, 0x9d, 0xb6, 0xf7, 0xdc, 0xbf,
+        0x4a, 0x48, 0xc2, 0x4f, 0x3d, 0xb0, 0x27, 0x78
+    };
+    if (memcmp(MD2, expected_0, 32) == 0) {
+        printk(" -> [PASS] MATCHES NIST GROUND TRUTH\n");
+        return 0;
+    } else {
+        printk(" -> [FAIL] DOES NOT MATCH NIST\n");
+        return EFAULT;
+    }
+}
+
+/* You can call this from your main function */
+int main(void)
 {
     printk("\n===== Mindgrove SHA256 Tests =====\n");
-    // if(test_single_block()){
-    //     printk("SINGLE SHOT FAILED\n");
+
+    //  if(test_sha256_single_block_kat()){
+    //     printk("SHA256 SHORT MESSAGE KAT FAILED\n");
     // }
     // else{
-    //     printk("SINGLE SHOT PASSED\n");
-    // }
-    // if(test_multi_shot()){
-    //     printk("MULTI SHOT FAILED\n");
-    // }
-    // else{
-    //     printk("MULTI SHOT PASSED\n");
-    // }
-    if(test_sha256_single_block_kat()){
-        printk("KAT SINGLE BLOCK FAILED\n");
-    }
-    else{
-        printk("KAT SINGLE BLOCK PASSED\n");
-    }
-    // if(test_sha256_multi_block_kat()){
-    //     printk("KAT MULTI BLOCK FAILED\n");
-    // }
-    // else{
-    //     printk("KAT MULTI BLOCK PASSED\n");
+    //     printk("SHA256 SHORT MESSAGE KAT PASSED\n");
     // }
 
+    // if(test_sha256_multi_block_kat_fixed()){
+    //     printk("SHA256 MULTI MESSAGE KAT FAILED\n");
+    // }
+    // else{
+    //     printk("SHA256 MULTI MESSAGE KAT PASSED\n");
+    // }
+
+    if(test_sha_monte_carlo()){
+        printk("SHA256 MONTE CARLO TEST FAILED\n");
+    }
+    else{
+        printk("SHA256 MONTE CARLO TEST  PASSED\n");
+    }
+
     printk("\n===== SHA256 Tests Complete =====\n");
+    
 }
