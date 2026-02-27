@@ -89,4 +89,8 @@ chosen {
 	status = "okay";
 };
 
+&rsa0 {
+	status = "okay";
+};
+
 

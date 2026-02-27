@@ -1,0 +1,13 @@
+description: Mindgrove RSA 2048 Hardware Accelerator
+
+compatible: "mindgrove,rsa2048"
+
+include: base.yaml
+
+properties:
+    reg:
+      required: true
+    interrupts:
+      required: false
+    status:
+      required: true

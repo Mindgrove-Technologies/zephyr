@@ -48,5 +48,13 @@ config MINDGROVE_SHA_INIT_PRIORITY
       SHA driver initialization priority. Crypto drivers typically
       initialize after kernel but before application.
 
-
+config CRYPTO_MINDGROVE_RSA
+    bool "Mindgrove RSA 2048 Hardware Accelerator"
+    default y
+    depends on DT_HAS_MINDGROVE_RSA2048_ENABLED
+    select CRYPTO_MINDGROVE_SHA256
+    help
+      Enable support for the Mindgrove RSA hardware accelerator.
+      This driver supports RSA-2048 operations with PKCS, PSS, and OAEP padding.
+      
 endif # ENABLE_MINDGROVE

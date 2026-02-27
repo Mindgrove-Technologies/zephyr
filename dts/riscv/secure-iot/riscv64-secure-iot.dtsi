@@ -202,6 +202,11 @@
     status = "okay";
 };
 
+    rsa0: rsa@5000000 {
+    compatible = "mindgrove,rsa2048";
+    reg = <0x5000000 0x100>;
+    status = "okay";
+};
 
   };
 };

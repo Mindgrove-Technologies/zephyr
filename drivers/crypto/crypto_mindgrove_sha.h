@@ -51,6 +51,21 @@ typedef struct {
 #define SHA_STATUS_READY       (1 << 0)  /* Ready for new input */
 #define SHA_STATUS_OUT_READY   (1 << 1)  /* Output digest ready */
 
+#define byte_length 8
+// crypto_mindgrove_sha.h
 
+extern const int sha_block_length_bits;
+extern const int sha_max_inputlen_bits;
+#define SHA256_HASH_LEN 32
+
+static volatile SHA256_Type *sha_reg;
+
+struct mindgrove_sha_config {
+    volatile SHA256_Type *regs;
+};
+
+uint16_t SHA256_Single_Run(unsigned char *sha_output,
+                           const unsigned char *input_text,
+                           int input_len_bits);
 
 #endif /* ZEPHYR_DRIVERS_CRYPTO_CRYPTO_MINDGROVE_SHA_H */

@@ -18,19 +18,12 @@
 
 #include "crypto_mindgrove_sha.h"
 
-/* ============================= */
-/* SHA Helpers (integrated)      */
-/* ============================= */
-
-#define byte_length 8
 const int sha_max_inputlen_bits = 64;
 const int sha_block_length_bits = 512;
 
-static volatile SHA256_Type *sha_reg;
-
-struct mindgrove_sha_config {
-    volatile SHA256_Type *regs;
-};
+/* ============================= */
+/* SHA Helpers (integrated)      */
+/* ============================= */
 
 static void input_text_to_sha(unsigned char **final_sha_text_dict,
                               int block_message_length_bits,
@@ -181,6 +174,115 @@ uint16_t sha256_zeroize(void) {
     return 0;
 }
 
+// RUN Functions
+
+/** @fn void SHA256_Single_Run(unsigned char *sha_output, unsigned char *input_text, long int input_len_bits)
+ * @brief The main function which runs the SHA algorithm on H/W
+ * @details This function does a couple of things.
+ * 1. It sets up the input and other configs as required and ensures SHA is ready.
+ * 2. It then calculates some lengths that are required and the append bits for the last block.
+ * 3. It then iterates across blocks and calls the required functions which will run SHA. While
+ * doing this, it ensures that the SHA output of previous block is passed on as the pre-hash
+ * for the next block.
+ * 4. It then gets the output and resets previously set configurations.
+ * 5. The final step is returning a pointer to an array of 256 bits (the hash).
+ * @param unsigned char *sha_output : pointer to where the SHA256 output has to be stored
+ * @param unsigned char *input_text : pointer to the message that has to be encoded
+ * @param long int input_len_bits : length of input message in bits
+ * @return Returns nothing. Changes sha_output in place.
+ */
+uint16_t SHA256_Single_Run(unsigned char *sha_output,
+                           const unsigned char *input_text,
+                           int input_len_bits) {
+    int total_blocks;
+    int final_block_message_length_bits;
+    int sha_append_length_bits;
+    int last_block_double_run = 0;
+    int offset = 0;
+    uint32_t status = SUCCESS;
+    size_t hash_length = 0;
+    unsigned char *final_sha_text[1];
+    unsigned char *sha_text_final[2];
+    unsigned char sha_append_bits[256];
+    unsigned char *substring_input_text;
+
+    if ((sha_output == NULL) || (input_text == NULL)) {
+        // return EFAULT;
+    }
+
+    // Wait for sha to be ready
+    while ((sha_reg->SHA_STATUS & 1U) != 0U) {
+        // Empty loop for MISRA compliance
+    }
+
+    // Gets the required lengths
+    // long int input_len_bits = StrLen(input_text) * 8;
+    total_blocks = (int)(input_len_bits / sha_block_length_bits) + 1;
+    final_block_message_length_bits = input_len_bits % sha_block_length_bits;
+    sha_append_length_bits =
+        get_sha_append_length_bits(final_block_message_length_bits);
+
+    // Gets the final sha append bits which will be used when the
+    // last block is being run
+    get_sha_append_bits(sha_append_bits, input_len_bits,
+                        sha_append_length_bits);
+    
+    // printk("DEBUG: sha_append_bits (Padding):\n");
+    // for (int i = 0; i < (sha_append_length_bits / 8); i++) {
+    //     printk("%02x ", sha_append_bits[i]);
+    // }
+    printk("\n");
+
+    // Runs the sha for each block of text
+    for (int block_index = 0; block_index < total_blocks; block_index += 1) {
+        offset = block_index * (sha_block_length_bits / byte_length);
+        substring_input_text = &input_text[offset];
+        // For last block
+        if (block_index == (total_blocks - 1)) {
+            // For regular cases of last block
+            if (sha_append_length_bits <= sha_block_length_bits) {
+                sha_text_final[0] = substring_input_text;
+                sha_text_final[1] = sha_append_bits;
+                input_text_to_sha(sha_text_final,
+                                  final_block_message_length_bits, 1);
+            } else if (sha_append_length_bits < (2 * sha_block_length_bits)) {
+                // For case when block text is > 440 bits
+                sha_text_final[0] = substring_input_text;
+                sha_text_final[1] = sha_append_bits;
+                input_text_to_sha(sha_text_final,
+                                  final_block_message_length_bits, 1);
+                last_block_double_run = 1;
+            } else {
+                // No other case should occur
+                //log_emit(ERROR, sha_error_message_input_length);
+                //return EINVAL;
+            }
+        } else {
+            final_sha_text[0] = substring_input_text;
+            input_text_to_sha(final_sha_text, 1, 0);
+        }
+        // Waits for sha output to get ready
+        while (!(sha_reg->SHA_STATUS & 2U)) {
+            // Empty loop for MISRA Compliance
+        }
+
+        // For case of last block when block text is > 440 bits -
+        // Run sha a second time.
+        if (last_block_double_run == 1) {
+            offset =
+                (sha_append_length_bits - sha_block_length_bits) / byte_length;
+            final_sha_text[0] = &sha_append_bits[offset];
+            input_text_to_sha(final_sha_text, 1, 0);
+            while (!(sha_reg->SHA_STATUS & 2U)) {
+                // Empty loop for MISRA Compliance
+            }
+        }
+    }
+    // Gets the output
+    status = sha256_read_output(sha_output, &hash_length);
+
+    return status;
+}
 uint16_t SHA256_Multi_Run(const unsigned char *input_text,
                           int input_len_bits,
                           int total_length,

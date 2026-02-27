@@ -39,7 +39,6 @@ static void print_digest(const uint8_t *digest)
 
 /* TEST FUNCTIONS */
 
-//WORKING
 /* Single-block KAT test for Zephyr */
 static int test_sha256_single_block_kat(void)
 {
@@ -131,9 +130,7 @@ static int test_sha256_single_block_kat(void)
     return 0;
 }
 
-//WORKING (FIXED)
 /* Multi-block KAT test for Zephyr */
-
 static int test_sha256_multi_block_kat_fixed(void)
 {
     extern const sha256_multi_kat_t multi_kat_vectors[];

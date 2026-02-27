@@ -24,3 +24,11 @@ zephyr_library_sources_ifdef(
   CONFIG_CRYPTO_MINDGROVE_SHA256
   crypto_mindgrove_sha.c
 )
+zephyr_library_sources_ifdef(
+  CONFIG_CRYPTO_MINDGROVE_RSA
+  crypto_mindgrove_rsa.c
+)
+
+zephyr_library_sources_ifdef(CONFIG_CRYPTO_MINDGROVE_RSA mindgrove_rsa_padding.c)
+zephyr_library_sources_ifdef(CONFIG_CRYPTO_MINDGROVE_RSA mindgrove_rsa_hw.c)
+zephyr_library_sources_ifdef(CONFIG_CRYPTO_MINDGROVE_RSA bignum.c)
