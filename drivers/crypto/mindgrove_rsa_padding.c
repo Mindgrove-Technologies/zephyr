@@ -45,18 +45,9 @@
 #include <zephyr/device.h>
 #include <zephyr/logging/log.h>
 #include <errno.h>
-// #include <zephyr/random/random.h>
+
 
 #define RSA_BLOCK_SIZE 256U
-
-//static void printk_hexdump(const char *label, const uint8_t *data, size_t len) {
-//    //printk("--- %s (%zu bytes) ---\n", label, len);
-//    for (size_t i = 0; i < len; i++) {
-//        //printk("%02x ", data[i]);
-//        if ((i + 1) % 16 == 0) //printk("\n");
-//    }
-//    //printk("\n------------------\n");
-//}
 
 /* SHA256 digest info */
 static uint8_t sha256_digestinfo[] = {
@@ -665,24 +656,20 @@ uint16_t RSASSA_PSS_Verify(uint8_t *signature, size_t signature_length,
     }
 
     if (signature_length != RSA_BLOCK_SIZE) {
-        //log_emit(ERROR, "Invalid signature length. \n\r");
         return EINVAL;
     }
 
     if (expected_salt_length > (data_block_length - 1U)) {
-        //log_emit(ERROR, "Salt length too large. \n\r");
         return EINVAL;
     }
 
     if (signature[RSA_BLOCK_SIZE - 1U] != 0xBCU) {
-        //log_emit(DEBUG, "Invalid trailer byte. \n\r");
         return EINVAL;
     }
 
     /* Hash the input message */
     result = SHA256_Single_Run(message_hash, input, input_length * 8U);
     if (result != SUCCESS) {
-        //log_emit(ERROR, "Error while hashing the message! \n\r");
         return result;
     }
 
@@ -692,7 +679,6 @@ uint16_t RSASSA_PSS_Verify(uint8_t *signature, size_t signature_length,
     result = Mask_Generation(dbMask, data_block_length, signature_hash,
                          SHA256_HASH_LEN);
     if (result != SUCCESS) {
-        //log_emit(ERROR, "Error while generating Data block mask! \n\r");
         return result;
     }
 
@@ -709,13 +695,11 @@ uint16_t RSASSA_PSS_Verify(uint8_t *signature, size_t signature_length,
 
     for (size_t i = 0; i < padding_string_len; i++) {
         if (data_block[i] != 0x00U) {
-            //log_emit(DEBUG, "Invalid padding. \n\r");
             return EINVAL;
         }
     }
 
     if (data_block[padding_string_len] != 0x01U) {
-        //log_emit(DEBUG, "Invalid separator. \n\r");
         return EINVAL;
     }
 
@@ -732,7 +716,6 @@ uint16_t RSASSA_PSS_Verify(uint8_t *signature, size_t signature_length,
     result = SHA256_Single_Run(M_prime_hash, M_prime,
                             (8U + SHA256_HASH_LEN + expected_salt_length) * 8U);
     if (result != SUCCESS) {
-        //log_emit(ERROR, "Error while hashing M prime. \n\r");
         return result;
     }
 
@@ -743,7 +726,6 @@ uint16_t RSASSA_PSS_Verify(uint8_t *signature, size_t signature_length,
     }
 
     if (result != 0U) {
-        //log_emit(DEBUG, "Hash mismatch. \n\r");
         return EINVAL;
     }
 

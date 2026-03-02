@@ -9,14 +9,10 @@
 #include "mindgrove_rsa_hw.h"
 #include "crypto_mindgrove_sha.h"
 
-// Note: LOG_MODULE_REGISTER removed if you are only using //printk
-// but kept as a placeholder if other parts of your app need it.
-
 struct mg_rsa_config {
     volatile RSA_Type *regs;
 };
 
-/* Data struct is now empty/minimal as lock is removed */
 struct mg_rsa_data {
     bool in_use; 
 };
@@ -44,9 +40,7 @@ static int mg_rsa_invoke(const struct device *dev, enum rsa_mg_op op,
     uint16_t rsa_ret = 0;
     int ret = 0;
 
-    //printk("RSA Invoke Started (No Lock): Op=%d, Pad=%d\n", op, pad);
 
-    /* SEMAPHORE REMOVED: Hardware is now unguarded */
 
     switch (op) {
         case RSA_MG_OP_SIGN:
@@ -57,12 +51,10 @@ static int mg_rsa_invoke(const struct device *dev, enum rsa_mg_op op,
             }
             if (ret != 0) goto exit;
 
-            //dump_buffer("Padded Message (EM)", scratch_pad, 256);
             rsa_ret = RSA_Run(pkt->out, scratch_pad, pkt->exp, pkt->mod);
             break;
 
         case RSA_MG_OP_VERIFY:
-            //dump_buffer("Signature Input", pkt->in, 256);
             rsa_ret = RSA_Run(scratch_pad, pkt->in, pkt->exp, pkt->mod);
             if (rsa_ret != 0) {
                 ret = -EIO;
@@ -85,7 +77,6 @@ static int mg_rsa_invoke(const struct device *dev, enum rsa_mg_op op,
             }
             if (ret != 0) goto exit;
 
-            //dump_buffer("Padded Plaintext", scratch_pad, 256);
             rsa_ret = RSA_Run(pkt->out, scratch_pad, pkt->exp, pkt->mod);
             break;
 
@@ -96,8 +87,6 @@ static int mg_rsa_invoke(const struct device *dev, enum rsa_mg_op op,
                 goto exit;
             }
             
-            //dump_buffer("Raw Hardware Decrypt Result", scratch_pad, 256);
-
             if (pad == RSA_MG_PAD_OAEP) {
                 ret = RSAES_OAEP_Decrypt(scratch_pad, 256, pkt->out, &pkt->out_len, 
                                          pkt->label, pkt->label_len);
@@ -132,8 +121,7 @@ static const struct rsa_mg_driver_api mg_rsa_api = {
 };
 
 static int mg_rsa_init(const struct device *dev) {
-    //printk("MindGrove RSA init called (No Semaphores)\n");
-    //printk("DT_INST_REG_ADDR = %lx\n", (unsigned long)DT_INST_REG_ADDR(0));
+    
     return 0;
 }
 

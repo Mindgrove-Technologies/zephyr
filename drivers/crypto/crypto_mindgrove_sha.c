@@ -29,19 +29,8 @@ static void input_text_to_sha(unsigned char **final_sha_text_dict,
                               int block_message_length_bits,
                               int mode) {
 
-    //printk("\n--- input_text_to_sha ENTER ---\n");
-    //printk("mode = %d, block_message_length_bits = %d\n", mode, block_message_length_bits);
-    //static int call_id;
-    //printk("SHA_INPUT call #%d\n", ++call_id);
-
     if (mode == 0) {
         unsigned char *final_sha_text = final_sha_text_dict[0];
-        // printk("SHA BLOCK TO WRITE (mode 0):\n");
-        // for (int i = 0; i < block_message_length_bits / 8; i++) {
-        //     printk("%02x ", final_sha_text[i]);
-        //     if ((i + 1) % 16 == 0) printk("\n");
-        // }
-        // printk("\n");
 
         for (uint64_t i = 0; i < 8; i++) {
             uint64_t temp_64_value = 0;
@@ -49,18 +38,11 @@ static void input_text_to_sha(unsigned char **final_sha_text_dict,
                 temp_64_value = (temp_64_value << 8) | *final_sha_text;
                 final_sha_text++;
             }
-            // printk("SHA_INPUT <= 0x%016llx\n", temp_64_value);
             sha_reg->SHA_INPUT = temp_64_value;
         }
     } else {
         unsigned char *final_sha_text = final_sha_text_dict[0];
         int text_end_tracker = 0;
-        // printk("SHA BLOCK TO WRITE (mode 1):\n");
-        // for (int i = 0; i < block_message_length_bits / 8; i++) {
-        //     printk("%02x ", final_sha_text[i]);
-        //     if ((i + 1) % 16 == 0) printk("\n");
-        // }
-        // printk("\n");
 
         for (uint64_t i = 0; i < 8; i++) {
             uint64_t temp_64_value = 0;
@@ -72,12 +54,9 @@ static void input_text_to_sha(unsigned char **final_sha_text_dict,
                 final_sha_text++;
                 text_end_tracker += 1;
             }
-            // printk("SHA_INPUT <= 0x%016llx\n", temp_64_value);
             sha_reg->SHA_INPUT = temp_64_value;
         }
     }
-
-    // printk("--- input_text_to_sha EXIT ---\n");
 }
 
 static int get_sha_append_length_bits(int final_block_message_length_bits) {
@@ -93,18 +72,12 @@ static int get_sha_append_length_bits(int final_block_message_length_bits) {
                                  sha_max_inputlen_bits;
     }
 
-    //printk("get_sha_append_length_bits: final_block_message_length_bits=%d, sha_append_length_bits=%d\n",
-    //       final_block_message_length_bits, sha_append_length_bits);
-
     return sha_append_length_bits;
 }
 
 static void get_sha_append_bits(unsigned char *sha_append_bits,
                                 int input_len_bits,
                                 int sha_append_length_bits) {
-
-    //printk("get_sha_append_bits: input_len_bits=%d, sha_append_length_bits=%d\n",
-     //      input_len_bits, sha_append_length_bits);
 
     size_t sha_max_inputlen_bits_index;
     int sha_padding_index;
@@ -129,29 +102,19 @@ static void get_sha_append_bits(unsigned char *sha_append_bits,
             sha_append_bits[sha_max_inputlen_bits_index - temp_i] = ((size_t)input_len_bits >> (temp_i * 8U));
         }
     }
-
-    //printk("SHA APPEND BITS:\n");
-    // for (int i = 0; i < (sha_append_length_bits / 8); i++) {
-    //     printk("%02x ", sha_append_bits[i]);
-    //     if ((i + 1) % 16 == 0) printk("\n");
-    // }
-    //printk("\n");
 }
 
 uint16_t sha256_read_output(unsigned char *sha_output, size_t *output_length) {
     uint64_t output_reg[4];
     *output_length = 0;
 
-    //printk("\n--- sha256_read_output ENTER ---\n");
 
     if (sha_output == NULL) {
-        printk("sha256_read_output: NULL output pointer\n");
         return EFAULT;
     }
 
     for (int i = 0; i <= 3; i++) {
         output_reg[i] = sha_reg->SHA_OUTPUT;
-        //printk("SHA_OUTPUT[%d] = 0x%016llx\n", i, output_reg[i]);
     }
 
     for (int i = 0; i <= 3; i++) {
@@ -163,13 +126,11 @@ uint16_t sha256_read_output(unsigned char *sha_output, size_t *output_length) {
     }
 
     sha_reg->SHA_CTRL = 0U;
-    //printk("--- sha256_read_output EXIT ---\n");
 
     return 0;
 }
 
 uint16_t sha256_zeroize(void) {
-    //printk("sha256_zeroize called\n");
     sha_reg->SHA_CTRL = 0U;
     return 0;
 }
@@ -207,7 +168,7 @@ uint16_t SHA256_Single_Run(unsigned char *sha_output,
     unsigned char *substring_input_text;
 
     if ((sha_output == NULL) || (input_text == NULL)) {
-        // return EFAULT;
+        return EFAULT;
     }
 
     // Wait for sha to be ready
@@ -227,10 +188,7 @@ uint16_t SHA256_Single_Run(unsigned char *sha_output,
     get_sha_append_bits(sha_append_bits, input_len_bits,
                         sha_append_length_bits);
     
-    // printk("DEBUG: sha_append_bits (Padding):\n");
-    // for (int i = 0; i < (sha_append_length_bits / 8); i++) {
-    //     printk("%02x ", sha_append_bits[i]);
-    // }
+    
     printk("\n");
 
     // Runs the sha for each block of text
@@ -255,7 +213,7 @@ uint16_t SHA256_Single_Run(unsigned char *sha_output,
             } else {
                 // No other case should occur
                 //log_emit(ERROR, sha_error_message_input_length);
-                //return EINVAL;
+                return EINVAL;
             }
         } else {
             final_sha_text[0] = substring_input_text;
@@ -283,76 +241,70 @@ uint16_t SHA256_Single_Run(unsigned char *sha_output,
 
     return status;
 }
+
+
 uint16_t SHA256_Multi_Run(const unsigned char *input_text,
                           int input_len_bits,
                           int total_length,
                           int iterated_length_bits) {
     int sha_append_length_bits;
-    int offset;
-    unsigned char sha_append_bits[256];
-    unsigned char *final_sha_text[1];
+    unsigned char sha_append_bits[128]; // Increased to 1024 bits for 2-block padding
     unsigned char *sha_text_final[2];
 
-    //printk("\n[SHA256_Multi_Run] ENTER\n");
-    //printk("params: in=%dbits, total=%d, iterated=%d\n",
-    //       input_len_bits, total_length, iterated_length_bits);
-
-    if (input_text == NULL) {
-        //printk("ERROR: input_text is NULL\n");
-        return EFAULT;
-    }
+    if (input_text == NULL) return EFAULT;
 
     if (iterated_length_bits == 0) {
         while ((sha_reg->SHA_STATUS & 1U) != 0U) {}
     }
 
-    /* KEY FIX: Only generate padding if total_length > 0 */
-    //if (total_length > 0 && (total_length - iterated_length_bits) <= sha_block_length_bits) {
-    if ((total_length > 0 || (total_length == 0 && input_len_bits == 0)) && (total_length - iterated_length_bits) <= sha_block_length_bits) {
-        //printk("FINAL BLOCK - generating padding\n");
+    /* Check if this is the finalization call (where padding is needed) */
+    if ((total_length > 0 || (total_length == 0 && input_len_bits == 0)) && 
+        (total_length - iterated_length_bits) <= sha_block_length_bits) {
         
         sha_append_length_bits = get_sha_append_length_bits(input_len_bits);
-        get_sha_append_bits(sha_append_bits, total_length,
-                            sha_append_length_bits);
+        get_sha_append_bits(sha_append_bits, total_length, sha_append_length_bits);
 
-        if ((sha_append_length_bits < sha_block_length_bits) || 
-            (input_len_bits == 0)) {
-            //printk("Single block with padding\n");
-            sha_text_final[0] = input_text;
+        /* CASE A: Padding fits in the current block */
+        if (sha_append_length_bits <= (sha_block_length_bits - input_len_bits)) {
+            sha_text_final[0] = (unsigned char *)input_text;
             sha_text_final[1] = sha_append_bits;
             input_text_to_sha(sha_text_final, input_len_bits, 1);
-            while (!(sha_reg->SHA_STATUS & 2U)) { 
-                // Empty Loop for MISRA Compliance
-            }
-        } else if (sha_append_length_bits < (2 * sha_block_length_bits)) {
-            //printk("Two blocks with padding\n");
-            sha_text_final[0] = input_text;
+            
+            while (!(sha_reg->SHA_STATUS & 2U)) {}
+        } 
+        /* CASE B: Padding requires an extra (second) block */
+        else {
+            /* 1. Send first block: Data + start of padding */
+            sha_text_final[0] = (unsigned char *)input_text;
             sha_text_final[1] = sha_append_bits;
             input_text_to_sha(sha_text_final, input_len_bits, 1);
 
             while (!(sha_reg->SHA_STATUS & 2U)) {}
-            sha_reg->SHA_CTRL = 1;
+            sha_reg->SHA_CTRL = 1; // Maintain state for the next block
 
-            offset = (sha_append_length_bits - sha_block_length_bits) / byte_length;
-            sha_text_final[0] = &sha_append_bits[offset];
-            input_text_to_sha(sha_text_final, 1, 0);
-        } else {
-            return EINVAL;
+            /* 2. Send second block: Remaining padding + Length */
+            // The offset is exactly one block (64 bytes) minus the data we already sent
+            int bytes_already_in_first_block = (sha_block_length_bits - input_len_bits) / 8;
+            unsigned char *remaining_padding = &sha_append_bits[bytes_already_in_first_block];
+            
+            sha_text_final[0] = remaining_padding;
+            input_text_to_sha(sha_text_final, 1, 0); // Mode 0: full 512-bit block
+            
+            while (!(sha_reg->SHA_STATUS & 2U)) {}
         }
-    } else if (input_len_bits > 0) {
-        /* INTERMEDIATE BLOCK - process data only */
-        //printk("INTERMEDIATE BLOCK - no padding\n");
-        final_sha_text[0] = input_text;
-        input_text_to_sha(final_sha_text, 1, 0);
+    } 
+    /* INTERMEDIATE BLOCK: No padding, just data */
+    else if (input_len_bits > 0) {
+        sha_text_final[0] = (unsigned char *)input_text;
+        input_text_to_sha(sha_text_final, 1, 0);
         
         while (!(sha_reg->SHA_STATUS & 2U)) {}
         
         if (iterated_length_bits == 0) {
-            sha_reg->SHA_CTRL = 1;
+            sha_reg->SHA_CTRL = 1; // Enable intermediate mode
         }
     }
 
-    //printk("[SHA256_Multi_Run] EXIT\n");
     return SUCCESS;
 }
 
@@ -380,10 +332,6 @@ static int mindgrove_sha_hash(struct hash_ctx *ctx,
     long int bits = pkt->in_len * 8;
     long int total_bits = data->iterated_length_bits + bits;
     int ret;
-    
-     //printk("[SHA] finish=%d, bits=%ld, iterated=%ld\n", 
-     //       finish, bits, data->iterated_length_bits);
-    
     // For intermediate calls: total_length = 0 (unknown)
     // For final calls: total_length = actual total bits
     int hw_total_length = finish ? total_bits : 0;
@@ -404,7 +352,6 @@ static int mindgrove_sha_hash(struct hash_ctx *ctx,
                                data->iterated_length_bits);
         
         if (ret != SUCCESS) {
-            printk("[SHA] SHA256_Multi_Run failed: %d\n", ret);
             return -EIO;
         }
         
@@ -416,7 +363,6 @@ static int mindgrove_sha_hash(struct hash_ctx *ctx,
     
     // If this is the final call, read output
     if (finish) {
-         //printk("[SHA] Final call, reading output\n");
         size_t hash_len = 0;
         sha256_read_output(pkt->out_buf, &hash_len);
         data->iterated_length_bits = 0;
@@ -493,13 +439,9 @@ static int sha_init(const struct device *dev)
 {
     const struct mindgrove_sha_config *cfg = dev->config;
 
-    // printk("MindGrove SHA init called\n");
-    // printk("DT_INST_REG_ADDR = %lx\n",
-    //        (unsigned long)DT_INST_REG_ADDR(0));
 
     sha_reg = cfg->regs;
 
-    printk("SHA reg base = %p\n", sha_reg);
 
     if (!sha_reg) {
         printk("SHA device not ready!\n");
@@ -509,9 +451,6 @@ static int sha_init(const struct device *dev)
     // sha_reg->SHA_CTRL = 0;
     return 0;
 }
-
-
-
 
 #define MINDGROVE_SHA_INIT(n)                                      \
     static const struct mindgrove_sha_config sha_cfg_##n = {      \
