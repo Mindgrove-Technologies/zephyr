@@ -14,12 +14,12 @@
 
 #include "crypto_mindgrove_rsa.h"
 #include "rsa_padding.h"
-#include "tfm.h"
 #include "mindgrove_rsa.h"
 #include "bignum.h"
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
-#define R2_STR                                                                                     \
+// #include <errno.h>
+#define R2_STR                                                                                 \
 	"10000000000000000000000000000000000000000000000"                                          \
 	"00000000000000000000000000000000000000000000000"                                          \
 	"00000000000000000000000000000000000000000000000"                                          \
@@ -69,7 +69,6 @@ static uint8_t hex_char_to_nibble(char c)
 void hex_string_to_byte_array(const char *hex_str, uint8_t *byte_array, size_t *size)
 {
 	// Calculate the number of bytes in the hexadecimal string (half of its length)
-	// printk("hex_string_to_byte_array START\n\r");
 	if (*size % 2 != 0 || size <= 0) {
 		return;
 	}
@@ -79,7 +78,7 @@ void hex_string_to_byte_array(const char *hex_str, uint8_t *byte_array, size_t *
 	// Allocate memory for the byte array
 	// *byte_array = (uint8_t *)malloc(*size * sizeof(uint8_t));
 	if (byte_array == NULL) {
-		// printk("Memory allocation failed!\n");
+		
 		return;
 	}
 
@@ -90,25 +89,14 @@ void hex_string_to_byte_array(const char *hex_str, uint8_t *byte_array, size_t *
 		uint8_t low = hex_char_to_nibble(hex_str[2 * i + 1]);
 		unsigned int byte_value;
 		if (high == 0xFF || low == 0xFF) {
-			// printk("Invalid hex character encountered!\n");
+			
 			return;
 		}
 		byte_array[i] = (high << 4) | low;
 	}
-	// printk("hex_string_to_byte_array END\n\r");
+	
 }
 
-static void printk_hexdump(const char *label, const uint8_t *data, size_t len)
-{
-	// printk("%s:\n", label);
-	for (size_t i = 0; i < len; i++) {
-		// printk("%02x ", data[i]);
-		if ((i + 1) % 16 == 0) {
-			// printk("\n");
-		}
-	}
-	// printk("\n");
-}
 
 /** @fn void do_checks_rsa(unsigned char *mod_text
 		    , long int input_len_bits, long int exp_len_bits, long int mod_len_bits
@@ -136,31 +124,26 @@ static void do_checks_rsa(unsigned char *mod_text, int input_len_bits, int exp_l
 {
 	// Length of input, exp, mod should be less than 2048 bits
 	if ((input_len_bits > 2048) || (exp_len_bits > 2048) || (mod_len_bits > 2048)) {
-		// log_emit(ERROR, rsa_error_message_too_long);
-		// return EINVAL;
+		//return EINVAL;
 	}
 
 	// Length of mod should be atleast one octet long.
 	if (mod_len_bits < 8) {
-		// log_emit(ERROR, rsa_error_mod_cannot_be_lte_byte);
-		// return EINVAL;
+		//return EINVAL;
 	}
 
 	// Mod (N) should be odd
 	if ((mod_text[(mod_len_bits / byte_length) - 1] % 2U) == 0U) {
-		// log_emit(ERROR, rsa_error_message_rsa_odd_mode);
-		// return EINVAL;
+		//return EINVAL;
 	}
 
 	// Checking if input length is apt for the rsa padding chosen
 	if ((rsa_padding.padding_mode == RSAES_PKCS1_v1_5_PAD) &&
 	    ((input_len_bits / byte_length) > (rsa_k - 11))) {
-		// log_emit(ERROR, rsa_error_input_messsage_too_long);
 		// return EINVAL;
 	} else if ((rsa_padding.padding_mode == RSAES_OAEP_PAD) &&
 		   ((input_len_bits / byte_length) > (rsa_k - ((2 * rsa_h_len) - 2)))) {
-		// log_emit(ERROR, rsa_error_input_messsage_too_long);
-		// return EINVAL;
+		//return EINVAL;
 	} else {
 		// Nothing to do
 	}
@@ -265,24 +248,18 @@ uint32_t RSA_Run(uint8_t *output, uint8_t *input, uint8_t *exp, uint8_t *mod)
 	volatile uint64_t *load_input_arr = (uint64_t *)load_input;
 	uint64_t *output_arr = (uint64_t *)load_input;
 
-	// printk("Entering RSA_Run - Input Parameters:\n");
-	// printk_hexdump("Input (Plaintext/Ciphertext)", input, 256);
-	// printk_hexdump("Exponent (e or d)", exp, 256);
-	// printk_hexdump("Modulus (n)", mod, 256);
-
 	BN_INIT(&modulus);
 	BN_INIT(&r2modn_result);
 
 	// Convert the bytes value to bignum value
 	BigNum_Read_Unsigned_Bin(&modulus, mod, 256);
 
-	// printk("RSA: Starting R2ModN calculation\n");
 	//  Calculating r2 mod n
 	BigNum_Calculate_R2_Mod_N(&modulus, &r2modn_result);
 
 	// Convert the bignum value to byte value
 	BigNum_Unsigned_Bin_Size(&r2modn_result, &r2modn_size);
-	// printk("RSA: R2ModN size: %zu bytes\n", r2modn_size);
+	
 
 	BigNum_Write_Unsigned_Bin(&r2modn_result, (uint8_t *)r2modn + (256 - r2modn_size), 256);
 
@@ -291,7 +268,7 @@ uint32_t RSA_Run(uint8_t *output, uint8_t *input, uint8_t *exp, uint8_t *mod)
 			     &rsa_instance->RSA_MOD, &rsa_instance->RSA_RSqrMODN};
 
 	for (uint8_t j = 0; j < 4; j++) {
-		// printk("RSA: Loading register set %d\n", j);
+		
 		for (uint16_t i = 0; i < 256; i++) {
 			load_input[i] = src[j][i];
 		}
@@ -302,11 +279,9 @@ uint32_t RSA_Run(uint8_t *output, uint8_t *input, uint8_t *exp, uint8_t *mod)
 		}
 	}
 
-	// printk("RSA: Starting hardware execution...\n");
 	//  Wait for hardware to signal completion
 	while (!(rsa_instance->RSA_STATUS & 1))
 		;
-	// printk("RSA: Hardware execution complete.\n");
 
 	for (uint8_t i = 0; i < 32; i++) {
 		output_arr[i] = (uint64_t)(rsa_instance->RSA_OUTPUT);
