@@ -1,19 +1,15 @@
 /*
  * SPDX-License-Identifier: Apache-2.0
  */
-#define DT_DRV_COMPAT mindgrove_sha256
 
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/init.h>
 #include <zephyr/crypto/crypto.h>
 #include <errno.h>
-
-/* ============================= */
-/* SHA Hardware Registers        */
-/* ============================= */
-
 #include "crypto_mindgrove_sha.h"
+
+#define DT_DRV_COMPAT mindgrove_sha256
 
 const int sha_max_inputlen_bits = 64;
 const int sha_block_length_bits = 512;

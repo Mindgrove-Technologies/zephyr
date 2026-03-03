@@ -1,4 +1,3 @@
-#define DT_DRV_COMPAT mindgrove_aes
 
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
@@ -6,6 +5,8 @@
 #include <zephyr/crypto/cipher.h>
 #include <errno.h>
 #include "crypto_mindgrove_aes.h"
+
+#define DT_DRV_COMPAT mindgrove_aes
 
 /* ---- Constants ---- */
 #define AES_BLOCK_BITS  128

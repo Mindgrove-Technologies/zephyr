@@ -1,4 +1,3 @@
-#define DT_DRV_COMPAT mindgrove_rsa2048
 
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
@@ -6,6 +5,8 @@
 #include "zephyr/crypto/rsa.h" //Custom header for Zephyr RSA API definitions
 #include "crypto_mindgrove_rsa.h"
 #include "crypto_mindgrove_sha.h"
+
+#define DT_DRV_COMPAT mindgrove_rsa2048
 
 struct mg_rsa_config {
 	volatile RSA_Type *regs;
