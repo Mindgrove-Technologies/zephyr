@@ -132,7 +132,7 @@ static int test_sha256_single_block_kat(void)
 
 /* Multi-block KAT test for Zephyr */
 
-static int test_sha256_multi_block_kat_fixed(void)
+static int test_sha256_multi_block_kat(void)
 {
     extern const sha256_multi_kat_t multi_kat_vectors[];
     extern const uint16_t multi_kat_vectors_count;
@@ -353,7 +353,7 @@ int main(void)
         printk("SHA256 SHORT MESSAGE KAT PASSED\n");
     }
 
-    if(test_sha256_multi_block_kat_fixed()){
+    if(test_sha256_multi_block_kat()){
         printk("SHA256 MULTI MESSAGE KAT FAILED\n");
     }
     else{
