@@ -35,7 +35,6 @@
  */
 
 #include "bignum.h"
-
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 
@@ -65,7 +64,6 @@ static inline bool BigNum_Get_Bit(const bn_int *a, uint16_t position) {
 
 uint16_t Print_BigNum_Int_to_Hex(const bn_int *a) {
     uint8_t byte;
-    //CHECK_NULL(a);
 
     if (a->used == 0U) {
         (void)printk("0\n");
@@ -82,7 +80,6 @@ uint16_t Print_BigNum_Int_to_Hex(const bn_int *a) {
 }
 
 uint16_t BigNum_Set_Digit(bn_int *a, bn_digit d) {
-    //CHECK_NULL(a);
     BN_ZERO(a);
     a->dp[0] = d;
     a->used = (d == 0U) ? 0U : 1U;
@@ -94,7 +91,6 @@ uint16_t BigNum_Set_Digit(bn_int *a, bn_digit d) {
 uint16_t BigNum_Left_Shift(bn_int *a, uint16_t n) {
     uint16_t limb_shift;
     uint16_t bit_shift;
-    //CHECK_NULL(a);
 
     limb_shift = n / 64U;
     bit_shift = n % 64U;
@@ -140,9 +136,6 @@ uint16_t BigNum_Mod(const bn_int *a, const bn_int *b, bn_int *c) {
     uint16_t bit_len;
     bn_int result;
     uint16_t ret = 0;
-    //CHECK_NULL(a);
-    //CHECK_NULL(b);
-    //CHECK_NULL(c);
 
     // Optimization: If a < b, then a % b = a
     if (BigNum_Compare(a, b) == LESS_THAN) {
@@ -181,8 +174,6 @@ uint16_t BigNum_Mod(const bn_int *a, const bn_int *b, bn_int *c) {
 uint16_t BigNum_Calculate_R2_Mod_N(const bn_int *n, bn_int *result) {
     bn_int r;
     uint16_t ret = 0;
-    //CHECK_NULL(n);
-    //CHECK_NULL(result);
 
     BN_ZERO(&r);
 
@@ -208,8 +199,6 @@ uint16_t BigNum_Calculate_R2_Mod_N(const bn_int *n, bn_int *result) {
 }
 
 int BigNum_Compare(const bn_int *a, const bn_int *b) {
-    //CHECK_NULL(a);
-    //CHECK_NULL(b);
 
     if (a->used > b->used) {
         return GREATER_THAN;
@@ -229,7 +218,6 @@ int BigNum_Compare(const bn_int *a, const bn_int *b) {
 }
 
 int BigNum_Compare_Digit(const bn_int *a, bn_digit digit) {
-    //CHECK_NULL(a);
 
     if (a->used > 1U) {
         return GREATER_THAN;
@@ -251,9 +239,6 @@ uint16_t BigNum_Subract(const bn_int *a, const bn_int *b, bn_int *c) {
     bn_digit borrow = 0U;
     uint16_t max_len;
 
-    //CHECK_NULL(a);
-    //CHECK_NULL(b);
-    //CHECK_NULL(c);
     
     /* Basic subtraction a - b assuming a >= b */
     max_len = a->used;
@@ -278,8 +263,6 @@ uint16_t BigNum_Subract(const bn_int *a, const bn_int *b, bn_int *c) {
 
 uint16_t BigNum_Unsigned_Bin_Size(const bn_int *a, size_t *size) {
     size_t bit_count;
-    //CHECK_NULL(a);
-    //CHECK_NULL(size);
 
     if (a->used == 0U) {
         *size = 1U;
@@ -296,8 +279,6 @@ uint16_t BigNum_Read_Unsigned_Bin(bn_int *a, const uint8_t *b, uint16_t len) {
     uint16_t limb_idx = 0U;
     uint16_t byte_in_limb = 0U;
 
-    //CHECK_NULL(a);
-    //CHECK_NULL(b);
 
     BN_ZERO(a);
 
@@ -322,8 +303,6 @@ uint16_t BigNum_Write_Unsigned_Bin(const bn_int *a, uint8_t *b, uint16_t len) {
     uint16_t  out_idx;
     uint16_t limb;
     bn_digit digit;
-    //CHECK_NULL(a);
-    //CHECK_NULL(b);
 
     /* Determine required byte count */
     byte_count = (a->used == 0U) ? 1U : ((BigNum_Count_Bits(a) + 7U) / 8U);

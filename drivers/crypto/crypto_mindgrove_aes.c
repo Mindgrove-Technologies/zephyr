@@ -5,7 +5,6 @@
 #include <zephyr/crypto/crypto.h>
 #include <zephyr/crypto/cipher.h>
 #include <errno.h>
-#include <string.h>
 #include "crypto_mindgrove_aes.h"
 
 /* ---- Constants ---- */
@@ -38,15 +37,12 @@ struct mindgrove_session {
 
 static void input_text_to_aes(uint8_t *input_text)
 {
-
 	for (int i = 0; i < 2; i++) {
 		uint64_t v = 0;
 
 		for (int j = 0; j < 8; j++) {
 			v = (v << 8) | *(input_text++);
 		}
-
-
 		aes_reg->AES_INPUT = v;
 	}
 }
@@ -56,7 +52,6 @@ static void input_key_to_aes(unsigned char *key, int hex_key_len)
 
 	uint32_t key_len_mode = (unsigned int)hex_key_len >> 1U;
 	int blank = 0;
-
 	for (; blank < (2 - (int)key_len_mode); blank++) {
 		aes_reg->AES_KEY = 0;
 	}
@@ -91,7 +86,6 @@ static void get_output(uint8_t *out)
 {
 	uint64_t a = aes_reg->AES_OUTPUT;
 	uint64_t b = aes_reg->AES_OUTPUT;
-
 	for (int i = 7; i >= 0; i--) {
 		*(out++) = a >> (8 * i);
 	}
@@ -105,11 +99,9 @@ static int do_checks_params(int key_len_bits, int mode)
 	if ((key_len_bits != 128) && (key_len_bits != 192) && (key_len_bits != 256)) {
 		return -EINVAL;
 	}
-
 	if ((mode < 0) || (mode > 4)) {
 		return -EINVAL;
 	}
-
 	return 0;
 }
 
@@ -168,9 +160,9 @@ uint32_t AES_Run(uint8_t *out, uint8_t *in, uint8_t *key, uint8_t *iv, uint32_t 
 			input_key_to_aes(key, hex_key_len);
 
 			if (mode == AES_ECB) {
-				input_iv_to_aes(in); // input
+				input_iv_to_aes(in); 
 			} else {
-				input_iv_to_aes(iv); // base IV for first block
+				input_iv_to_aes(iv); 
 			}
 			input_text_to_aes(in);
 
@@ -180,13 +172,11 @@ uint32_t AES_Run(uint8_t *out, uint8_t *in, uint8_t *key, uint8_t *iv, uint32_t 
 			input_text_to_aes(&in[offset]);
 		}
 		while (!(aes_reg->AES_STATUS & 0x2U)) {
-			; // spin
+			 /* Wait for output ready */
 		}
-
 		get_output(current_out);
 		output_offset += AES_BLOCK_BYTES;
 	}
-
 	return 0;
 }
 
@@ -195,21 +185,15 @@ uint32_t AES_Run(uint8_t *out, uint8_t *in, uint8_t *key, uint8_t *iv, uint32_t 
 static int ecb_crypt(struct cipher_ctx *ctx, struct cipher_pkt *pkt)
 {
 	struct mindgrove_session *sess = ctx->drv_sessn_state;
-
-
 	if (pkt->in_len != AES_BLOCK_BYTES) {
 		return -EINVAL;
 	}
-	
-
 	int rc = AES_Run(pkt->out_buf, pkt->in_buf, sess->key, NULL, /* zero IV */
 			 pkt->in_len * 8, sess->key_bits, AES_ECB, sess->encrypt,
 			 sess->iterated_bits);
-
 	if (!rc) {
 		sess->iterated_bits += pkt->in_len * 8;
 	}
-
 	pkt->out_len = pkt->in_len;
 	return rc;
 }
@@ -217,27 +201,17 @@ static int ecb_crypt(struct cipher_ctx *ctx, struct cipher_pkt *pkt)
 static int cbc_crypt(struct cipher_ctx *ctx, struct cipher_pkt *pkt, uint8_t *iv)
 {
 	struct mindgrove_session *s = ctx->drv_sessn_state;
-
 	uint8_t iv_local[16];
-
 	if (s->iterated_bits == 0) {
 		memcpy(s->iv, iv, 16); // Save base IV for first run
 	}
-
-	// memcpy(iv_local, s->iv, 16);  // Start with previous IV
-
 	int rc = AES_Run(pkt->out_buf, pkt->in_buf, s->key, s->iv, pkt->in_len * 8, s->key_bits,
 			 AES_CBC, s->encrypt, s->iterated_bits);
-
 	if (rc) {
 		return rc;
 	}
-
 	// Update iterated bits
-	s->iterated_bits += pkt->in_len * 8;
-	//printk("bits inside handler %u\n", s->iterated_bits);
-	
-
+	s->iterated_bits += pkt->in_len * 8;	
 	pkt->out_len = pkt->in_len;
 	return 0;
 }
@@ -331,16 +305,11 @@ static int query_caps(const struct device *dev)
 
 static int aes_init(const struct device *dev)
 {
-	
-
 	const struct mindgrove_aes_config *cfg = dev->config;
 	aes_reg = cfg->aes_reg;
-
-
 	if (!aes_reg) {
 		return -ENODEV;
 	}
-
 	return 0;
 }
 
