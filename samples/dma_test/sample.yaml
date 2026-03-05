@@ -1,0 +1,19 @@
+sample:
+  description: Mindgrove DMA Driver Validation Sample
+  name: mindgrove_dma_test
+
+common:
+  min_ram: 16
+  min_flash: 32
+  tags: dma mindgrove
+  harness: console
+  harness_config:
+    type: one_line
+    regex:
+      - "DMA M2M Transfer Successful! Data matches."
+
+tests:
+  sample.dma.mindgrove_m2m:
+    # This ensures the test only runs if the Devicetree has your DMA enabled
+    depends_on: dma
+    filter: dt_compat_enabled("mindgrove,dma")

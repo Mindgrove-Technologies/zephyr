@@ -1,12 +1,21 @@
 if BOARD_SECURE_IOT
 
 config BOARD
-	default "Secure IoT"
+    default "Secure IoT"
 
 config RISCV_HAS_CLIC
     default n
 
+# 1. Expand the aggregator capacity
 config NUM_IRQS_AGGREGATOR
     int
-    default 16
+    default 90 
+
+# 2. FORCE the total number of IRQs to be 100 
+# This overrides the arch-level calculation that is capping you at 59 
+config NUM_IRQS 
+int 
+default 100
+
+
 endif

@@ -54,8 +54,9 @@
 			reg-names = "mtime", "mtimecmp";
 		};
 
-    plic0: interrupt-controller@c000000 {
-        compatible = "mindgrove,plic";        
+     plic0: interrupt-controller@c000000 {
+        /* Adding riscv,plic0 is the magic key for the build scripts */
+        compatible = "mindgrove,plic", "riscv,plic0"; 
         reg = <0xc000000 0x400000>;              
         interrupt-controller;
         #interrupt-cells = <2>;
@@ -63,7 +64,7 @@
         interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;            
         riscv-irq-aggregator-offset = <0>;
         riscv,max-priority = <7>;      
-        riscv,ndev = <57>;
+        riscv,ndev = <81>;
     };
 
     uart0: serial@11300 {
@@ -188,5 +189,20 @@
       compatible = "shakti,i2c0";
       reg= <0x0 0x44100 0x0 0x100>;
     };
+    dma0: dma@7000000 {
+    compatible = "mindgrove,dma";
+    reg = <0x07000000 0x14c>;
+    #dma-cells = <1>;
+    
+    interrupt-parent = <&plic0>;
+
+    /* * Assuming IRQ 15 and Priority 1. 
+     * The first number is the ID, the second is the priority. 
+     */
+    interrupts = <68 1>; 
+    
+    status = "okay";
+    };
+
   };
 };
