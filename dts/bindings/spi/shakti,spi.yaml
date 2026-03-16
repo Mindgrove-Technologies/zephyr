@@ -31,4 +31,5 @@ properties:
     required: true
   
   cs-gpios:
-    required: true
+    required: false
+    

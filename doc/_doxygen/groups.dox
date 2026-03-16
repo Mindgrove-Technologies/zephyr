@@ -1,5 +1,11 @@
 /**
 
+@defgroup internal_api Internal and System API
+@brief Internal and System API
+@{
+
+@}
+
 @defgroup os_services Operating System Services
 @brief Operating System Services
 @{
@@ -33,6 +39,12 @@
 @{
 @}
 
+@brief Debug Services
+@defgroup debug Debug
+@ingroup os_services
+@{
+@}
+
 @brief Connectivity
 @defgroup connectivity Connectivity
 @{
@@ -57,6 +69,19 @@
 
 @brief APIs to interact with third-party services or applications
 @defgroup third_party Third-party
+@{
+@}
+
+@brief Modem APIs
+@defgroup modem Modem APIs
+@ingroup connectivity
+@since 3.5
+@version 0.1.0
+@{
+@}
+
+@brief Memory Management APIs
+@defgroup mem_mgmt Memory Management APIs
 @{
 @}
 

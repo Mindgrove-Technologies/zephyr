@@ -45,7 +45,7 @@ static int drv_stop_rx(const struct device *dev);
 /* User-defined CMD_PROP_RADIO_DIV_SETUP structures */
 #if defined(CONFIG_SOC_CC1352R)
 extern volatile rfc_CMD_PROP_RADIO_DIV_SETUP_t ieee802154_cc13xx_subg_radio_div_setup;
-#elif defined(CONFIG_SOC_CC1352P)
+#elif defined(CONFIG_SOC_CC1352P) || defined(CONFIG_SOC_CC1352P7)
 extern volatile rfc_CMD_PROP_RADIO_DIV_SETUP_PA_t ieee802154_cc13xx_subg_radio_div_setup;
 #endif /* CONFIG_SOC_CC1352x, extern RADIO_DIV_SETUP */
 #else
@@ -82,7 +82,7 @@ static uint32_t ieee802154_cc13xx_overrides_sub_ghz[] = {
 };
 
 /* Radio values for CC13X2P */
-#elif defined(CONFIG_SOC_CC1352P)
+#elif defined(CONFIG_SOC_CC1352P) || defined(CONFIG_SOC_CC1352P7)
 /* CC1352P overrides from SmartRF Studio (200kbps, 50kHz deviation, 2-GFSK, 311.8kHz Rx BW) */
 static uint32_t ieee802154_cc13xx_overrides_sub_ghz[] = {
 	/* Tx: Configure PA ramp time, PACTL2.RC=0x3 (in ADI0, set PACTL2[4:3]=0x1) */
@@ -141,7 +141,7 @@ static uint32_t rf_prop_overrides_tx_20[] = {
 #if defined(CONFIG_SOC_CC1352R)
 static volatile rfc_CMD_PROP_RADIO_DIV_SETUP_t ieee802154_cc13xx_subg_radio_div_setup = {
 	.commandNo = CMD_PROP_RADIO_DIV_SETUP,
-#elif defined(CONFIG_SOC_CC1352P)
+#elif defined(CONFIG_SOC_CC1352P) || defined(CONFIG_SOC_CC1352P7)
 static volatile rfc_CMD_PROP_RADIO_DIV_SETUP_PA_t ieee802154_cc13xx_subg_radio_div_setup = {
 	.commandNo = CMD_PROP_RADIO_DIV_SETUP_PA,
 #endif /* CONFIG_SOC_CC1352x */
@@ -170,10 +170,10 @@ static volatile rfc_CMD_PROP_RADIO_DIV_SETUP_PA_t ieee802154_cc13xx_subg_radio_d
 	.intFreq = 0x8000, /* Use default intermediate frequency. */
 	.loDivider = 5,
 	.pRegOverride = ieee802154_cc13xx_overrides_sub_ghz,
-#if defined(CONFIG_SOC_CC1352P)
+#if defined(CONFIG_SOC_CC1352P) || defined(CONFIG_SOC_CC1352P7)
 	.pRegOverrideTxStd = rf_prop_overrides_tx_std,
 	.pRegOverrideTx20 = rf_prop_overrides_tx_20,
-#endif /* CONFIG_SOC_CC1352P */
+#endif /* CONFIG_SOC_CC1352P, CONFIG_SOC_CC1352P7 */
 };
 
 #endif /* CONFIG_IEEE802154_CC13XX_CC26XX_SUB_GHZ_CUSTOM_RADIO_SETUP */
@@ -207,7 +207,7 @@ static const RF_TxPowerTable_Entry ieee802154_cc13xx_subg_power_table[] = {
 #endif
 	RF_TxPowerTable_TERMINATION_ENTRY
 };
-#elif defined(CONFIG_SOC_CC1352P)
+#elif defined(CONFIG_SOC_CC1352P) || defined(CONFIG_SOC_CC1352P7)
 /* Sub GHz power table */
 static const RF_TxPowerTable_Entry ieee802154_cc13xx_subg_power_table[] = {
 	{ -20, RF_TxPowerTable_DEFAULT_PA_ENTRY(0, 3, 0, 2) },
@@ -340,8 +340,7 @@ static void drv_rx_done(struct ieee802154_cc13xx_cc26xx_subg_data *drv_data)
 			status = drv_data->rx_data[i][len--];
 			rssi = drv_data->rx_data[i][len--];
 
-			/* TODO: Configure firmware to include CRC in raw mode. */
-			if (IS_ENABLED(CONFIG_IEEE802154_RAW_MODE) && len > 0) {
+			if (IS_ENABLED(CONFIG_IEEE802154_L2_PKT_INCL_FCS) && len > 0) {
 				/* append CRC-16/CCITT */
 				uint16_t crc = 0;
 
@@ -403,7 +402,11 @@ static void cmd_prop_rx_adv_callback(RF_Handle h, RF_CmdHandle ch,
 	LOG_DBG("ch: %u cmd: %04x st: %04x e: 0x%" PRIx64, ch,
 		op->commandNo, op->status, e);
 
-	if (e & RF_EventRxEntryDone) {
+	/* If PROP_ERROR_RXBUF is returned, then RF_EventRxEntryDone is never
+	 * triggered. So finished buffers need to be cleaned up even on this
+	 * status.
+	 */
+	if (e & RF_EventRxEntryDone || op->status == PROP_ERROR_RXBUF) {
 		drv_rx_done(drv_data);
 	}
 
@@ -673,6 +676,10 @@ static int ieee802154_cc13xx_cc26xx_subg_tx(const struct device *dev,
 	RF_EventMask events;
 	int ret = 0;
 
+	if (buf->len > (CC13XX_CC26XX_TX_BUF_SIZE - IEEE802154_PHY_SUN_FSK_PHR_LEN)) {
+		return -EINVAL;
+	}
+
 	if (mode != IEEE802154_TX_MODE_DIRECT) {
 		/* For backwards compatibility we only log an error but do not bail. */
 		NET_ERR("TX mode %d not supported - sending directly instead.", mode);
@@ -698,9 +705,10 @@ static int ieee802154_cc13xx_cc26xx_subg_tx(const struct device *dev,
 	/* Complete the SUN FSK PHY header, see IEEE 802.15.4, section 19.2.4. */
 	drv_data->tx_data[0] = buf->len + IEEE802154_FCS_LENGTH;
 
-	/* Set TX data */
-	__ASSERT_NO_MSG(buf->len + IEEE802154_PHY_SUN_FSK_PHR_LEN <= CC13XX_CC26XX_TX_BUF_SIZE);
-	/* TODO: Zero-copy TX, see discussion in #49775. */
+	/* Set TX data
+	 *
+	 * TODO: Zero-copy TX, see discussion in #49775.
+	 */
 	memcpy(&drv_data->tx_data[IEEE802154_PHY_SUN_FSK_PHR_LEN], buf->data, buf->len);
 	drv_data->cmd_prop_tx_adv.pktLen = buf->len + IEEE802154_PHY_SUN_FSK_PHR_LEN;
 
@@ -904,7 +912,7 @@ static void ieee802154_cc13xx_cc26xx_subg_iface_init(struct net_if *iface)
 	ieee802154_init(iface);
 }
 
-static struct ieee802154_radio_api
+static const struct ieee802154_radio_api
 	ieee802154_cc13xx_cc26xx_subg_radio_api = {
 	.iface_api.init = ieee802154_cc13xx_cc26xx_subg_iface_init,
 

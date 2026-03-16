@@ -1,0 +1,44 @@
+# Kconfig.fe310 - SiFive Freedom UART configuration option
+#
+# Copyright (c) 2017 Jean-Paul Etienne <fractalclone@gmail.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+menuconfig UART_MINDGROVE
+	bool "Mindgrove serial driver"
+	depends on SOC_FAMILY_MINDGROVE
+	select SERIAL_HAS_DRIVER
+	select SERIAL_SUPPORT_INTERRUPT
+	help
+	  This option enables the Mindgrove serial driver.
+
+# ---------- Port 0 ----------
+
+menuconfig UART_MINDGROVE_PORT
+	bool "Enable Mindgrove UART Ports"
+	depends on UART_MINDGROVE
+	help
+	  This tells the driver to configure the UART port at boot, depending on
+	  the additional configure options below.
+
+config UART_MINDGROVE_PORT_IRQ_PRIORITY
+	int "Mindgrove UART Interrupt Priority"
+	default 1
+	depends on UART_MINDGROVE_PORT
+	help
+	  Mindgrove UART Interrupt Priority
+
+config UART_MINDGROVE_PORT_RXCNT_IRQ
+	int "Mindgrove UART RX Interrupt Threshold Count"
+	default 0
+	depends on UART_MINDGROVE_PORT
+	help
+	  Mindgrove UART RX Threshold at which the RX FIFO interrupt triggers.
+
+config UART_MINDGROVE_PORT_TXCNT_IRQ
+	int "Mindgrove UART TX Interrupt Threshold Count"
+	default 0
+	depends on UART_MINDGROVE_PORT
+	help
+	  Mindgrove UART TX Threshold at which the TX FIFO interrupt triggers.

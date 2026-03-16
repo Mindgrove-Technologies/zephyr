@@ -3,15 +3,18 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+from pathlib import Path
 from typing import Generator, Type
 
 import pytest
+import time
 
 from twister_harness.device.device_adapter import DeviceAdapter
 from twister_harness.device.factory import DeviceFactory
 from twister_harness.twister_harness_config import DeviceConfig, TwisterHarnessConfig
 from twister_harness.helpers.shell import Shell
 from twister_harness.helpers.mcumgr import MCUmgr
+from twister_harness.helpers.utils import find_in_config
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +39,25 @@ def device_object(twister_harness_config: TwisterHarnessConfig) -> Generator[Dev
         device_object.close()
 
 
-@pytest.fixture(scope='function')
+def determine_scope(fixture_name, config):
+    if dut_scope := config.getoption("--dut-scope", None):
+        return dut_scope
+    return 'function'
+
+
+@pytest.fixture(scope=determine_scope)
+def unlaunched_dut(request: pytest.FixtureRequest, device_object: DeviceAdapter) -> Generator[DeviceAdapter, None, None]:
+    """Return device object - with logs connected, but not run"""
+    device_object.initialize_log_files(request.node.name)
+    try:
+        yield device_object
+    finally:  # to make sure we close all running processes execution
+        device_object.close()
+
+@pytest.fixture(scope=determine_scope)
 def dut(request: pytest.FixtureRequest, device_object: DeviceAdapter) -> Generator[DeviceAdapter, None, None]:
     """Return launched device - with run application."""
-    test_name = request.node.name
-    device_object.initialize_log_files(test_name)
+    device_object.initialize_log_files(request.node.name)
     try:
         device_object.launch()
         yield device_object
@@ -48,12 +65,21 @@ def dut(request: pytest.FixtureRequest, device_object: DeviceAdapter) -> Generat
         device_object.close()
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope=determine_scope)
 def shell(dut: DeviceAdapter) -> Shell:
     """Return ready to use shell interface"""
     shell = Shell(dut, timeout=20.0)
+    if prompt := find_in_config(Path(dut.device_config.app_build_dir) / 'zephyr' / '.config',
+                                'CONFIG_SHELL_PROMPT_UART'):
+        shell.prompt = prompt
     logger.info('Wait for prompt')
-    assert shell.wait_for_prompt()
+    if not shell.wait_for_prompt():
+        pytest.fail('Prompt not found')
+    if dut.device_config.type == 'hardware':
+        # after booting up the device, there might appear additional logs
+        # after first prompt, so we need to wait and clear the buffer
+        time.sleep(0.5)
+        dut.clear_buffer()
     return shell
 
 

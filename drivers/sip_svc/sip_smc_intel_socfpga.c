@@ -11,7 +11,7 @@
 #include <zephyr/drivers/sip_svc/sip_svc_agilex_mailbox.h>
 #include <zephyr/drivers/sip_svc/sip_svc_agilex_smc.h>
 #include <zephyr/drivers/sip_svc/sip_svc_driver.h>
-#include <zephyr/syscall_handler.h>
+#include <zephyr/internal/syscall_handler.h>
 
 #include <zephyr/logging/log.h>
 
@@ -211,7 +211,7 @@ static int arm_sip_smc_init(const struct device *dev)
 	return 0;
 }
 
-static const struct svc_driver_api api = {
+static DEVICE_API(svc, api) = {
 	.sip_supervisory_call = intel_sip_secure_monitor_call,
 	.sip_svc_plat_get_trans_idx = intel_sip_smc_plat_get_trans_idx,
 	.sip_svc_plat_format_trans_id = intel_sip_smc_plat_format_trans_id,

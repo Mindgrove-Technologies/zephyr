@@ -19,7 +19,7 @@
 
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/sys/util.h>
-#include <zephyr/net/buf.h>
+#include <zephyr/net_buf.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(usb_audio, CONFIG_USB_AUDIO_LOG_LEVEL);
@@ -87,7 +87,7 @@ struct dev##_descriptor_##i dev##_desc_##i = {				      \
 	.as_interface_alt_0 = INIT_STD_IF(USB_AUDIO_AUDIOSTREAMING, 1, 0, 0), \
 	.as_interface_alt_1 = INIT_STD_IF(USB_AUDIO_AUDIOSTREAMING, 1, 1, 1), \
 	.as_cs_interface = INIT_AS_GENERAL(link),			      \
-	.format = INIT_AS_FORMAT_I(CH_CNT(dev, i), GET_RES(dev, i)),	      \
+	.format = INIT_AS_FORMAT_I(CH_CNT(dev, i), GET_RES(dev, i), GET_RATE(dev, i)), \
 	.std_ep = INIT_STD_AS_AD_EP(dev, i, addr),			      \
 	.cs_ep = INIT_CS_AS_AD_EP,					      \
 };									      \
@@ -133,7 +133,8 @@ struct dev##_descriptor_##i dev##_desc_##i = {				  \
 						1, 1, 1),		  \
 		.as_cs_interface_0 = INIT_AS_GENERAL(id+2),		  \
 		.format_0 = INIT_AS_FORMAT_I(CH_CNT(dev##_MIC, i),	  \
-					     GET_RES(dev##_MIC, i)),	  \
+					     GET_RES(dev##_MIC, i),	  \
+					     GET_RATE(dev##_MIC, i)),	  \
 		.std_ep_0 = INIT_STD_AS_AD_EP(dev##_MIC, i,		  \
 						   AUTO_EP_IN),		  \
 		.cs_ep_0 = INIT_CS_AS_AD_EP,				  \
@@ -143,7 +144,8 @@ struct dev##_descriptor_##i dev##_desc_##i = {				  \
 						2, 1, 1),		  \
 		.as_cs_interface_1 = INIT_AS_GENERAL(id+3),		  \
 		.format_1 = INIT_AS_FORMAT_I(CH_CNT(dev##_HP, i),	  \
-					     GET_RES(dev##_HP, i)),	  \
+					     GET_RES(dev##_HP, i),	  \
+					     GET_RATE(dev##_HP, i)),	  \
 		.std_ep_1 = INIT_STD_AS_AD_EP(dev##_HP, i,		  \
 						   AUTO_EP_OUT),	  \
 		.cs_ep_1 = INIT_CS_AS_AD_EP,				  \
@@ -575,7 +577,7 @@ static int handle_fu_volume_req(struct usb_audio_dev_data *audio_dev_data,
 			return -EINVAL;
 		}
 		if (setup->bRequest == USB_AUDIO_SET_CUR) {
-			target_vol = *((int16_t *)*data);
+			target_vol = sys_get_le16(*data);
 			if (!IN_RANGE(target_vol, audio_dev_data->volumes.volume_min,
 				      audio_dev_data->volumes.volume_max)) {
 				LOG_ERR("Volume out of range: %d", target_vol);
@@ -585,15 +587,16 @@ static int handle_fu_volume_req(struct usb_audio_dev_data *audio_dev_data,
 				target_vol = ROUND_UP(target_vol,
 					audio_dev_data->volumes.volume_res);
 			}
+
+			UNALIGNED_PUT(target_vol, (int16_t *)control_val);
 			evt->val = control_val;
 			evt->val_len = *len;
-			*((int16_t *)evt->val) = sys_le16_to_cpu(target_vol);
 			return 0;
 		}
 	} else {
 		if (setup->bRequest == USB_AUDIO_GET_CUR) {
 			*len = LEN(ch_cnt, VOLUME);
-			temp_vol = sys_cpu_to_le16(*(int16_t *)control_val);
+			temp_vol = sys_cpu_to_le16(UNALIGNED_GET((int16_t *)control_val));
 			memcpy(*data, &temp_vol, *len);
 			return 0;
 		} else if (setup->bRequest == USB_AUDIO_GET_MIN) {
@@ -917,6 +920,7 @@ size_t usb_audio_get_in_frame_size(const struct device *dev)
 	return audio_dev_data->in_frame_size;
 }
 
+#if (HEADPHONES_DEVICE_COUNT > 0 || HEADSET_DEVICE_COUNT > 0)
 static void audio_receive_cb(uint8_t ep, enum usb_dc_ep_cb_status_code status)
 {
 	struct usb_audio_dev_data *audio_dev_data;
@@ -968,6 +972,7 @@ static void audio_receive_cb(uint8_t ep, enum usb_dc_ep_cb_status_code status)
 						      buffer, ret_bytes);
 	}
 }
+#endif /* #if (HEADPHONES_DEVICE_COUNT > 0 || HEADSET_DEVICE_COUNT > 0) */
 
 void usb_audio_register(const struct device *dev,
 			const struct usb_audio_ops *ops)

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # kernel is a normal CMake library and not a zephyr_library because it
-# should not be --whole-archive'd
+# should usually not be --whole-archive'd
 
 zephyr_syscall_header(
   ${ZEPHYR_BASE}/include/zephyr/device.h
@@ -21,7 +21,13 @@ zephyr_syscall_header_ifdef(
 
 zephyr_syscall_header_ifdef(
   CONFIG_MMU
+  ${ZEPHYR_BASE}/include/zephyr/kernel/mm.h
   ${ZEPHYR_BASE}/include/zephyr/sys/mem_manage.h
+)
+
+zephyr_syscall_header_ifdef(
+  CONFIG_DEMAND_PAGING
+  ${ZEPHYR_BASE}/include/zephyr/kernel/mm/demand_paging.h
 )
 
 # If a pre-built static library containing kernel code exists in
@@ -51,9 +57,15 @@ list(APPEND kernel_files
   init.c
   kheap.c
   mem_slab.c
-  thread.c
+  float.c
   version.c
   )
+
+if(CONFIG_SCHED_CPU_MASK)
+list(APPEND kernel_files
+  cpu_mask.c
+  )
+endif()
 
 if(CONFIG_MULTITHREADING)
 list(APPEND kernel_files
@@ -66,16 +78,52 @@ list(APPEND kernel_files
   stack.c
   system_work_q.c
   work.c
-  sched.c
   condvar.c
+  thread.c
+  sched.c
   )
 
-if(CONFIG_SMP)
-list(APPEND kernel_files
-     smp.c)
+if (CONFIG_SCHED_SCALABLE OR CONFIG_WAITQ_SCALABLE)
+list(APPEND kernel_files priority_queues.c)
 endif()
 
+# FIXME: Once the prior pipe implementation is removed, this should be included in the above list
+if(NOT CONFIG_PIPES)
+list(APPEND kernel_files pipe.c)
+endif() # NOT CONFIG_PIPES
+if(CONFIG_SMP)
+list(APPEND kernel_files
+     smp.c
+     ipi.c)
 endif()
+else() # CONFIG_MULTITHREADING
+list(APPEND kernel_files
+  nothread.c
+  )
+endif() # CONFIG_MULTITHREADING
+
+if(CONFIG_TIMESLICING)
+list(APPEND kernel_files
+     timeslicing.c)
+endif()
+
+if(CONFIG_SPIN_VALIDATE)
+list(APPEND kernel_files
+     spinlock_validate.c)
+endif()
+
+if(CONFIG_IRQ_OFFLOAD)
+list(APPEND kernel_files
+  irq_offload.c
+  )
+endif()
+
+
+if(CONFIG_THREAD_MONITOR)
+list(APPEND kernel_files
+     thread_monitor.c)
+endif()
+
 
 if(CONFIG_XIP)
 list(APPEND kernel_files
@@ -99,7 +147,7 @@ set_target_properties(
   __ZEPHYR_SUPERVISOR__
   )
 
-target_sources_ifdef(CONFIG_STACK_CANARIES        kernel PRIVATE compiler_stack_protect.c)
+target_sources_ifdef(CONFIG_REQUIRES_STACK_CANARIES   kernel PRIVATE compiler_stack_protect.c)
 target_sources_ifdef(CONFIG_SYS_CLOCK_EXISTS      kernel PRIVATE timeout.c timer.c)
 target_sources_ifdef(CONFIG_ATOMIC_OPERATIONS_C   kernel PRIVATE atomic_c.c)
 target_sources_ifdef(CONFIG_MMU                   kernel PRIVATE mmu.c)
@@ -111,8 +159,38 @@ target_sources_ifdef(CONFIG_OBJ_CORE              kernel PRIVATE obj_core.c)
 
 if(${CONFIG_KERNEL_MEM_POOL})
   target_sources(kernel PRIVATE mempool.c)
-endif()
 
+  if(CONFIG_HEAP_MEM_POOL_IGNORE_MIN)
+    set(final_heap_size ${CONFIG_HEAP_MEM_POOL_SIZE})
+  else()
+    # Import all custom HEAP_MEM_POOL size requirements
+    import_kconfig(CONFIG_HEAP_MEM_POOL_ADD_SIZE_ ${DOTCONFIG} add_size_keys)
+
+    # Calculate the sum of all "ADD_SIZE" requirements
+    set(add_size_sum 0)
+    foreach(add_size ${add_size_keys})
+      math(EXPR add_size_sum "${add_size_sum} + ${${add_size}}")
+    endforeach()
+
+    if(CONFIG_HEAP_MEM_POOL_SIZE LESS "${add_size_sum}")
+      # Only warn if default value 0 has been modified
+      if(NOT CONFIG_HEAP_MEM_POOL_SIZE EQUAL 0)
+        message(WARNING "
+        CONFIG_HEAP_MEM_POOL_SIZE is less than requested minimum:
+          ${CONFIG_HEAP_MEM_POOL_SIZE} < ${add_size_sum}
+        Setting the system heap size to ${add_size_sum}")
+      endif()
+
+      set(final_heap_size ${add_size_sum})
+    else()
+      # CONFIG_HEAP_MEM_POOL_SIZE was greater than the sum of the requirements
+      set(final_heap_size ${CONFIG_HEAP_MEM_POOL_SIZE})
+    endif()
+
+  endif()
+
+  zephyr_compile_definitions(K_HEAP_MEM_POOL_SIZE=${final_heap_size})
+endif()
 
 # The last 2 files inside the target_sources_ifdef should be
 # userspace_handler.c and userspace.c. If not the linker would complain.

@@ -34,7 +34,7 @@ config RISCV_RAM_SIZE
 config RISCV_HAS_PLIC
 	default y
 
-config ATOMIC_OPERATIONS_C
-	default y
+# config ATOMIC_OPERATIONS_ARCH
+# 	default y
 
 endif

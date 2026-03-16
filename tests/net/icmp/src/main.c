@@ -30,7 +30,7 @@ LOG_MODULE_REGISTER(net_test, ICMP_LOG_LEVEL);
 #include <zephyr/types.h>
 #include <stddef.h>
 #include <string.h>
-#include <zephyr/net/buf.h>
+#include <zephyr/net_buf.h>
 #include <zephyr/ztest.h>
 #include <zephyr/net/dummy.h>
 #include <zephyr/net/ethernet.h>
@@ -207,8 +207,10 @@ static int get_ipv4_reply(struct net_if *iface,
 	ipv4_hdr = net_pkt_cursor_get_pos(reply);
 	*hdr_ipv4 = ipv4_hdr;
 
+	net_pkt_set_ipv4_ttl(reply, 1U);
+
 	ret = net_ipv4_create_full(reply, src4, dest4, params->tc_tos,
-				   params->identifier, 0, 0, 1);
+				   params->identifier, 0, 0);
 	if (ret < 0) {
 		LOG_ERR("Cannot create IPv4 pkt (%d)", ret);
 		return ret;

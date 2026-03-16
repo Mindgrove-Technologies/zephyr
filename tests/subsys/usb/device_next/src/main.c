@@ -17,9 +17,14 @@ LOG_MODULE_REGISTER(usb_test, LOG_LEVEL_INF);
 #define TEST_DEFAULT_INTERFACE		0
 #define TEST_DEFAULT_ALTERNATE		1
 
-USBD_CONFIGURATION_DEFINE(test_config,
+USBD_CONFIGURATION_DEFINE(test_fs_config,
 			  USB_SCD_SELF_POWERED | USB_SCD_REMOTE_WAKEUP,
-			  200);
+			  200, NULL);
+
+USBD_CONFIGURATION_DEFINE(test_hs_config,
+			  USB_SCD_SELF_POWERED | USB_SCD_REMOTE_WAKEUP,
+			  200, NULL);
+
 
 USBD_DESC_LANG_DEFINE(test_lang);
 USBD_DESC_STRING_DEFINE(test_mfg, "ZEPHYR", 1);
@@ -40,7 +45,13 @@ ZTEST(device_next, test_get_configuration)
 	int err;
 
 	udev = usbh_device_get_any(&uhs_ctx);
+	zassert_not_null(udev, "No USB device available");
+
+	err = k_mutex_lock(&udev->mutex, K_MSEC(200));
+	zassert_equal(err, 0, "Failed to lock device");
+
 	err = usbh_req_get_cfg(udev, &cfg);
+	k_mutex_unlock(&udev->mutex);
 
 	switch (udev->state) {
 	case USB_STATE_DEFAULT:
@@ -69,8 +80,14 @@ ZTEST(device_next, test_set_interface)
 	int err;
 
 	udev = usbh_device_get_any(&uhs_ctx);
+	zassert_not_null(udev, "No USB device available");
+
+	err = k_mutex_lock(&udev->mutex, K_MSEC(200));
+	zassert_equal(err, 0, "Failed to lock device");
+
 	err = usbh_req_set_alt(udev, TEST_DEFAULT_INTERFACE,
 			       TEST_DEFAULT_ALTERNATE);
+	k_mutex_unlock(&udev->mutex);
 
 	switch (udev->state) {
 	case USB_STATE_DEFAULT:
@@ -88,7 +105,6 @@ ZTEST(device_next, test_set_interface)
 
 static void *usb_test_enable(void)
 {
-	struct usb_device *udev;
 	int err;
 
 	err = usbh_init(&uhs_ctx);
@@ -120,10 +136,34 @@ static void *usb_test_enable(void)
 	err = usbd_add_descriptor(&test_usbd, &test_sn);
 	zassert_equal(err, 0, "Failed to initialize descriptor (%d)", err);
 
-	err = usbd_add_configuration(&test_usbd, &test_config);
+	if (USBD_SUPPORTS_HIGH_SPEED &&
+	    usbd_caps_speed(&test_usbd) == USBD_SPEED_HS) {
+		err = usbd_add_configuration(&test_usbd, USBD_SPEED_HS, &test_hs_config);
+		zassert_equal(err, 0, "Failed to add configuration (%d)");
+	}
+
+	err = usbd_add_configuration(&test_usbd, USBD_SPEED_FS, &test_fs_config);
 	zassert_equal(err, 0, "Failed to add configuration (%d)");
 
-	err = usbd_register_class(&test_usbd, "loopback_0", 1);
+	if (USBD_SUPPORTS_HIGH_SPEED &&
+	    usbd_caps_speed(&test_usbd) == USBD_SPEED_HS) {
+		err = usbd_register_all_classes(&test_usbd, USBD_SPEED_HS, 1, NULL);
+		zassert_equal(err, 0, "Failed to unregister all instances(%d)");
+
+		err = usbd_unregister_all_classes(&test_usbd, USBD_SPEED_HS, 1);
+		zassert_equal(err, 0, "Failed to unregister all instances(%d)");
+
+		err = usbd_register_class(&test_usbd, "loopback_0", USBD_SPEED_HS, 1);
+		zassert_equal(err, 0, "Failed to register loopback_0 class (%d)");
+	}
+
+	err = usbd_register_all_classes(&test_usbd, USBD_SPEED_FS, 1, NULL);
+	zassert_equal(err, 0, "Failed to unregister all instances(%d)");
+
+	err = usbd_unregister_all_classes(&test_usbd, USBD_SPEED_FS, 1);
+	zassert_equal(err, 0, "Failed to unregister all instances(%d)");
+
+	err = usbd_register_class(&test_usbd, "loopback_0", USBD_SPEED_FS, 1);
 	zassert_equal(err, 0, "Failed to register loopback_0 class (%d)");
 
 	err = usbd_init(&test_usbd);
@@ -133,8 +173,9 @@ static void *usb_test_enable(void)
 	zassert_equal(err, 0, "Failed to enable device support");
 
 	LOG_INF("Device support enabled");
-	udev = usbh_device_get_any(&uhs_ctx);
-	udev->state = USB_STATE_DEFAULT;
+
+	/* Allow the host time to reset the device. */
+	k_msleep(200);
 
 	return NULL;
 }

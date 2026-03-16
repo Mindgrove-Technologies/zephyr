@@ -2,7 +2,10 @@
 
 # '-mcmse' enables the generation of code for the Secure state of the ARMv8-M
 # Security Extensions. This option is required when building a Secure firmware.
-zephyr_compile_options_ifdef(CONFIG_ARM_SECURE_FIRMWARE -mcmse)
+
+zephyr_compile_options_ifdef(CONFIG_ARM_SECURE_FIRMWARE $<$<COMPILE_LANGUAGE:C>:$<TARGET_PROPERTY:compiler,cmse>>)
+zephyr_compile_options_ifdef(CONFIG_ARM_SECURE_FIRMWARE $<$<COMPILE_LANGUAGE:CXX>:$<TARGET_PROPERTY:compiler,cmse>>)
+zephyr_compile_options_ifdef(CONFIG_ARM_SECURE_FIRMWARE $<$<COMPILE_LANGUAGE:ASM>:$<TARGET_PROPERTY:asm,cmse>>)
 
 if(CONFIG_ARM_FIRMWARE_HAS_SECURE_ENTRY_FUNCS)
 
@@ -33,9 +36,3 @@ endif()
 zephyr_link_libraries_ifdef(CONFIG_ARM_FIRMWARE_USES_SECURE_ENTRY_FUNCS
   ${CMAKE_BINARY_DIR}/${CONFIG_ARM_ENTRY_VENEERS_LIB_NAME}
   )
-
-if(CONFIG_ARM_SECURE_FIRMWARE)
-  zephyr_library()
-
-  zephyr_library_sources(arm_core_tz.c)
-endif()
