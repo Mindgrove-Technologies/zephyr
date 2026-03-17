@@ -1,6 +1,6 @@
 .. zephyr:code-sample:: coap-client
    :name: CoAP client
-   :relevant-api: coap udp
+   :relevant-api: coap
 
    Use the CoAP library to implement a client that fetches a resource.
 
@@ -29,7 +29,7 @@ be obtained by using a tool such as tcpdump or wireshark.
 
 See the `net-tools`_ project for more details.
 
-This sample can be built and executed on QEMU or native_posix board as described
+This sample can be built and executed on QEMU or native_sim board as described
 in :ref:`networking_with_host`.
 
 Sample output

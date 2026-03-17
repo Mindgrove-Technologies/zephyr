@@ -5,7 +5,7 @@
 
 config SOC_SECURE_IOT
 	bool
-
+    
 	# RISC-V options
 	select RISCV
 	select RISCV_PRIVILEGED
