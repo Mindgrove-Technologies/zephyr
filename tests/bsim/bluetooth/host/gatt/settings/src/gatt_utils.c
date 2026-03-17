@@ -6,29 +6,31 @@
 
 #include "utils.h"
 #include "argparse.h"
-#include "bs_pc_backchannel.h"
 
 #include <zephyr/kernel.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/sys/__assert.h>
 
+#include "babblekit/testcase.h"
+#include "babblekit/flags.h"
+
 /* Custom Service Variables */
-static struct bt_uuid_128 test_svc_uuid = BT_UUID_INIT_128(
+static const struct bt_uuid_128 test_svc_uuid = BT_UUID_INIT_128(
 	0xf0, 0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12,
 	0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12);
 
-static struct bt_uuid_128 test_svc_uuid_2 = BT_UUID_INIT_128(
+static const struct bt_uuid_128 test_svc_uuid_2 = BT_UUID_INIT_128(
 	0xf1, 0xdd, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12,
 	0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12);
 
-static struct bt_uuid_128 test_chrc_uuid = BT_UUID_INIT_128(
+static const struct bt_uuid_128 test_chrc_uuid = BT_UUID_INIT_128(
 	0xf2, 0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12,
 	0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12);
 
 static uint8_t test_value[] = { 'T', 'e', 's', 't', '\0' };
 
-DEFINE_FLAG(flag_client_read);
+DEFINE_FLAG_STATIC(flag_client_read);
 
 static ssize_t read_test(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			void *buf, uint16_t len, uint16_t offset)
@@ -130,7 +132,7 @@ static uint8_t discover_func(struct bt_conn *conn, const struct bt_gatt_attr *at
 			printk("handle[%d] = 0x%x\n", i, gatt_handles[i]);
 
 			if (gatt_handles[i] == 0) {
-				FAIL("Did not discover all characteristics\n");
+				TEST_FAIL("Did not discover all characteristics");
 			}
 		}
 
@@ -206,8 +208,7 @@ void gatt_subscribe_to_service_changed(bool subscribe)
 	subscribe_params.subscribe = sc_subscribed;
 
 	if (subscribe) {
-		/* Use the BT_GATT_AUTO_DISCOVER_CCC feature */
-		subscribe_params.ccc_handle = 0;
+		subscribe_params.ccc_handle = BT_GATT_AUTO_DISCOVER_CCC_HANDLE;
 		subscribe_params.disc_params = &disc_params,
 		subscribe_params.value = BT_GATT_CCC_INDICATE;
 		subscribe_params.end_handle = BT_ATT_LAST_ATTRIBUTE_HANDLE;
@@ -223,7 +224,7 @@ void gatt_subscribe_to_service_changed(bool subscribe)
 	}
 
 	if (err != 0) {
-		FAIL("Subscription failed(err %d)\n", err);
+		TEST_FAIL("Subscription failed(err %d)", err);
 	} else {
 		printk("%subscribed %s SC indications\n",
 		       subscribe ? "S" : "Uns",
@@ -247,7 +248,7 @@ void gatt_discover(void)
 
 	err = bt_gatt_discover(get_conn(), &discover_params);
 	if (err != 0) {
-		FAIL("Discover failed(err %d)\n", err);
+		TEST_FAIL("Discover failed(err %d)", err);
 	}
 
 	WAIT_FOR_FLAG(flag_discovered);
@@ -259,7 +260,7 @@ DEFINE_FLAG(flag_written);
 static void write_cb(struct bt_conn *conn, uint8_t err, struct bt_gatt_write_params *params)
 {
 	if (err != BT_ATT_ERR_SUCCESS) {
-		FAIL("Write failed: 0x%02X\n", err);
+		TEST_FAIL("Write failed: 0x%02X", err);
 	}
 
 	SET_FLAG(flag_written);

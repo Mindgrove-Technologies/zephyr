@@ -49,6 +49,12 @@ another terminal window and run the same telnet command as above.
 The sample supports up to three connected clients, but this can be adjusted
 by changing ``NUM_FDS`` defined in the source code.
 
+Wi-Fi
+=====
+
+The IPv4 Wi-Fi support can be enabled in the sample with
+:ref:`Wi-Fi snippet <snippet-wifi-ipv4>`.
+
 Running application on POSIX Host
 =================================
 
@@ -57,11 +63,11 @@ Linux. (Note: if you look at the source, you will see that the code is
 the same except the header files are different for Zephyr vs POSIX, and
 there's an additional option to set for Linux to make a socket IPv6-only).
 
-To build for a host POSIX OS:
+To build:
 
 .. code-block:: console
 
-    $ make -f Makefile.posix
+    $ make -f Makefile.host
 
 To run:
 

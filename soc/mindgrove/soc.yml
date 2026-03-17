@@ -1,0 +1,9 @@
+family:
+  - name: mindgrove
+    series:
+      - name: secure-iot
+        socs:
+          - name: secure-iot
+      - name: vision-soc
+        socs:
+          - name: vision-soc

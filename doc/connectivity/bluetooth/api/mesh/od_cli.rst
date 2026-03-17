@@ -3,7 +3,7 @@
 On-Demand Private Proxy Client
 ##############################
 
-The On-Demand Private Proxy Client model is a foundation model defined by the Bluetooth mesh
+The On-Demand Private Proxy Client model is a foundation model defined by the Bluetooth Mesh
 specification. The model is optional, and is enabled with the
 :kconfig:option:`CONFIG_BT_MESH_OD_PRIV_PROXY_CLI` option.
 
@@ -33,5 +33,3 @@ API reference
 *************
 
 .. doxygengroup:: bt_mesh_od_priv_proxy_cli
-   :project: Zephyr
-   :members:

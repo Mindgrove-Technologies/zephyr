@@ -31,6 +31,8 @@
 #include <zephyr/linker/sections.h>
 #include <zephyr/sys/atomic.h>
 #include <zephyr/sys/printk.h>
+#include <zephyr/sys/printk-hooks.h>
+#include <zephyr/sys/libc-hooks.h>
 #include <zephyr/pm/device_runtime.h>
 #ifdef CONFIG_UART_CONSOLE_MCUMGR
 #include <zephyr/mgmt/mcumgr/transport/serial.h>
@@ -87,13 +89,11 @@ static int console_out(int c)
 
 #endif  /* CONFIG_UART_CONSOLE_DEBUG_SERVER_HOOKS */
 
-	if (pm_device_runtime_is_enabled(uart_console_dev)) {
-		if (pm_device_runtime_get(uart_console_dev) < 0) {
-			/* Enabling the UART instance has failed but this
-			 * function MUST return the byte output.
-			 */
-			return c;
-		}
+	if (pm_device_runtime_get(uart_console_dev) < 0) {
+		/* Enabling the UART instance has failed but this
+		 * function MUST return the byte output.
+		 */
+		return c;
 	}
 
 	if ('\n' == c) {
@@ -101,22 +101,15 @@ static int console_out(int c)
 	}
 	uart_poll_out(uart_console_dev, c);
 
-	if (pm_device_runtime_is_enabled(uart_console_dev)) {
-		/* As errors cannot be returned, ignore the return value */
-		(void)pm_device_runtime_put(uart_console_dev);
-	}
+	/* Use async put to avoid useless device suspension/resumption
+	 * when tranmiting chain of chars.
+	 * As errors cannot be returned, ignore the return value
+	 */
+	(void)pm_device_runtime_put_async(uart_console_dev, K_MSEC(1));
 
 	return c;
 }
 
-#endif
-
-#if defined(CONFIG_STDOUT_CONSOLE)
-extern void __stdout_hook_install(int (*hook)(int c));
-#endif
-
-#if defined(CONFIG_PRINTK)
-extern void __printk_hook_install(int (*fn)(int c));
 #endif
 
 #if defined(CONFIG_CONSOLE_HANDLER)
@@ -474,7 +467,7 @@ static void uart_console_isr(const struct device *unused, void *user_data)
 			 * The input hook indicates that no further processing
 			 * should be done by this handler.
 			 */
-			return;
+			continue;
 		}
 #endif
 
@@ -545,14 +538,12 @@ static void uart_console_isr(const struct device *unused, void *user_data)
 				break;
 			}
 
-			last_char = byte;
-			continue;
-		}
-
 		/* Ignore characters if there's no more buffer space */
-		if (cur + end < sizeof(cmd->line) - 1) {
+		} else if (cur + end < sizeof(cmd->line) - 1) {
 			insert_char(&cmd->line[cur++], byte, end);
 		}
+
+		last_char = byte;
 	}
 }
 

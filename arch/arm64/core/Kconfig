@@ -126,6 +126,7 @@ config PRIVILEGED_STACK_SIZE
 	default 4096
 
 config KOBJECT_TEXT_AREA
+	default 1024 if UBSAN
 	default 512 if TEST
 
 config WAIT_AT_RESET_VECTOR
@@ -143,14 +144,20 @@ config ARM64_SAFE_EXCEPTION_STACK
 	  used for user stack overflow checking, because kernel stack support
 	  the checking work.
 
-config ARM64_ENABLE_FRAME_POINTER
+config ARM64_EXCEPTION_STACK_TRACE
 	bool
 	default y
-	depends on OVERRIDE_FRAME_POINTER_DEFAULT && !OMIT_FRAME_POINTER
+	depends on FRAME_POINTER
 	help
-	  Hidden option to simplify access to OVERRIDE_FRAME_POINTER_DEFAULT
-	  and OMIT_FRAME_POINTER. It is automatically enabled when the frame
-	  pointer unwinding is enabled.
+	  Internal config to enable runtime stack traces on fatal exceptions.
+
+config ARCH_HAS_STACKWALK
+	bool
+	default y
+	depends on FRAME_POINTER
+	help
+	  Internal config to indicate that the arch_stack_walk() API is implemented
+	  and it can be enabled.
 
 config ARM64_SAFE_EXCEPTION_STACK_SIZE
 	int "The stack size of the safe exception stack"
@@ -252,15 +259,6 @@ config ARM_MMU
 	select ARCH_MEM_DOMAIN_DATA if USERSPACE
 	help
 	  Memory Management Unit support.
-
-config EXCEPTION_DEBUG
-	bool "Unhandled exception debugging information"
-	default y
-	depends on LOG
-	help
-	  Print human-readable information about exception vectors, cause codes,
-	  and parameters, at a cost of code/data size for the human-readable
-	  strings.
 
 config XIP
 	select AARCH64_IMAGE_HEADER

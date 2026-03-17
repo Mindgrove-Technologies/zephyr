@@ -43,15 +43,37 @@
 #define DEF_PORT 5001
 #define DEF_PORT_STR STRINGIFY(DEF_PORT)
 
+/* Upload defaults */
+#define DEF_DURATION_SECONDS 1
+#define DEF_DURATION_SECONDS_STR STRINGIFY(DEF_DURATION_SECONDS)
+#define DEF_PACKET_SIZE 256
+#define DEF_PACKET_SIZE_STR STRINGIFY(DEF_PACKET_SIZE)
+#define DEF_RATE_KBPS 10
+#define DEF_RATE_KBPS_STR STRINGIFY(DEF_RATE_KBPS)
+
 #define ZPERF_VERSION "1.1"
 
+enum session_proto {
+	SESSION_UDP = 0,
+	SESSION_TCP = 1,
+	SESSION_PROTO_END
+};
+
 struct zperf_udp_datagram {
-	int32_t id;
+	uint32_t id;
 	uint32_t tv_sec;
 	uint32_t tv_usec;
+#ifndef CONFIG_NET_ZPERF_LEGACY_HEADER_COMPAT
+	uint32_t id2;
+#endif
 } __packed;
 
 BUILD_ASSERT(sizeof(struct zperf_udp_datagram) <= PACKET_SIZE_MAX, "Invalid PACKET_SIZE_MAX");
+
+#define ZPERF_FLAGS_VERSION1      0x80000000
+#define ZPERF_FLAGS_EXTEND        0x40000000
+#define ZPERF_FLAGS_UDPTESTS      0x20000000
+#define ZPERF_FLAGS_SEQNO64B      0x08000000
 
 struct zperf_client_hdr_v1 {
 	int32_t flags;
@@ -95,19 +117,25 @@ struct sockaddr_in *zperf_get_sin(void);
 
 extern void connect_ap(char *ssid);
 
-const struct in_addr *zperf_get_default_if_in4_addr(void);
-const struct in6_addr *zperf_get_default_if_in6_addr(void);
+struct zperf_work {
+	struct k_work_q *queue;
+	struct z_thread_stack_element *stack;
+	struct k_event *start_event;
+	size_t stack_size;
+};
 
-int zperf_prepare_upload_sock(const struct sockaddr *peer_addr, int tos,
-			      int priority, int proto);
+#define START_EVENT 0x0001
+extern void start_jobs(void);
+extern struct zperf_work *get_queue(enum session_proto proto, int session_id);
+
+int zperf_prepare_upload_sock(const struct sockaddr *peer_addr, uint8_t tos,
+			      int priority, int tcp_nodelay, int proto);
 
 uint32_t zperf_packet_duration(uint32_t packet_size, uint32_t rate_in_kbps);
 
-void zperf_async_work_submit(struct k_work *work);
+void zperf_async_work_submit(enum session_proto proto, int session_id, struct k_work *work);
 void zperf_udp_uploader_init(void);
 void zperf_tcp_uploader_init(void);
-void zperf_udp_receiver_init(void);
-void zperf_tcp_receiver_init(void);
 
 void zperf_shell_init(void);
 

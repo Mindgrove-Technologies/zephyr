@@ -1,0 +1,6 @@
+if BOARD_VISION_SOC
+
+config BOARD
+	default "Vision SoC"
+
+endif

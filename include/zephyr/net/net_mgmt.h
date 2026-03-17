@@ -15,6 +15,7 @@
 #include <zephyr/sys/__assert.h>
 #include <zephyr/net/net_core.h>
 #include <zephyr/net/net_event.h>
+#include <zephyr/sys/iterable_sections.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,6 +24,8 @@ extern "C" {
 /**
  * @brief Network Management
  * @defgroup net_mgmt Network Management
+ * @since 1.7
+ * @version 1.0.0
  * @ingroup networking
  * @{
  */
@@ -73,6 +76,31 @@ struct net_if;
 
 /** @endcond */
 
+/** @brief Central place the definition of the layer codes (7 bit value) */
+enum net_mgmt_layer_code {
+	NET_MGMT_LAYER_CODE_UNKNOWN    = 0x00, /**< Unknown layer code, do not use */
+	NET_MGMT_LAYER_CODE_IFACE      = 0x01, /**< Network interface layer code */
+	NET_MGMT_LAYER_CODE_CONN       = 0x02, /**< Connectivity layer code */
+	NET_MGMT_LAYER_CODE_IPV4       = 0x03, /**< IPv4 layer code */
+	NET_MGMT_LAYER_CODE_IPV6       = 0x04, /**< IPv6 layer code */
+	NET_MGMT_LAYER_CODE_L4         = 0x05, /**< L4 layer code */
+	NET_MGMT_LAYER_CODE_COAP       = 0x06, /**< CoAP layer code */
+	NET_MGMT_LAYER_CODE_STATS      = 0x07, /**< Statistics layer code */
+	NET_MGMT_LAYER_CODE_HOSTAP     = 0x08, /**< Hostap (wpa_supplicant) layer code */
+	NET_MGMT_LAYER_CODE_ETHERNET   = 0x09, /**< Ethernet layer code */
+	NET_MGMT_LAYER_CODE_IEEE802514 = 0x0A, /**< IEEE 802.15.4 layer code */
+	NET_MGMT_LAYER_CODE_PPP        = 0x0B, /**< PPP layer code */
+	NET_MGMT_LAYER_CODE_VIRTUAL    = 0x0C, /**< Virtual network interface layer code */
+	NET_MGMT_LAYER_CODE_WIFI       = 0x0D, /**< Wi-Fi layer code */
+
+	/* Out of tree code can use the following userX layer codes */
+	NET_MGMT_LAYER_CODE_USER3      = 0x7C, /**< User layer code 3 */
+	NET_MGMT_LAYER_CODE_USER2      = 0x7D, /**< User layer code 2 */
+	NET_MGMT_LAYER_CODE_USER1      = 0x7E, /**< User layer code 1 */
+
+	/* Reserved layer code for future use */
+	NET_MGMT_LAYER_CODE_RESERVED   = 0x7F  /**< Reserved layer code for future use */
+};
 
 /**
  * @typedef net_mgmt_request_handler_t
@@ -80,7 +108,7 @@ struct net_if;
  * @param mgmt_request The exact request value the handler is being called
  *        through
  * @param iface A valid pointer on struct net_if if the request is meant
- *        to be tight to a network interface. NULL otherwise.
+ *        to be tied to a network interface. NULL otherwise.
  * @param data A valid pointer on a data understood by the handler.
  *        NULL otherwise.
  * @param len Length in byte of the memory pointed by data.
@@ -89,14 +117,33 @@ typedef int (*net_mgmt_request_handler_t)(uint32_t mgmt_request,
 					  struct net_if *iface,
 					  void *data, size_t len);
 
+/**
+ * @brief Generate a network management event.
+ *
+ * @param _mgmt_request Management event identifier
+ * @param _iface Network interface
+ * @param _data Any additional data for the event
+ * @param _len Length of the additional data.
+ */
 #define net_mgmt(_mgmt_request, _iface, _data, _len)			\
 	net_mgmt_##_mgmt_request(_mgmt_request, _iface, _data, _len)
 
+/**
+ * @brief Declare a request handler function for the given network event.
+ *
+ * @param _mgmt_request Management event identifier
+ */
 #define NET_MGMT_DEFINE_REQUEST_HANDLER(_mgmt_request)			\
 	extern int net_mgmt_##_mgmt_request(uint32_t mgmt_request,	\
 					    struct net_if *iface,	\
 					    void *data, size_t len)
 
+/**
+ * @brief Create a request handler function for the given network event.
+ *
+ * @param _mgmt_request Management event identifier
+ * @param _func Function for handling this event
+ */
 #define NET_MGMT_REGISTER_REQUEST_HANDLER(_mgmt_request, _func)	\
 	FUNC_ALIAS(_func, net_mgmt_##_mgmt_request, int)
 
@@ -107,7 +154,7 @@ struct net_mgmt_event_callback;
  * @brief Define the user's callback handler function signature
  * @param cb Original struct net_mgmt_event_callback owning this handler.
  * @param mgmt_event The network event being notified.
- * @param iface A pointer on a struct net_if to which the the event belongs to,
+ * @param iface A pointer on a struct net_if to which the event belongs to,
  *        if it's an event on an iface. NULL otherwise.
  */
 typedef void (*net_mgmt_event_handler_t)(struct net_mgmt_event_callback *cb,
@@ -164,6 +211,53 @@ struct net_mgmt_event_callback {
 };
 
 /**
+ * @typedef net_mgmt_event_static_handler_t
+ * @brief Define the user's callback handler function signature
+ * @param mgmt_event The network event being notified.
+ * @param iface A pointer on a struct net_if to which the event belongs to,
+ *        if it's an event on an iface. NULL otherwise.
+ * @param info A valid pointer on a data understood by the handler.
+ *        NULL otherwise.
+ * @param info_length Length in bytes of the memory pointed by @p info.
+ * @param user_data Data provided by the user to the handler.
+ */
+typedef void (*net_mgmt_event_static_handler_t)(uint32_t mgmt_event,
+						struct net_if *iface,
+						void *info, size_t info_length,
+						void *user_data);
+
+/** @cond INTERNAL_HIDDEN */
+
+/* Structure for event handler registered at compile time */
+struct net_mgmt_event_static_handler {
+	uint32_t event_mask;
+	net_mgmt_event_static_handler_t handler;
+	void *user_data;
+};
+
+/** @endcond */
+
+/**
+ * @brief Define a static network event handler.
+ * @param _name Name of the event handler.
+ * @param _event_mask A mask of network events on which the passed handler should
+ *        be called in case those events come.
+ *        Note that only the command part is treated as a mask,
+ *        matching one to several commands. Layer and layer code will
+ *        be made of an exact match. This means that in order to
+ *        receive events from multiple layers, one must have multiple
+ *        listeners registered, one for each layer being listened.
+ * @param _func The function to be called upon network events being emitted.
+ * @param _user_data User data passed to the handler being called on network events.
+ */
+#define NET_MGMT_REGISTER_EVENT_HANDLER(_name, _event_mask, _func, _user_data)	\
+	const STRUCT_SECTION_ITERABLE(net_mgmt_event_static_handler, _name) = {	\
+		.event_mask = _event_mask,					\
+		.handler = _func,						\
+		.user_data = (void *)_user_data,				\
+	}
+
+/**
  * @brief Helper to initialize a struct net_mgmt_event_callback properly
  * @param cb A valid application's callback structure pointer.
  * @param handler A valid handler function pointer.
@@ -210,7 +304,7 @@ void net_mgmt_del_event_callback(struct net_mgmt_event_callback *cb);
  * @param mgmt_event The actual network event code to notify
  * @param iface a valid pointer on a struct net_if if only the event is
  *        based on an iface. NULL otherwise.
- * @param info a valid pointer on the information you want to pass along
+ * @param info A valid pointer on the information you want to pass along
  *        with the event. NULL otherwise. Note the data pointed there is
  *        normalized by the related event.
  * @param length size of the data pointed by info pointer.
@@ -218,10 +312,20 @@ void net_mgmt_del_event_callback(struct net_mgmt_event_callback *cb);
  * Note: info and length are disabled if CONFIG_NET_MGMT_EVENT_INFO
  *       is not defined.
  */
-#ifdef CONFIG_NET_MGMT_EVENT
+#if defined(CONFIG_NET_MGMT_EVENT)
 void net_mgmt_event_notify_with_info(uint32_t mgmt_event, struct net_if *iface,
 				     const void *info, size_t length);
+#else
+#define net_mgmt_event_notify_with_info(...)
+#endif
 
+/**
+ * @brief Used by the system to notify an event without any additional information.
+ * @param mgmt_event The actual network event code to notify
+ * @param iface A valid pointer on a struct net_if if only the event is
+ *        based on an iface. NULL otherwise.
+ */
+#if defined(CONFIG_NET_MGMT_EVENT)
 static inline void net_mgmt_event_notify(uint32_t mgmt_event,
 					 struct net_if *iface)
 {
@@ -229,7 +333,6 @@ static inline void net_mgmt_event_notify(uint32_t mgmt_event,
 }
 #else
 #define net_mgmt_event_notify(...)
-#define net_mgmt_event_notify_with_info(...)
 #endif
 
 /**
@@ -267,6 +370,12 @@ static inline int net_mgmt_event_wait(uint32_t mgmt_event_mask,
 				      size_t *info_length,
 				      k_timeout_t timeout)
 {
+	ARG_UNUSED(mgmt_event_mask);
+	ARG_UNUSED(raised_event);
+	ARG_UNUSED(iface);
+	ARG_UNUSED(info);
+	ARG_UNUSED(info_length);
+	ARG_UNUSED(timeout);
 	return 0;
 }
 #endif
@@ -305,6 +414,12 @@ static inline int net_mgmt_event_wait_on_iface(struct net_if *iface,
 					       size_t *info_length,
 					       k_timeout_t timeout)
 {
+	ARG_UNUSED(iface);
+	ARG_UNUSED(mgmt_event_mask);
+	ARG_UNUSED(raised_event);
+	ARG_UNUSED(info);
+	ARG_UNUSED(info_length);
+	ARG_UNUSED(timeout);
 	return 0;
 }
 #endif

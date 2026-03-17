@@ -31,7 +31,6 @@ source $(dirname "${BASH_SOURCE[0]}")/../../_mesh_test.sh
 #     - verify that the device is not re-provisioned again.
 
 # Step 1
-conf=prj_mesh1d1_conf
 overlay=overlay_pst_conf
 RunTestFlash mesh_prov_pst_pb_remote_ncrp \
 	prov_provisioner_pb_remote_client_ncrp_provision -flash_erase \
@@ -39,7 +38,6 @@ RunTestFlash mesh_prov_pst_pb_remote_ncrp \
 	prov_device_pb_remote_server_ncrp_prepare -flash_erase
 
 # Step 2
-conf=prj_mesh1d1_conf
 overlay=overlay_pst_conf
 RunTestFlash mesh_prov_pst_pb_remote_ncrp \
 	prov_provisioner_pb_remote_client_ncrp \
@@ -47,7 +45,6 @@ RunTestFlash mesh_prov_pst_pb_remote_ncrp \
 	prov_device_pb_remote_server_ncrp
 
 # Step 3
-conf=prj_mesh1d1_conf
 overlay=overlay_pst_conf
 RunTestFlash mesh_prov_pst_pb_remote_ncrp \
 	prov_provisioner_pb_remote_client_ncrp_second_time -flash_rm \
@@ -56,24 +53,21 @@ RunTestFlash mesh_prov_pst_pb_remote_ncrp \
 
 # The same test but with PSA crypto
 # Step 1
-conf=prj_mesh1d1_conf
-overlay="overlay_pst_conf_overlay_psa_conf"
+overlay="overlay_pst_conf_overlay_ss_conf_overlay_psa_conf"
 RunTestFlash mesh_prov_pst_pb_remote_ncrp_psa \
 	prov_provisioner_pb_remote_client_ncrp_provision -flash_erase \
 	prov_device_pb_remote_server_unproved -flash_erase \
 	prov_device_pb_remote_server_ncrp_prepare -flash_erase
 
 # Step 2
-conf=prj_mesh1d1_conf
-overlay="overlay_pst_conf_overlay_psa_conf"
+overlay="overlay_pst_conf_overlay_ss_conf_overlay_psa_conf"
 RunTestFlash mesh_prov_pst_pb_remote_ncrp_psa \
 	prov_provisioner_pb_remote_client_ncrp \
 	prov_device_pb_remote_server_proved \
 	prov_device_pb_remote_server_ncrp
 
 # Step 3
-conf=prj_mesh1d1_conf
-overlay="overlay_pst_conf_overlay_psa_conf"
+overlay="overlay_pst_conf_overlay_ss_conf_overlay_psa_conf"
 RunTestFlash mesh_prov_pst_pb_remote_ncrp_psa \
 	prov_provisioner_pb_remote_client_ncrp_second_time -flash_rm \
 	prov_device_pb_remote_server_proved -flash_rm \

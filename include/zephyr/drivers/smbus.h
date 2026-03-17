@@ -4,16 +4,25 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+ * @file
+ * @brief Public SMBus Driver APIs
+ */
+
 #ifndef ZEPHYR_INCLUDE_DRIVERS_SMBUS_H_
 #define ZEPHYR_INCLUDE_DRIVERS_SMBUS_H_
 
 /**
  * @brief SMBus Interface
  * @defgroup smbus_interface SMBus Interface
+ * @since 3.4
+ * @version 0.1.0
  * @ingroup io_interfaces
  * @{
  */
 
+#include <errno.h>
+#include <zephyr/sys/slist.h>
 #include <zephyr/types.h>
 #include <zephyr/device.h>
 
@@ -501,7 +510,7 @@ static inline void smbus_xfer_stats(const struct device *dev, uint8_t sent,
 	Z_DEVICE_DEFINE(node_id, Z_DEVICE_DT_DEV_NAME(node_id),		\
 			DEVICE_DT_NAME(node_id),			\
 			&UTIL_CAT(Z_DEVICE_DT_DEV_NAME(node_id), _init),\
-			pm_device,					\
+			NULL, Z_DEVICE_DT_FLAGS(node_id), pm_device,	\
 			data_ptr, cfg_ptr, level, prio,			\
 			api_ptr,					\
 			&(Z_DEVICE_STATE_NAME(Z_DEVICE_DT_DEV_NAME	\
@@ -606,11 +615,8 @@ static inline int z_impl_smbus_get_config(const struct device *dev,
  * @retval -ENOSYS If function smbus_smbalert_set_cb() is not implemented
  * by the driver.
  */
-__syscall int smbus_smbalert_set_cb(const struct device *dev,
-				    struct smbus_callback *cb);
-
-static inline int z_impl_smbus_smbalert_set_cb(const struct device *dev,
-					       struct smbus_callback *cb)
+static inline int smbus_smbalert_set_cb(const struct device *dev,
+					struct smbus_callback *cb)
 {
 	const struct smbus_driver_api *api =
 		(const struct smbus_driver_api *)dev->api;
@@ -660,11 +666,8 @@ static inline int z_impl_smbus_smbalert_remove_cb(const struct device *dev,
  * @retval -ENOSYS If function smbus_host_notify_set_cb() is not implemented
  * by the driver.
  */
-__syscall int smbus_host_notify_set_cb(const struct device *dev,
-				       struct smbus_callback *cb);
-
-static inline int z_impl_smbus_host_notify_set_cb(const struct device *dev,
-						  struct smbus_callback *cb)
+static inline int smbus_host_notify_set_cb(const struct device *dev,
+					   struct smbus_callback *cb)
 {
 	const struct smbus_driver_api *api =
 		(const struct smbus_driver_api *)dev->api;
@@ -1089,6 +1092,6 @@ static inline int z_impl_smbus_block_pcall(const struct device *dev,
  * @}
  */
 
-#include <syscalls/smbus.h>
+#include <zephyr/syscalls/smbus.h>
 
 #endif /* ZEPHYR_INCLUDE_DRIVERS_SMBUS_H_ */

@@ -42,9 +42,6 @@ echo-server directory:
   improve connection reliability, acknowledgments can be enabled with shell
   command: ``ieee802154 ack set``.
 
-- :file:`overlay-bt.conf`
-  This overlay config enables support for Bluetooth IPSP connectivity.
-
 - :file:`overlay-qemu_802154.conf`
   This overlay config enables support for two QEMU's when simulating
   IEEE 802.15.4 network that are connected together.
@@ -55,6 +52,10 @@ echo-server directory:
 - :file:`overlay-tunnel.conf`
   This overlay config enables support for IP tunneling.
 
+- :file:`overlay-vlan.conf`
+  This overlay config enables support for Virtual LAN.
+  See :ref:`networking_samples_common` for details.
+
 Build echo-server sample application like this:
 
 .. zephyr-app-commands::
@@ -64,22 +65,22 @@ Build echo-server sample application like this:
    :goals: build
    :compact:
 
-Example building for the nrf52840dk_nrf52840 with OpenThread support:
+Example building for the nrf52840dk/nrf52840 with OpenThread support:
 
 .. zephyr-app-commands::
    :zephyr-app: samples/net/sockets/echo_server
    :host-os: unix
-   :board: nrf52840dk_nrf52840
+   :board: nrf52840dk/nrf52840
    :conf: "prj.conf overlay-ot.conf"
    :goals: run
    :compact:
 
-Example building for the atsamr21_xpro with RF2XX driver support:
+Example building for the samr21_xpro with RF2XX driver support:
 
 .. zephyr-app-commands::
    :zephyr-app: samples/net/sockets/echo_server
    :host-os: unix
-   :board: [atsamr21_xpro | sam4e_xpro | sam_v71_xult]
+   :board: [samr21_xpro | sam4e_xpro | sam_v71_xult/samv71q21]
    :gen-args: -DEXTRA_CONF_FILE=overlay-802154.conf
    :goals: build flash
    :compact:

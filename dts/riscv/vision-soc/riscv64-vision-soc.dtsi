@@ -1,0 +1,158 @@
+
+/ {
+  #address-cells = <2>;
+  #size-cells = <2>;
+  compatible = "mindgrove,visionsoc-dev";
+  model = "mindgrove,visionsoc";
+  cpus {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    timebase-frequency = <1000000000>;
+    cpu0: cpu@0 {
+        device_type = "cpu";
+        reg = <0x00>;
+        status = "okay";
+        compatible = "riscv";
+        riscv,isa = "rv64imafdc";
+        mmu-type = "riscv,sv39";
+        clock-frequency = <1000000000>;
+          cpu0_intc: interrupt-controller {
+             #address-cells = <0>;
+	           #interrupt-cells = <1>;
+             interrupt-controller;
+             compatible = "riscv,cpu-intc";
+          };
+    };
+    cpu1: cpu@1 {
+        device_type = "cpu";
+        reg = <0x01>;
+        status = "okay";
+        compatible = "riscv";
+        riscv,isa = "rv64imafdc";
+        mmu-type = "riscv,sv39";
+        clock-frequency = <1000000000>;
+          cpu1_intc: interrupt-controller {
+             #address-cells = <0>;
+	           #interrupt-cells = <1>;
+             interrupt-controller;
+             compatible = "riscv,cpu-intc";
+          };
+    };
+    cpu2: cpu@2 {
+        device_type = "cpu";
+        reg = <0x02>;
+        status = "okay";
+        compatible = "riscv";
+        riscv,isa = "rv64imafdc";
+        mmu-type = "riscv,sv39";
+        clock-frequency = <1000000000>;
+          cpu2_intc: interrupt-controller {
+             #address-cells = <0>;
+	           #interrupt-cells = <1>;
+             interrupt-controller;
+             compatible = "riscv,cpu-intc";
+          };
+      };
+      cpu3: cpu@3 {
+        device_type = "cpu";
+        reg = <0x03>;
+        status = "okay";
+        compatible = "riscv";
+        riscv,isa = "rv64imafdc";
+        mmu-type = "riscv,sv39";
+        clock-frequency = <1000000000>;
+          cpu3_intc: interrupt-controller {
+             #address-cells = <0>;
+	           #interrupt-cells = <1>;
+             interrupt-controller;
+             compatible = "riscv,cpu-intc";
+          };
+      };
+  };
+
+  memory@80000000 {
+    device_type = "memory";
+    reg = <0x0 0x80000000 0x0 0x10000000 >;
+  };
+
+  soc {
+    #address-cells = <1>;
+		#size-cells = <1>;
+    compatible = "mindgrove,visionsoc-soc";
+
+    // clint: clint@2000000 {
+		// 	compatible = "sifive,clint0";
+		// 	interrupts-extended = <&cpu0_intc 3 &cpu0_intc 7 
+		// 				&cpu1_intc 3 &cpu1_intc 7
+		// 				&cpu2_intc 3 &cpu2_intc 7
+		// 				&cpu3_intc 3 &cpu3_intc 7>; // 3 is Machine Software Interrupt, 7 is Machine Timer Interrupt for CPU
+		// 	reg = <0x2000000 0x10000>; // 1-cell address/size
+		// };
+
+		// mtimer: timer@200bff8 {
+		// 	compatible = "riscv,machine-timer";
+		// 	interrupts-extended = <&cpu0_intc 7
+		// 				&cpu1_intc 7
+		// 				&cpu2_intc 7
+		// 				&cpu3_intc 7>;
+		// 	reg = <0x200bff8 0x8 0x2004000 0x8>;
+		// 	reg-names = "mtime", "mtimecmp";
+		// };
+
+    clint: clint@2000000 {
+      #address-cells = <0>;
+      #size-cells = <2>;
+      compatible = "sifive,clint0";
+      interrupts-extended = <&cpu0_intc 3 &cpu0_intc 7 
+                             &cpu1_intc 3 &cpu1_intc 7
+                             &cpu2_intc 3 &cpu2_intc 7
+                             &cpu3_intc 3 &cpu3_intc 7>; // 3 is Machine Software Interrupt, 7 is Machine Timer Interrupt for CPU
+      reg = <0x02000000 0x00000008>;
+    };
+
+		mtimer: timer@200bff8 {
+			compatible = "riscv,machine-timer";
+			interrupts-extended = <&cpu0_intc 7>;
+			reg = <0x200bff8 0x8 0x2004000 0x8>;
+			reg-names = "mtime", "mtimecmp";
+		};
+
+    plic: interrupt-controller@c000000 {
+			riscv,max-priority = <7>;
+			riscv,ndev = < 59 >;
+			reg = <0x0c000000 0x04000000>;
+			interrupts-extended = <&cpu0_intc 11>, <&cpu0_intc 9>,
+			                <&cpu1_intc 11>, <&cpu1_intc 9>, //11 as to mention MACHINE MODE for CPU or 9 for SUPERVISOR MODE for CPU...
+			                <&cpu2_intc 11>, <&cpu2_intc 9>,
+			                <&cpu3_intc 11>, <&cpu3_intc 9>;
+			interrupt-controller;
+			// compatible = "mindgrove,plic0";
+			compatible = "sifive,plic-1.0.0";
+			#address-cells = < 0x00 >;
+			#interrupt-cells = < 0x02 >;
+		};
+
+    uart0: serial@11300 {
+        compatible = "mindgrove,uart";
+        reg = <0x11300 0x100>;
+        interrupts = <47 1>;             // <irq_number priority>
+       	interrupt-names = "TXnRX";
+        interrupt-parent = <&plic>;
+        clock-frequency = <1000000000>;
+        current-speed = <62500000>;
+        status = "okay";
+    };
+
+    uart1: serial@11400 {
+        compatible = "mindgrove,uart";
+        reg = <0x11400 0x100>;
+        interrupts = <48 1>;             // <irq_number priority>
+       	interrupt-names = "TXnRX";
+        interrupt-parent = <&plic>;
+        clock-frequency = <1000000000>;
+        current-speed = <62500000>;
+        status = "okay";
+    };
+
+  };
+};

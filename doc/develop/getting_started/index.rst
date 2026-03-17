@@ -22,7 +22,8 @@ Click the operating system you are using.
 
    .. group-tab:: Ubuntu
 
-      This guide covers Ubuntu version 18.04 LTS and later.
+      This guide covers Ubuntu version 20.04 LTS and later.
+      If you are using a different Linux distribution see :ref:`installation_linux`.
 
       .. code-block:: bash
 
@@ -61,7 +62,7 @@ The current minimum required version for the main dependencies are:
      - 3.20.5
 
    * - `Python <https://www.python.org/>`_
-     - 3.8
+     - 3.10
 
    * - `Devicetree compiler <https://www.devicetree.org/>`_
      - 1.4.6
@@ -94,7 +95,14 @@ The current minimum required version for the main dependencies are:
               python3-dev python3-pip python3-setuptools python3-tk python3-wheel xz-utils file \
               make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1
 
-      #. Verify the versions of the main dependencies installed on your system by entering::
+         .. note::
+
+            Due to the unavailability of ``gcc-multilib`` and ``g++-multilib`` on AArch64
+            (ARM64) systems, you may need to remove them from the list of packages to install.
+
+      #. Verify the versions of the main dependencies installed on your system by entering:
+
+         .. code-block:: bash
 
             cmake --version
             python3 --version
@@ -114,11 +122,31 @@ The current minimum required version for the main dependencies are:
 
             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
+      #. After the Homebrew installation script completes, follow the on-screen
+         instructions to add the Homebrew installation to the path.
+
+         * On macOS running on Apple Silicon, this is achieved with:
+
+           .. code-block:: bash
+
+              (echo; echo 'eval "$(/opt/homebrew/bin/brew shellenv)"') >> ~/.zprofile
+              source ~/.zprofile
+
+         * On macOS running on Intel, use the command for Apple Silicon, but replace ``/opt/homebrew/`` with ``/usr/local/``.
+
       #. Use ``brew`` to install the required dependencies:
 
          .. code-block:: bash
 
-            brew install cmake ninja gperf python3 ccache qemu dtc wget libmagic
+            brew install cmake ninja gperf python3 python-tk ccache qemu dtc libmagic wget openocd
+
+      #. Add the Homebrew Python folder to the path, in order to be able to
+         execute ``python`` and ``pip`` as well ``python3`` and ``pip3``.
+
+           .. code-block:: bash
+
+              (echo; echo 'export PATH="'$(brew --prefix)'/opt/python/libexec/bin:$PATH"') >> ~/.zprofile
+              source ~/.zprofile
 
    .. group-tab:: Windows
 
@@ -132,42 +160,42 @@ The current minimum required version for the main dependencies are:
 
          Therefore, we don't recommend using WSL when getting started.
 
-      These instructions must be run in a ``cmd.exe`` command prompt. The
-      required commands differ on PowerShell.
+      In modern version of Windows (10 and later) it is recommended to install the Windows Terminal
+      application from the Microsoft Store. Instructions are provided for a ``cmd.exe`` or
+      PowerShell command prompts.
 
-      These instructions rely on `Chocolatey`_. If Chocolatey isn't an option,
-      you can install dependencies from their respective websites and ensure
-      the command line tools are on your :envvar:`PATH` :ref:`environment
-      variable <env_vars>`.
+      These instructions rely on Windows' official package manager, `winget`_.
+      If using winget isn't an option, you can install dependencies from their
+      respective websites and ensure the command line tools are on your
+      :envvar:`PATH` :ref:`environment variable <env_vars>`.
 
       |p|
 
       .. _install_dependencies_windows:
 
-      #. `Install chocolatey`_.
+      #. In modern Windows versions, winget is already pre-installed by default.
+         You can verify that this is the case by typing ``winget`` in a terminal
+         window. If that fails, you can then `install winget`_.
 
-      #. Open a ``cmd.exe`` window as **Administrator**. To do so, press the Windows key,
-         type "cmd.exe", right-click the result, and choose :guilabel:`Run as
-         Administrator`.
+      #. Open a Command Prompt (``cmd.exe``) or PowerShell terminal window.
+         To do so, press the Windows key, type ``cmd.exe`` or PowerShell and
+         click on the result.
 
-      #. Disable global confirmation to avoid having to confirm the
-         installation of individual programs:
+      #. Use ``winget`` to install the required dependencies:
 
-         .. code-block:: console
+         .. code-block:: bat
 
-            choco feature enable -n allowGlobalConfirmation
+            winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip
 
-      #. Use ``choco`` to install the required dependencies:
+      #. Close the terminal window.
 
-         .. code-block:: console
+      .. note::
 
-            choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
-            choco install ninja gperf python git dtc-msys2 wget 7zip
+         You may need to add the 7zip installation folder to your ``PATH``.
 
-      #. Close the window and open a new ``cmd.exe`` window **as a regular user** to continue.
 
-.. _Chocolatey: https://chocolatey.org/
-.. _Install chocolatey: https://chocolatey.org/install
+.. _winget: https://learn.microsoft.com/en-us/windows/package-manager/
+.. _install winget: https://aka.ms/getwinget
 
 .. _get_the_code:
 .. _clone-zephyr:
@@ -178,460 +206,263 @@ Get Zephyr and install Python dependencies
 ******************************************
 
 Next, clone Zephyr and its :ref:`modules <modules>` into a new :ref:`west
-<west>` workspace named :file:`zephyrproject`. You'll also install Zephyr's
-additional Python dependencies.
+<west>` workspace. In the following instructions the name :file:`zephyrproject`
+is used for the workspace, however in practice its name and location can be freely
+chosen. You'll also install Zephyr's additional Python dependencies in a
+`Python virtual environment`_.
 
-
-.. note::
-
-    It is easy to run into Python package incompatibilities when installing
-    dependencies at a system or user level. This situation can happen,
-    for example, if working on multiple Zephyr versions or other projects
-    using Python on the same machine.
-
-    For this reason it is suggested to use `Python virtual environments`_.
-
-.. _Python virtual environments: https://docs.python.org/3/library/venv.html
+.. _Python virtual environment: https://docs.python.org/3/library/venv.html
 
 .. tabs::
 
    .. group-tab:: Ubuntu
 
-      .. tabs::
+      #. Use ``apt`` to install Python ``venv`` package:
 
-         .. group-tab:: Install within virtual environment
+         .. code-block:: bash
 
-            #. Use ``apt`` to install Python ``venv`` package:
+            sudo apt install python3-venv
 
-               .. code-block:: bash
+      #. Create a new virtual environment:
 
-                  sudo apt install python3-venv
+         .. code-block:: bash
 
-            #. Create a new virtual environment:
+            python3 -m venv ~/zephyrproject/.venv
 
-               .. code-block:: bash
+      #. Activate the virtual environment:
 
-                  python3 -m venv ~/zephyrproject/.venv
+         .. code-block:: bash
 
-            #. Activate the virtual environment:
+            source ~/zephyrproject/.venv/bin/activate
 
-               .. code-block:: bash
+         Once activated your shell will be prefixed with ``(.venv)``. The
+         virtual environment can be deactivated at any time by running
+         ``deactivate``.
 
-                  source ~/zephyrproject/.venv/bin/activate
+         .. note::
 
-               Once activated your shell will be prefixed with ``(.venv)``. The
-               virtual environment can be deactivated at any time by running
-               ``deactivate``.
+            Remember to activate the virtual environment every time you
+            start working.
 
-               .. note::
+      #. Install west:
 
-                  Remember to activate the virtual environment every time you
-                  start working.
+         .. code-block:: bash
 
-            #. Install west:
+            pip install west
 
-               .. code-block:: bash
+      #. Get the Zephyr source code:
 
-                  pip install west
+         .. code-block:: bash
 
-            #. Get the Zephyr source code:
+           west init ~/zephyrproject
+           cd ~/zephyrproject
+           west update
 
-               .. code-block:: bash
+      #. Export a :ref:`Zephyr CMake package <cmake_pkg>`. This allows CMake to
+         automatically load boilerplate code required for building Zephyr
+         applications.
 
-                 west init ~/zephyrproject
-                 cd ~/zephyrproject
-                 west update
+         .. code-block:: bash
 
-            #. Export a :ref:`Zephyr CMake package <cmake_pkg>`. This allows CMake to
-               automatically load boilerplate code required for building Zephyr
-               applications.
+            west zephyr-export
 
-               .. code-block:: console
+      #. The Zephyr west extension command, ``west packages`` can be used to install Python
+         dependencies.
 
-                  west zephyr-export
+         .. code-block:: bash
 
-            #. Zephyr's ``scripts/requirements.txt`` file declares additional Python
-               dependencies. Install them with ``pip``.
-
-               .. code-block:: bash
-
-                  pip install -r ~/zephyrproject/zephyr/scripts/requirements.txt
-
-         .. group-tab:: Install globally
-
-            #. Install west, and make sure :file:`~/.local/bin` is on your
-               :envvar:`PATH` :ref:`environment variable <env_vars>`:
-
-               .. code-block:: bash
-
-                  pip3 install --user -U west
-                  echo 'export PATH=~/.local/bin:"$PATH"' >> ~/.bashrc
-                  source ~/.bashrc
-
-            #. Get the Zephyr source code:
-
-               .. code-block:: bash
-
-                  west init ~/zephyrproject
-                  cd ~/zephyrproject
-                  west update
-
-            #. Export a :ref:`Zephyr CMake package <cmake_pkg>`. This allows CMake to
-               automatically load boilerplate code required for building Zephyr
-               applications.
-
-               .. code-block:: console
-
-                  west zephyr-export
-
-            #. Zephyr's ``scripts/requirements.txt`` file declares additional Python
-               dependencies. Install them with ``pip3``.
-
-               .. code-block:: bash
-
-                  pip3 install --user -r ~/zephyrproject/zephyr/scripts/requirements.txt
+            west packages pip --install
 
    .. group-tab:: macOS
 
-      .. tabs::
+      #. Create a new virtual environment:
 
-         .. group-tab:: Install within virtual environment
+         .. code-block:: bash
 
-            #. Create a new virtual environment:
+            python3 -m venv ~/zephyrproject/.venv
 
-               .. code-block:: bash
+      #. Activate the virtual environment:
 
-                  python3 -m venv ~/zephyrproject/.venv
+         .. code-block:: bash
 
-            #. Activate the virtual environment:
+            source ~/zephyrproject/.venv/bin/activate
 
-               .. code-block:: bash
+         Once activated your shell will be prefixed with ``(.venv)``. The
+         virtual environment can be deactivated at any time by running
+         ``deactivate``.
 
-                  source ~/zephyrproject/.venv/bin/activate
+         .. note::
 
-               Once activated your shell will be prefixed with ``(.venv)``. The
-               virtual environment can be deactivated at any time by running
-               ``deactivate``.
+            Remember to activate the virtual environment every time you
+            start working.
 
-               .. note::
+      #. Install west:
 
-                  Remember to activate the virtual environment every time you
-                  start working.
+         .. code-block:: bash
 
-            #. Install west:
+            pip install west
 
-               .. code-block:: bash
+      #. Get the Zephyr source code:
 
-                  pip install west
+         .. code-block:: bash
 
-            #. Get the Zephyr source code:
+            west init ~/zephyrproject
+            cd ~/zephyrproject
+            west update
 
-               .. code-block:: bash
+      #. Export a :ref:`Zephyr CMake package <cmake_pkg>`. This allows CMake to
+         automatically load boilerplate code required for building Zephyr
+         applications.
 
-                  west init ~/zephyrproject
-                  cd ~/zephyrproject
-                  west update
+         .. code-block:: bash
 
-            #. Export a :ref:`Zephyr CMake package <cmake_pkg>`. This allows CMake to
-               automatically load boilerplate code required for building Zephyr
-               applications.
+            west zephyr-export
 
-               .. code-block:: console
+      #. The Zephyr west extension command, ``west packages`` can be used to install Python
+         dependencies.
 
-                  west zephyr-export
+         .. code-block:: bash
 
-            #. Zephyr's ``scripts/requirements.txt`` file declares additional Python
-               dependencies. Install them with ``pip``.
-
-               .. code-block:: bash
-
-                  pip install -r ~/zephyrproject/zephyr/scripts/requirements.txt
-
-         .. group-tab:: Install globally
-
-            #. Install west:
-
-               .. code-block:: bash
-
-                  pip3 install -U west
-
-            #. Get the Zephyr source code:
-
-               .. code-block:: bash
-
-                  west init ~/zephyrproject
-                  cd ~/zephyrproject
-                  west update
-
-            #. Export a :ref:`Zephyr CMake package <cmake_pkg>`. This allows CMake to
-               automatically load boilerplate code required for building Zephyr
-               applications.
-
-               .. code-block:: console
-
-                  west zephyr-export
-
-            #. Zephyr's ``scripts/requirements.txt`` file declares additional Python
-               dependencies. Install them with ``pip3``.
-
-               .. code-block:: bash
-
-                  pip3 install -r ~/zephyrproject/zephyr/scripts/requirements.txt
+            west packages pip --install
 
    .. group-tab:: Windows
 
-      .. tabs::
+      #. Open a ``cmd.exe`` or PowerShell terminal window **as a regular user**
 
-         .. group-tab:: Install within virtual environment
+      #. Create a new virtual environment:
 
-            #. Create a new virtual environment:
+         .. tabs::
 
-               .. code-block:: bat
+            .. code-tab:: bat
 
-                  cd %HOMEPATH%
-                  python -m venv zephyrproject\.venv
+               cd %HOMEPATH%
+               python -m venv zephyrproject\.venv
 
-            #. Activate the virtual environment:
+            .. code-tab:: powershell
 
-               .. code-block:: bat
+               cd $Env:HOMEPATH
+               python -m venv zephyrproject\.venv
 
-                  :: cmd.exe
-                  zephyrproject\.venv\Scripts\activate.bat
-                  :: PowerShell
-                  zephyrproject\.venv\Scripts\Activate.ps1
+      #. Activate the virtual environment:
 
-               Once activated your shell will be prefixed with ``(.venv)``. The
-               virtual environment can be deactivated at any time by running
-               ``deactivate``.
+         .. tabs::
 
-               .. note::
+            .. code-tab:: bat
 
-                  Remember to activate the virtual environment every time you
-                  start working.
+               zephyrproject\.venv\Scripts\activate.bat
 
-            #. Install west:
+            .. code-tab:: powershell
 
-               .. code-block:: bash
+               zephyrproject\.venv\Scripts\Activate.ps1
 
-                  pip install west
+         Once activated your shell will be prefixed with ``(.venv)``. The
+         virtual environment can be deactivated at any time by running
+         ``deactivate``.
 
-            #. Get the Zephyr source code:
+         .. note::
 
-               .. code-block:: bash
+            Remember to activate the virtual environment every time you
+            start working.
 
-                  west init zephyrproject
-                  cd zephyrproject
-                  west update
+      #. Install west:
 
-            #. Export a :ref:`Zephyr CMake package <cmake_pkg>`. This allows CMake to
-               automatically load boilerplate code required for building Zephyr
-               applications.
+         .. code-block:: bat
 
-               .. code-block:: console
+            pip install west
 
-                  west zephyr-export
+      #. Get the Zephyr source code:
 
-            #. Zephyr's ``scripts\requirements.txt`` file declares additional Python
-               dependencies. Install them with ``pip``.
+         .. code-block:: bat
 
-               .. code-block:: bash
+            west init zephyrproject
+            cd zephyrproject
+            west update
 
-                  pip install -r %HOMEPATH%\zephyrproject\zephyr\scripts\requirements.txt
+      #. Export a :ref:`Zephyr CMake package <cmake_pkg>`. This allows CMake to
+         automatically load boilerplate code required for building Zephyr
+         applications.
 
-         .. group-tab:: Install globally
+         .. code-block:: bat
 
-            #. Install west:
+            west zephyr-export
 
-               .. code-block:: bat
+      #. The Zephyr west extension command, ``west packages`` can be used to install Python
+         dependencies.
 
-                  pip3 install -U west
+         .. code-block:: bat
 
-            #. Get the Zephyr source code:
+            west packages pip --install
 
-               .. code-block:: bat
-
-                  cd %HOMEPATH%
-                  west init zephyrproject
-                  cd zephyrproject
-                  west update
-
-            #. Export a :ref:`Zephyr CMake package <cmake_pkg>`. This allows CMake to
-               automatically load boilerplate code required for building Zephyr
-               applications.
-
-               .. code-block:: bat
-
-                  west zephyr-export
-
-            #. Zephyr's ``scripts\requirements.txt`` file declares additional Python
-               dependencies. Install them with ``pip3``.
-
-               .. code-block:: bat
-
-                  pip3 install -r %HOMEPATH%\zephyrproject\zephyr\scripts\requirements.txt
-
-
-Install Zephyr SDK
-******************
+Install the Zephyr SDK
+**********************
 
 The :ref:`Zephyr Software Development Kit (SDK) <toolchain_zephyr_sdk>`
 contains toolchains for each of Zephyr's supported architectures, which
 include a compiler, assembler, linker and other programs required to build
 Zephyr applications.
 
-It also contains additional host tools, such as custom QEMU and OpenOCD builds
+For Linux, it also contains additional host tools, such as custom QEMU and OpenOCD builds
 that are used to emulate, flash and debug Zephyr applications.
+
 
 .. tabs::
 
    .. group-tab:: Ubuntu
 
-      .. _ubuntu_zephyr_sdk:
-
-      #. Download and verify the `Zephyr SDK bundle
-         <https://github.com/zephyrproject-rtos/sdk-ng/releases/tag/v0.16.3>`_:
+      Install the Zephyr SDK using the ``west sdk install``.
 
          .. code-block:: bash
 
-            cd ~
-            wget https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.3/zephyr-sdk-0.16.3_linux-x86_64.tar.xz
-            wget -O - https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.3/sha256.sum | shasum --check --ignore-missing
+            cd ~/zephyrproject/zephyr
+            west sdk install
 
-         If your host architecture is 64-bit ARM (for example, Raspberry Pi), replace ``x86_64``
-         with ``aarch64`` in order to download the 64-bit ARM Linux SDK.
+      .. tip::
 
-      #. Extract the Zephyr SDK bundle archive:
-
-         .. code-block:: bash
-
-            tar xvf zephyr-sdk-0.16.3_linux-x86_64.tar.xz
-
-         .. note::
-            It is recommended to extract the Zephyr SDK bundle at one of the following locations:
-
-            * ``$HOME``
-            * ``$HOME/.local``
-            * ``$HOME/.local/opt``
-            * ``$HOME/bin``
-            * ``/opt``
-            * ``/usr/local``
-
-            The Zephyr SDK bundle archive contains the ``zephyr-sdk-0.16.3`` directory and, when
-            extracted under ``$HOME``, the resulting installation path will be
-            ``$HOME/zephyr-sdk-0.16.3``.
-
-      #. Run the Zephyr SDK bundle setup script:
-
-         .. code-block:: bash
-
-            cd zephyr-sdk-0.16.3
-            ./setup.sh
-
-         .. note::
-            You only need to run the setup script once after extracting the Zephyr SDK bundle.
-
-            You must rerun the setup script if you relocate the Zephyr SDK bundle directory after
-            the initial setup.
-
-      #. Install `udev <https://en.wikipedia.org/wiki/Udev>`_ rules, which
-         allow you to flash most Zephyr boards as a regular user:
-
-         .. code-block:: bash
-
-            sudo cp ~/zephyr-sdk-0.16.3/sysroots/x86_64-pokysdk-linux/usr/share/openocd/contrib/60-openocd.rules /etc/udev/rules.d
-            sudo udevadm control --reload
+          Using the command options, you can specify the SDK installation destination
+          and which architecture of toolchains to install.
+          See ``west sdk install --help`` for details.
 
    .. group-tab:: macOS
 
-      .. _macos_zephyr_sdk:
-
-      #. Download and verify the `Zephyr SDK bundle
-         <https://github.com/zephyrproject-rtos/sdk-ng/releases/tag/v0.16.3>`_:
+      Install the Zephyr SDK using the ``west sdk install``.
 
          .. code-block:: bash
 
-            cd ~
-            wget https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.3/zephyr-sdk-0.16.3_macos-x86_64.tar.xz
-            wget -O - https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.3/sha256.sum | shasum --check --ignore-missing
+            cd ~/zephyrproject/zephyr
+            west sdk install
 
-         If your host architecture is 64-bit ARM (Apple Silicon, also known as M1), replace
-         ``x86_64`` with ``aarch64`` in order to download the 64-bit ARM macOS SDK.
+      .. tip::
 
-      #. Extract the Zephyr SDK bundle archive:
-
-         .. code-block:: bash
-
-            tar xvf zephyr-sdk-0.16.3_macos-x86_64.tar.xz
-
-         .. note::
-            It is recommended to extract the Zephyr SDK bundle at one of the following locations:
-
-            * ``$HOME``
-            * ``$HOME/.local``
-            * ``$HOME/.local/opt``
-            * ``$HOME/bin``
-            * ``/opt``
-            * ``/usr/local``
-
-            The Zephyr SDK bundle archive contains the ``zephyr-sdk-0.16.3`` directory and, when
-            extracted under ``$HOME``, the resulting installation path will be
-            ``$HOME/zephyr-sdk-0.16.3``.
-
-      #. Run the Zephyr SDK bundle setup script:
-
-         .. code-block:: bash
-
-            cd zephyr-sdk-0.16.3
-            ./setup.sh
-
-         .. note::
-            You only need to run the setup script once after extracting the Zephyr SDK bundle.
-
-            You must rerun the setup script if you relocate the Zephyr SDK bundle directory after
-            the initial setup.
+          Using the command options, you can specify the SDK installation destination
+          and which architecture of toolchains to install.
+          See ``west sdk install --help`` for details.
 
    .. group-tab:: Windows
 
-      .. _windows_zephyr_sdk:
+      Install the Zephyr SDK using the ``west sdk install``.
 
-      #. Open a ``cmd.exe`` window by pressing the Windows key typing "cmd.exe".
+         .. tabs::
 
-      #. Download the `Zephyr SDK bundle
-         <https://github.com/zephyrproject-rtos/sdk-ng/releases/tag/v0.16.3>`_:
+            .. code-tab:: bat
 
-         .. code-block:: console
+               cd %HOMEPATH%\zephyrproject\zephyr
+               west sdk install
 
-            cd %HOMEPATH%
-            wget https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.16.3/zephyr-sdk-0.16.3_windows-x86_64.7z
+            .. code-tab:: powershell
 
-      #. Extract the Zephyr SDK bundle archive:
+               cd $Env:HOMEPATH\zephyrproject\zephyr
+               west sdk install
 
-         .. code-block:: console
+      .. tip::
 
-            7z x zephyr-sdk-0.16.3_windows-x86_64.7z
+          Using the command options, you can specify the SDK installation destination
+          and which architecture of toolchains to install.
+          See ``west sdk install --help`` for details.
 
-         .. note::
-            It is recommended to extract the Zephyr SDK bundle at one of the following locations:
+.. note::
 
-            * ``%HOMEPATH%``
-            * ``%PROGRAMFILES%``
-
-            The Zephyr SDK bundle archive contains the ``zephyr-sdk-0.16.3`` directory and, when
-            extracted under ``%HOMEPATH%``, the resulting installation path will be
-            ``%HOMEPATH%\zephyr-sdk-0.16.3``.
-
-      #. Run the Zephyr SDK bundle setup script:
-
-         .. code-block:: console
-
-            cd zephyr-sdk-0.16.3
-            setup.cmd
-
-         .. note::
-            You only need to run the setup script once after extracting the Zephyr SDK bundle.
-
-            You must rerun the setup script if you relocate the Zephyr SDK bundle directory after
-            the initial setup.
+    If you want to install Zephyr SDK without using the ``west sdk`` command,
+    please see :ref:`toolchain_zephyr_sdk_install`.
 
 .. _getting_started_run_sample:
 
@@ -642,7 +473,7 @@ Build the Blinky Sample
 
    :zephyr:code-sample:`blinky` is compatible with most, but not all, :ref:`boards`. If your board
    does not meet Blinky's :ref:`blinky-sample-requirements`, then
-   :ref:`hello_world` is a good alternative.
+   :zephyr:code-sample:`hello_world` is a good alternative.
 
    If you are unsure what name west uses for your board, ``west boards``
    can be used to obtain a list of all boards Zephyr supports.
@@ -668,15 +499,33 @@ Build the :zephyr:code-sample:`blinky` with :ref:`west build <west-building>`, c
 
    .. group-tab:: Windows
 
-      .. code-block:: bat
+      .. tabs::
 
-         cd %HOMEPATH%\zephyrproject\zephyr
-         west build -p always -b <your-board-name> samples\basic\blinky
+         .. code-tab:: bat
+
+            cd %HOMEPATH%\zephyrproject\zephyr
+            west build -p always -b <your-board-name> samples\basic\blinky
+
+         .. code-tab:: powershell
+
+            cd $Env:HOMEPATH\zephyrproject\zephyr
+            west build -p always -b <your-board-name> samples\basic\blinky
 
 The ``-p always`` option forces a pristine build, and is recommended for new
 users. Users may also use the ``-p auto`` option, which will use
 heuristics to determine if a pristine build is required, such as when building
 another sample.
+
+.. note::
+
+   A board may contain one or multiple SoCs, Also, each SoC may contain one or
+   more CPU clusters.
+   When building for such boards it is necessary to specify the SoC or CPU
+   cluster for which the sample must be built.
+   For example to build :zephyr:code-sample:`blinky` for the ``cpuapp`` core on
+   the :zephyr:board:`nrf5340dk` the board must be provided as:
+   ``nrf5340dk/nrf5340/cpuapp``. See also :ref:`board_terminology` for more
+   details.
 
 Flash the Sample
 ****************
@@ -686,13 +535,21 @@ If in doubt about what to do, check your board's page in :ref:`boards`.
 
 Then flash the sample using :ref:`west flash <west-flashing>`:
 
-.. code-block:: console
+.. code-block:: shell
 
    west flash
 
-You may need to install additional :ref:`host tools <flash-debug-host-tools>`
-required by your board. The ``west flash`` command will print an error if any
-required dependencies are missing.
+.. note::
+
+    You may need to install additional :ref:`host tools <flash-debug-host-tools>`
+    required by your board. The ``west flash`` command will print an error if any
+    required dependencies are missing.
+
+.. note::
+
+    When using Linux, you may need to configure udev rules the first time
+    of using a debug probe.
+    Please also see :ref:`setting-udev-rules`.
 
 If you're using blinky, the LED will start to blink as shown in this figure:
 
@@ -707,7 +564,7 @@ Next Steps
 
 Here are some next steps for exploring Zephyr:
 
-* Try other :ref:`samples-and-demos`
+* Try other :zephyr:code-sample-category:`samples`
 * Learn about :ref:`application` and the :ref:`west <west>` tool
 * Find out about west's :ref:`flashing and debugging <west-build-flash-debug>`
   features, or more about :ref:`flashing_and_debugging` in general

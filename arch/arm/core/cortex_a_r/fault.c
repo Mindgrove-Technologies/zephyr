@@ -10,6 +10,11 @@
 #include <kernel_internal.h>
 #include <zephyr/arch/common/exc_handle.h>
 #include <zephyr/logging/log.h>
+#if defined(CONFIG_GDBSTUB)
+#include <zephyr/arch/arm/gdbstub.h>
+#include <zephyr/debug/gdbstub.h>
+#endif
+
 LOG_MODULE_DECLARE(os, CONFIG_KERNEL_LOG_LEVEL);
 
 #define FAULT_DUMP_VERBOSE	(CONFIG_FAULT_DUMP == 2)
@@ -95,6 +100,59 @@ static uint32_t dump_fault(uint32_t status, uint32_t addr)
 		reason = K_ERR_ARM_UNSUPPORTED_EXCLUSIVE_ACCESS_FAULT;
 		LOG_ERR("Unsupported Exclusive Access Fault @ 0x%08x", addr);
 		break;
+#elif defined(CONFIG_ARMV7_A)
+	case FSR_FS_PERMISSION_FAULT_2ND_LEVEL:
+		reason = K_ERR_ARM_PERMISSION_FAULT_2ND_LEVEL;
+		LOG_ERR("2nd Level Permission Fault @ 0x%08x", addr);
+		break;
+	case FSR_FS_ACCESS_FLAG_FAULT_1ST_LEVEL:
+		reason = K_ERR_ARM_ACCESS_FLAG_FAULT_1ST_LEVEL;
+		LOG_ERR("1st Level Access Flag Fault @ 0x%08x", addr);
+		break;
+	case FSR_FS_ACCESS_FLAG_FAULT_2ND_LEVEL:
+		reason = K_ERR_ARM_ACCESS_FLAG_FAULT_2ND_LEVEL;
+		LOG_ERR("2nd Level Access Flag Fault @ 0x%08x", addr);
+		break;
+	case FSR_FS_CACHE_MAINTENANCE_INSTRUCTION_FAULT:
+		reason = K_ERR_ARM_CACHE_MAINTENANCE_INSTRUCTION_FAULT;
+		LOG_ERR("Cache Maintenance Instruction Fault @ 0x%08x", addr);
+		break;
+	case FSR_FS_TRANSLATION_FAULT:
+		reason = K_ERR_ARM_TRANSLATION_FAULT;
+		LOG_ERR("1st Level Translation Fault @ 0x%08x", addr);
+		break;
+	case FSR_FS_TRANSLATION_FAULT_2ND_LEVEL:
+		reason = K_ERR_ARM_TRANSLATION_FAULT_2ND_LEVEL;
+		LOG_ERR("2nd Level Translation Fault @ 0x%08x", addr);
+		break;
+	case FSR_FS_DOMAIN_FAULT_1ST_LEVEL:
+		reason = K_ERR_ARM_DOMAIN_FAULT_1ST_LEVEL;
+		LOG_ERR("1st Level Domain Fault @ 0x%08x", addr);
+		break;
+	case FSR_FS_DOMAIN_FAULT_2ND_LEVEL:
+		reason = K_ERR_ARM_DOMAIN_FAULT_2ND_LEVEL;
+		LOG_ERR("2nd Level Domain Fault @ 0x%08x", addr);
+		break;
+	case FSR_FS_SYNC_EXTERNAL_ABORT_TRANSLATION_TABLE_1ST_LEVEL:
+		reason = K_ERR_ARM_SYNC_EXTERNAL_ABORT_TRANSLATION_TABLE_1ST_LEVEL;
+		LOG_ERR("1st Level Synchronous External Abort Translation Table @ 0x%08x", addr);
+		break;
+	case FSR_FS_SYNC_EXTERNAL_ABORT_TRANSLATION_TABLE_2ND_LEVEL:
+		reason = K_ERR_ARM_SYNC_EXTERNAL_ABORT_TRANSLATION_TABLE_2ND_LEVEL;
+		LOG_ERR("2nd Level Synchronous External Abort Translation Table @ 0x%08x", addr);
+		break;
+	case FSR_FS_TLB_CONFLICT_FAULT:
+		reason = K_ERR_ARM_TLB_CONFLICT_FAULT;
+		LOG_ERR("Table Conflict Fault @ 0x%08x", addr);
+		break;
+	case FSR_FS_SYNC_PARITY_ERROR_TRANSLATION_TABLE_1ST_LEVEL:
+		reason = K_ERR_ARM_SYNC_PARITY_ERROR_TRANSLATION_TABLE_1ST_LEVEL;
+		LOG_ERR("1st Level Synchronous Parity Error Translation Table @ 0x%08x", addr);
+		break;
+	case FSR_FS_SYNC_PARITY_ERROR_TRANSLATION_TABLE_2ND_LEVEL:
+		reason = K_ERR_ARM_SYNC_PARITY_ERROR_TRANSLATION_TABLE_2ND_LEVEL;
+		LOG_ERR("2nd Level Synchronous Parity Error Translation Table @ 0x%08x", addr);
+		break;
 #else
 	case FSR_FS_BACKGROUND_FAULT:
 		reason = K_ERR_ARM_BACKGROUND_FAULT;
@@ -142,12 +200,13 @@ bool z_arm_fault_undef_instruction_fp(void)
 	 * the FP was already enabled then this was an actual undefined
 	 * instruction.
 	 */
-	if (__get_FPEXC() & FPEXC_EN)
+	if (__get_FPEXC() & FPEXC_EN) {
 		return true;
+	}
 
 	__set_FPEXC(FPEXC_EN);
 
-	if (_kernel.cpus[0].nested > 1) {
+	if (_current_cpu->nested > 1) {
 		/*
 		 * If the nested count is greater than 1, the undefined
 		 * instruction exception came from an irq/svc context.  (The
@@ -155,12 +214,13 @@ bool z_arm_fault_undef_instruction_fp(void)
 		 * the undef exception would increment it to 2).
 		 */
 		struct __fpu_sf *spill_esf =
-			(struct __fpu_sf *)_kernel.cpus[0].fp_ctx;
+			(struct __fpu_sf *)_current_cpu->fp_ctx;
 
-		if (spill_esf == NULL)
+		if (spill_esf == NULL) {
 			return false;
+		}
 
-		_kernel.cpus[0].fp_ctx = NULL;
+		_current_cpu->fp_ctx = NULL;
 
 		/*
 		 * If the nested count is 2 and the current thread has used the
@@ -170,9 +230,9 @@ bool z_arm_fault_undef_instruction_fp(void)
 		 * saved exception stack frame, then save the floating point
 		 * context because it is about to be overwritten.
 		 */
-		if (((_kernel.cpus[0].nested == 2)
+		if (((_current_cpu->nested == 2)
 				&& (_current->base.user_options & K_FP_REGS))
-			|| ((_kernel.cpus[0].nested > 2)
+			|| ((_current_cpu->nested > 2)
 				&& (spill_esf->undefined & FPEXC_EN))) {
 			/*
 			 * Spill VFP registers to specified exception stack
@@ -201,7 +261,7 @@ bool z_arm_fault_undef_instruction_fp(void)
  *
  * @return Returns true if the fault is fatal
  */
-bool z_arm_fault_undef_instruction(z_arch_esf_t *esf)
+bool z_arm_fault_undef_instruction(struct arch_esf *esf)
 {
 #if defined(CONFIG_FPU_SHARING)
 	/*
@@ -211,6 +271,12 @@ bool z_arm_fault_undef_instruction(z_arch_esf_t *esf)
 	esf->fpu.undefined = __get_FPEXC();
 	esf->fpu.fpscr = __get_FPSCR();
 	z_arm_fpu_caller_save(&esf->fpu);
+#endif
+
+#if defined(CONFIG_GDBSTUB)
+	z_gdb_entry(esf, GDB_EXCEPTION_INVALID_INSTRUCTION);
+	/* Might not be fatal if GDB stub placed it in the code. */
+	return false;
 #endif
 
 	/* Print fault information */
@@ -232,7 +298,7 @@ bool z_arm_fault_undef_instruction(z_arch_esf_t *esf)
  *
  * @return Returns true if the fault is fatal
  */
-bool z_arm_fault_prefetch(z_arch_esf_t *esf)
+bool z_arm_fault_prefetch(struct arch_esf *esf)
 {
 	uint32_t reason = K_ERR_CPU_EXCEPTION;
 
@@ -247,6 +313,17 @@ bool z_arm_fault_prefetch(z_arch_esf_t *esf)
 	/* Read Instruction Fault Address Register (IFAR) */
 	uint32_t ifar = __get_IFAR();
 
+#if defined(CONFIG_GDBSTUB)
+	/* The BKPT instruction could have caused a software breakpoint */
+	if (fs == IFSR_DEBUG_EVENT) {
+		/* Debug event, call the gdbstub handler */
+		z_gdb_entry(esf, GDB_EXCEPTION_BREAKPOINT);
+	} else {
+		/* Fatal */
+		z_gdb_entry(esf, GDB_EXCEPTION_MEMORY_FAULT);
+	}
+	return false;
+#endif
 	/* Print fault information*/
 	LOG_ERR("***** PREFETCH ABORT *****");
 	if (FAULT_DUMP_VERBOSE) {
@@ -277,7 +354,7 @@ static const struct z_exc_handle exceptions[] = {
  *
  * @return true if error is recoverable, otherwise return false.
  */
-static bool memory_fault_recoverable(z_arch_esf_t *esf)
+static bool memory_fault_recoverable(struct arch_esf *esf)
 {
 	for (int i = 0; i < ARRAY_SIZE(exceptions); i++) {
 		/* Mask out instruction mode */
@@ -299,7 +376,7 @@ static bool memory_fault_recoverable(z_arch_esf_t *esf)
  *
  * @return Returns true if the fault is fatal
  */
-bool z_arm_fault_data(z_arch_esf_t *esf)
+bool z_arm_fault_data(struct arch_esf *esf)
 {
 	uint32_t reason = K_ERR_CPU_EXCEPTION;
 
@@ -313,6 +390,12 @@ bool z_arm_fault_data(z_arch_esf_t *esf)
 
 	/* Read Data Fault Address Register (DFAR) */
 	uint32_t dfar = __get_DFAR();
+
+#if defined(CONFIG_GDBSTUB)
+	z_gdb_entry(esf, GDB_EXCEPTION_MEMORY_FAULT);
+	/* return false - non-fatal error */
+	return false;
+#endif
 
 #if defined(CONFIG_USERSPACE)
 	if ((fs == COND_CODE_1(CONFIG_AARCH32_ARMV8_R,

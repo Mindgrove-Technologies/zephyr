@@ -1,0 +1,11 @@
+board:
+  name: vision-soc
+  full_name: Vision_SoC
+  vendor: mindgrove
+  socs:
+    - name: vision-soc
+  revision:
+    format: letter
+    default: "A"
+    revisions:
+      - name: "A"

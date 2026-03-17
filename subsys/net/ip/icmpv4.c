@@ -21,6 +21,7 @@ LOG_MODULE_REGISTER(net_icmpv4, CONFIG_NET_ICMPV4_LOG_LEVEL);
 #include "ipv4.h"
 #include "icmpv4.h"
 #include "net_stats.h"
+#include "pmtu.h"
 
 #define PKT_WAIT_TIME K_SECONDS(1)
 
@@ -47,7 +48,7 @@ int net_icmpv4_create(struct net_pkt *pkt, uint8_t icmp_type, uint8_t icmp_code)
 	return net_pkt_set_data(pkt, &icmpv4_access);
 }
 
-int net_icmpv4_finalize(struct net_pkt *pkt)
+int net_icmpv4_finalize(struct net_pkt *pkt, bool force_chksum)
 {
 	NET_PKT_DATA_ACCESS_CONTIGUOUS_DEFINE(icmpv4_access,
 					      struct net_icmp_hdr);
@@ -65,8 +66,10 @@ int net_icmpv4_finalize(struct net_pkt *pkt)
 	}
 
 	icmp_hdr->chksum = 0U;
-	if (net_if_need_calc_tx_checksum(net_pkt_iface(pkt))) {
+	if (net_if_need_calc_tx_checksum(net_pkt_iface(pkt), NET_IF_CHECKSUM_IPV4_ICMP) ||
+		force_chksum) {
 		icmp_hdr->chksum = net_calc_chksum_icmpv4(pkt);
+		net_pkt_set_chksum_done(pkt, true);
 	}
 
 	return net_pkt_set_data(pkt, &icmpv4_access);
@@ -454,7 +457,12 @@ static int icmpv4_handle_echo_request(struct net_icmp_ctx *ctx,
 	    net_ipv4_is_addr_bcast(net_pkt_iface(pkt),
 				   (struct in_addr *)ip_hdr->dst)) {
 		src = net_if_ipv4_select_src_addr(net_pkt_iface(pkt),
-						  (struct in_addr *)ip_hdr->dst);
+						  (struct in_addr *)ip_hdr->src);
+
+		if (net_ipv4_is_addr_unspecified(src)) {
+			NET_DBG("DROP: No src address match");
+			goto drop;
+		}
 	} else {
 		src = (struct in_addr *)ip_hdr->dst;
 	}
@@ -485,7 +493,7 @@ static int icmpv4_handle_echo_request(struct net_icmp_ctx *ctx,
 		net_sprint_ipv4_addr(src),
 		net_sprint_ipv4_addr(&ip_hdr->src));
 
-	if (net_send_data(reply) < 0) {
+	if (net_try_send_data(reply, K_NO_WAIT) < 0) {
 		goto drop;
 	}
 
@@ -572,15 +580,16 @@ int net_icmpv4_send_error(struct net_pkt *orig, uint8_t type, uint8_t code)
 	net_pkt_cursor_init(pkt);
 	net_ipv4_finalize(pkt, IPPROTO_ICMP);
 
-	net_pkt_lladdr_dst(pkt)->addr = net_pkt_lladdr_src(orig)->addr;
-	net_pkt_lladdr_dst(pkt)->len = net_pkt_lladdr_src(orig)->len;
+	net_linkaddr_set(net_pkt_lladdr_dst(pkt),
+			 net_pkt_lladdr_src(orig)->addr,
+			 net_pkt_lladdr_src(orig)->len);
 
 	NET_DBG("Sending ICMPv4 Error Message type %d code %d from %s to %s",
 		type, code,
 		net_sprint_ipv4_addr(&ip_hdr->dst),
 		net_sprint_ipv4_addr(&ip_hdr->src));
 
-	if (net_send_data(pkt) >= 0) {
+	if (net_try_send_data(pkt, K_NO_WAIT) >= 0) {
 		net_stats_update_icmp_sent(net_pkt_iface(orig));
 		return 0;
 	}
@@ -609,7 +618,8 @@ enum net_verdict net_icmpv4_input(struct net_pkt *pkt,
 		return NET_DROP;
 	}
 
-	if (net_if_need_calc_rx_checksum(net_pkt_iface(pkt))) {
+	if (net_if_need_calc_rx_checksum(net_pkt_iface(pkt), NET_IF_CHECKSUM_IPV4_ICMP) ||
+	    net_pkt_is_ip_reassembled(pkt)) {
 		if (net_calc_chksum_icmpv4(pkt) != 0U) {
 			NET_DBG("DROP: Invalid checksum");
 			goto drop;
@@ -632,7 +642,7 @@ enum net_verdict net_icmpv4_input(struct net_pkt *pkt,
 	net_stats_update_icmp_recv(net_pkt_iface(pkt));
 
 	ret = net_icmp_call_ipv4_handlers(pkt, ip_hdr, icmp_hdr);
-	if (ret < 0) {
+	if (ret < 0 && ret != -ENOENT) {
 		NET_ERR("ICMPv4 handling failure (%d)", ret);
 	}
 
@@ -646,6 +656,108 @@ drop:
 	return NET_DROP;
 }
 
+#if defined(CONFIG_NET_IPV4_PMTU)
+/* The RFC 1191 chapter 3 says the minimum MTU size is 68 octets.
+ * This is way too small in modern world, so make the minimum 576 octets.
+ */
+#define MIN_IPV4_MTU NET_IPV4_MTU
+
+static int icmpv4_handle_dst_unreach(struct net_icmp_ctx *ctx,
+				     struct net_pkt *pkt,
+				     struct net_icmp_ip_hdr *hdr,
+				     struct net_icmp_hdr *icmp_hdr,
+				     void *user_data)
+{
+	NET_PKT_DATA_ACCESS_CONTIGUOUS_DEFINE(dst_unreach_access,
+					      struct net_icmpv4_dest_unreach);
+	struct net_icmpv4_dest_unreach *dest_unreach_hdr;
+	struct net_ipv4_hdr *ip_hdr = hdr->ipv4;
+	uint16_t length = net_pkt_get_len(pkt);
+	struct net_pmtu_entry *entry;
+	struct sockaddr_in sockaddr_src = {
+		.sin_family = AF_INET,
+	};
+	uint16_t mtu;
+	int ret;
+
+	ARG_UNUSED(user_data);
+
+	dest_unreach_hdr = (struct net_icmpv4_dest_unreach *)
+		net_pkt_get_data(pkt, &dst_unreach_access);
+	if (dest_unreach_hdr == NULL) {
+		NET_DBG("DROP: NULL ICMPv4 Destination Unreachable header");
+		goto drop;
+	}
+
+	net_stats_update_ipv4_pmtu_recv(net_pkt_iface(pkt));
+
+	NET_DBG("Received Destination Unreachable from %s to %s",
+		net_sprint_ipv4_addr(&ip_hdr->src),
+		net_sprint_ipv4_addr(&ip_hdr->dst));
+
+	if (length < (sizeof(struct net_ipv4_hdr) +
+		      sizeof(struct net_icmp_hdr) +
+		      sizeof(struct net_icmpv4_dest_unreach))) {
+		NET_DBG("DROP: length %d too big %zd",
+			length, sizeof(struct net_ipv4_hdr) +
+			sizeof(struct net_icmp_hdr) +
+			sizeof(struct net_icmpv4_dest_unreach));
+		goto drop;
+	}
+
+	net_pkt_acknowledge_data(pkt, &dst_unreach_access);
+
+	mtu = ntohs(dest_unreach_hdr->mtu);
+
+	if (mtu < MIN_IPV4_MTU) {
+		NET_DBG("DROP: Unsupported MTU %u, min is %u",
+			mtu, MIN_IPV4_MTU);
+		goto drop;
+	}
+
+	net_ipaddr_copy(&sockaddr_src.sin_addr, (struct in_addr *)&ip_hdr->src);
+
+	entry = net_pmtu_get_entry((struct sockaddr *)&sockaddr_src);
+	if (entry == NULL) {
+		NET_DBG("DROP: Cannot find PMTU entry for %s",
+			net_sprint_ipv4_addr(&ip_hdr->src));
+		goto silent_drop;
+	}
+
+	/* We must not accept larger PMTU value than what we already know.
+	 * RFC 1191 chapter 3 page 5.
+	 */
+	if (entry->mtu > 0 && entry->mtu < mtu) {
+		NET_DBG("DROP: PMTU for %s %u larger than %u",
+			net_sprint_ipv4_addr(&ip_hdr->src), mtu,
+			entry->mtu);
+		goto silent_drop;
+	}
+
+	ret = net_pmtu_update_entry(entry, mtu);
+	if (ret > 0) {
+		NET_DBG("PMTU for %s changed from %u to %u",
+			net_sprint_ipv4_addr(&ip_hdr->src), ret, mtu);
+	}
+
+	return 0;
+drop:
+	net_stats_update_ipv4_pmtu_drop(net_pkt_iface(pkt));
+
+	return -EIO;
+
+silent_drop:
+	/* If the event is not really an error then just ignore it and
+	 * return 0 so that icmpv4 module will not complain about it.
+	 */
+	net_stats_update_ipv4_pmtu_drop(net_pkt_iface(pkt));
+
+	return 0;
+}
+
+static struct net_icmp_ctx dst_unreach_ctx;
+#endif /* CONFIG_NET_IPV4_PMTU */
+
 void net_icmpv4_init(void)
 {
 	static struct net_icmp_ctx ctx;
@@ -656,4 +768,13 @@ void net_icmpv4_init(void)
 		NET_ERR("Cannot register %s handler (%d)", STRINGIFY(NET_ICMPV4_ECHO_REQUEST),
 			ret);
 	}
+
+#if defined(CONFIG_NET_IPV4_PMTU)
+	ret = net_icmp_init_ctx(&dst_unreach_ctx, NET_ICMPV4_DST_UNREACH, 0,
+				icmpv4_handle_dst_unreach);
+	if (ret < 0) {
+		NET_ERR("Cannot register %s handler (%d)", STRINGIFY(NET_ICMPV4_DST_UNREACH),
+			ret);
+	}
+#endif
 }

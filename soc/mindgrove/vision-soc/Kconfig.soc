@@ -1,0 +1,20 @@
+# Kconfig - RISCV64 SHAKTI VAJRA SOC implementation
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+config SOC_VISION_SOC
+	bool "Mindgrove VISION SOC implementation"
+	select RISCV
+	select 64BIT
+	select SOC_FAMILY_MINDGROVE
+
+config SOC_SERIES
+	default "vision-soc" if SOC_VISION_SOC
+
+config SOC_VISION_X1
+	bool
+	select SOC_VISION_SOC
+
+config SOC
+	default "vision-soc"

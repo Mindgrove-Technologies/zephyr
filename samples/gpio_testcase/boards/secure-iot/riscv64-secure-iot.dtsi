@@ -61,8 +61,8 @@ uart0: serial@11300 {
          reg= < 0x0 0x11300 0x0 0x1000>;
   };
 
-GPIO: gpio@40200 {
-          compatible = "shakti,GPIO";
+gpio0: gpio@40200 {
+          compatible = "mindgrove,gpio";
           reg = < 0x0 0x40200 0x0 0x08>;
   };
 };

@@ -28,7 +28,12 @@ static struct k_thread thread[THREADS_NUM];
 atomic_t total_atomic;
 
 /**
- * @addtogroup kernel_common_tests
+ * @defgroup kernel_atomic_ops_tests Atomic Operations
+ * @ingroup all_tests
+ * @{
+ * @}
+ *
+ * @addtogroup kernel_atomic_ops_tests
  * @{
  */
 
@@ -92,7 +97,6 @@ atomic_t total_atomic;
  * atomic_test_and_set_bit(), atomic_clear_bit(), atomic_set_bit(),
  * ATOMIC_DEFINE
  *
- * @ingroup kernel_common_tests
  */
 ZTEST_USER(atomic, test_atomic)
 {
@@ -312,7 +316,6 @@ void atomic_handler(void *p1, void *p2, void *p3)
  * In this time, the two sub threads will be scheduled separately
  * according to the time slice.
  *
- * @ingroup kernel_common_tests
  */
 ZTEST(atomic, test_threads_access_atomic)
 {
@@ -338,8 +341,52 @@ ZTEST(atomic, test_threads_access_atomic)
 		"atomic counting failure");
 }
 
-extern void *common_setup(void);
-ZTEST_SUITE(atomic, NULL, common_setup, NULL, NULL, NULL);
+/**
+ * @brief Checks that the value of atomic_t will be the same in case of overflow
+ *		if incremented in atomic and non-atomic manner
+ *
+ * @details According to C standard the value of a signed variable
+ *	is undefined in case of overflow. This test checks that the value
+ *	of atomic_t will be the same in case of overflow if incremented in atomic
+ *	and non-atomic manner. This allows us to increment an atomic variable
+ *	in a non-atomic manner (as long as it is logically safe)
+ *	and expect its value to match the result of the similar atomic increment.
+ *
+ */
+ZTEST(atomic, test_atomic_overflow)
+{
+	/* Check overflow over max signed value */
+	uint64_t overflowed_value = (uint64_t)1 << (ATOMIC_BITS - 1);
+	atomic_val_t atomic_value = overflowed_value - 1;
+	atomic_t atomic_var = ATOMIC_INIT(atomic_value);
+
+	atomic_value++;
+	atomic_inc(&atomic_var);
+
+	zassert_true(atomic_value == atomic_get(&atomic_var),
+		"max signed overflow mismatch: %lx/%lx",
+		atomic_value, atomic_get(&atomic_var));
+	zassert_true(atomic_value == (atomic_val_t)overflowed_value,
+		"unexpected value after overflow: %lx, expected: %lx",
+		atomic_value, (atomic_val_t)overflowed_value);
+
+	/* Check overflow over max unsigned value */
+	atomic_value = -1;
+	atomic_var = ATOMIC_INIT(atomic_value);
+
+	atomic_value++;
+	atomic_inc(&atomic_var);
+
+	zassert_true(atomic_value == atomic_get(&atomic_var),
+		"max unsigned overflow mismatch: %lx/%lx",
+		atomic_value, atomic_get(&atomic_var));
+	zassert_true(atomic_value == 0,
+		"unexpected value after overflow: %lx, expected: 0",
+		atomic_value);
+}
+
 /**
  * @}
  */
+extern void *common_setup(void);
+ZTEST_SUITE(atomic, NULL, common_setup, NULL, NULL, NULL);

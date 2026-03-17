@@ -12,7 +12,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/misc/timeaware_gpio/timeaware_gpio.h>
 #include <zephyr/devicetree.h>
-#include <zephyr/syscall_handler.h>
+#include <zephyr/internal/syscall_handler.h>
 
 /* TGPIO Register offsets */
 #define ART_L           0x00 /* ART lower 32 bit reg */
@@ -188,7 +188,7 @@ static int tgpio_intel_read_ts_ec(const struct device *dev,
 	return 0;
 }
 
-static const struct tgpio_driver_api api_funcs = {
+static DEVICE_API(tgpio, api_funcs) = {
 	.pin_disable = tgpio_intel_pin_disable,
 	.get_time = tgpio_intel_get_time,
 	.set_perout = tgpio_intel_periodic_output,
