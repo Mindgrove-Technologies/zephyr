@@ -26,6 +26,8 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include <zephyr/net/openthread.h>
 #endif
 
+#include <zephyr/drivers/interrupt_controller/riscv_plic.h>
+
 #include "ieee802154_b91.h"
 
 
@@ -108,11 +110,7 @@ static inline uint8_t *b91_get_mac(const struct device *dev)
 	struct b91_data *b91 = dev->data;
 
 #if defined(CONFIG_IEEE802154_B91_RANDOM_MAC)
-	uint32_t *ptr = (uint32_t *)(b91->mac_addr);
-
-	UNALIGNED_PUT(sys_rand32_get(), ptr);
-	ptr = (uint32_t *)(b91->mac_addr + 4);
-	UNALIGNED_PUT(sys_rand32_get(), ptr);
+	sys_rand_get(b91->mac_addr, sizeof(b91->mac_addr));
 
 	/*
 	 * Clear bit 0 to ensure it isn't a multicast address and set
@@ -173,10 +171,15 @@ static void b91_update_rssi_and_lqi(struct net_pkt *pkt)
 }
 
 /* Prepare TX buffer */
-static void b91_set_tx_payload(uint8_t *payload, uint8_t payload_len)
+static int b91_set_tx_payload(uint8_t *payload, uint8_t payload_len)
 {
 	unsigned char rf_data_len;
 	unsigned int rf_tx_dma_len;
+
+	/* See Telink SDK Dev Handbook, AN-21010600, section 21.5.2.2. */
+	if (payload_len > (B91_TRX_LENGTH - B91_PAYLOAD_OFFSET - IEEE802154_FCS_LENGTH)) {
+		return -EINVAL;
+	}
 
 	rf_data_len = payload_len + 1;
 	rf_tx_dma_len = rf_tx_packet_dma_len(rf_data_len);
@@ -184,8 +187,10 @@ static void b91_set_tx_payload(uint8_t *payload, uint8_t payload_len)
 	data.tx_buffer[1] = (rf_tx_dma_len >> 8) & 0xff;
 	data.tx_buffer[2] = (rf_tx_dma_len >> 16) & 0xff;
 	data.tx_buffer[3] = (rf_tx_dma_len >> 24) & 0xff;
-	data.tx_buffer[4] = payload_len + 2;
+	data.tx_buffer[4] = payload_len + IEEE802154_FCS_LENGTH;
 	memcpy(data.tx_buffer + B91_PAYLOAD_OFFSET, payload, payload_len);
+
+	return 0;
 }
 
 /* Enable ack handler */
@@ -243,7 +248,10 @@ static void b91_send_ack(uint8_t seq_num)
 {
 	uint8_t ack_buf[] = { B91_ACK_TYPE, 0, seq_num };
 
-	b91_set_tx_payload(ack_buf, sizeof(ack_buf));
+	if (b91_set_tx_payload(ack_buf, sizeof(ack_buf))) {
+		return;
+	}
+
 	rf_set_txmode();
 	delay_us(CONFIG_IEEE802154_B91_SET_TXRX_DELAY_US);
 	rf_tx_pkt(data.tx_buffer);
@@ -252,7 +260,7 @@ static void b91_send_ack(uint8_t seq_num)
 /* RX IRQ handler */
 static void b91_rf_rx_isr(void)
 {
-	uint8_t status;
+	int status;
 	uint8_t length;
 	uint8_t *payload;
 	struct net_pkt *pkt;
@@ -264,8 +272,7 @@ static void b91_rf_rx_isr(void)
 	/* check CRC */
 	if (rf_zigbee_packet_crc_ok(data.rx_buffer)) {
 		/* get payload length */
-		if (IS_ENABLED(CONFIG_IEEE802154_RAW_MODE) ||
-		    IS_ENABLED(CONFIG_NET_L2_OPENTHREAD)) {
+		if (IS_ENABLED(CONFIG_IEEE802154_L2_PKT_INCL_FCS)) {
 			length = data.rx_buffer[B91_LENGTH_OFFSET];
 		} else {
 			length = data.rx_buffer[B91_LENGTH_OFFSET] - B91_FCS_LENGTH;
@@ -534,7 +541,10 @@ static int b91_tx(const struct device *dev,
 	}
 
 	/* prepare tx buffer */
-	b91_set_tx_payload(frag->data, frag->len);
+	status = b91_set_tx_payload(frag->data, frag->len);
+	if (status) {
+		return status;
+	}
 
 	/* reset semaphores */
 	k_sem_reset(&b91->tx_wait);
@@ -604,7 +614,7 @@ static int b91_attr_get(const struct device *dev, enum ieee802154_attr attr,
 }
 
 /* IEEE802154 driver APIs structure */
-static struct ieee802154_radio_api b91_radio_api = {
+static const struct ieee802154_radio_api b91_radio_api = {
 	.iface_api.init = b91_iface_init,
 	.get_capabilities = b91_get_capabilities,
 	.cca = b91_cca,

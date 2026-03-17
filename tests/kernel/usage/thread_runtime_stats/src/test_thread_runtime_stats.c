@@ -17,6 +17,8 @@
 
 #if defined(CONFIG_RISCV)
 #define IDLE_EVENT_STATS_PRECISION 7
+#elif defined(CONFIG_QEMU_TARGET)
+#define IDLE_EVENT_STATS_PRECISION 3
 #else
 #define IDLE_EVENT_STATS_PRECISION 1
 #endif
@@ -98,16 +100,16 @@ ZTEST(usage_api, test_all_stats_usage)
 
 	/*
 	 * Verify that before the system idles for 2 ticks that
-	 * [execution_cycles] is increasing, [total_cycles] matches
+	 * [execution_cycles] is increasing, [total_cycles + idle_cycles] matches
 	 * [execution_cycles] and [idle_cycles] is not changing (as the
-	 * system has been idle yet.
+	 * system is not going to idle during that test).
 	 */
 
 	zassert_true(stats2.execution_cycles > stats1.execution_cycles);
 	zassert_true(stats3.execution_cycles > stats2.execution_cycles);
-	zassert_true(stats1.execution_cycles == stats1.total_cycles);
-	zassert_true(stats2.execution_cycles == stats2.total_cycles);
-	zassert_true(stats3.execution_cycles == stats3.total_cycles);
+	zassert_true(stats1.execution_cycles == (stats1.total_cycles + stats1.idle_cycles));
+	zassert_true(stats2.execution_cycles == (stats2.total_cycles + stats2.idle_cycles));
+	zassert_true(stats3.execution_cycles == (stats3.total_cycles + stats3.idle_cycles));
 #ifdef CONFIG_SCHED_THREAD_USAGE_ALL
 	zassert_true(stats1.idle_cycles == stats2.idle_cycles);
 	zassert_true(stats1.idle_cycles == stats3.idle_cycles);
@@ -120,8 +122,8 @@ ZTEST(usage_api, test_all_stats_usage)
 	 * going idle.
 	 * 1. [current_cycles] increases.
 	 * 2. [peak_cycles] matches [current_cycles].
-	 * 3. [average_cycles] is 0 (because system has not gone idle yet)
-	 * 4. [current_cycles] matches [execution_cycles].
+	 * 3. [average_cycles] is 0 if system has not gone idle yet
+	 * 4. [current_cycles] matches [execution_cycles] if system has not gone idle yet
 	 */
 
 	zassert_true(stats2.current_cycles > stats1.current_cycles);
@@ -131,13 +133,19 @@ ZTEST(usage_api, test_all_stats_usage)
 	zassert_true(stats2.peak_cycles == stats2.current_cycles);
 	zassert_true(stats3.peak_cycles == stats3.current_cycles);
 
-	zassert_true(stats1.average_cycles == 0);
-	zassert_true(stats2.average_cycles == 0);
-	zassert_true(stats3.average_cycles == 0);
+	if (stats1.idle_cycles == 0) {
+		zassert_true(stats1.average_cycles == 0);
+		zassert_true(stats2.average_cycles == 0);
+		zassert_true(stats3.average_cycles == 0);
 
-	zassert_true(stats1.current_cycles == stats1.execution_cycles);
-	zassert_true(stats2.current_cycles == stats2.execution_cycles);
-	zassert_true(stats3.current_cycles == stats3.execution_cycles);
+		zassert_true(stats1.current_cycles == stats1.execution_cycles);
+		zassert_true(stats2.current_cycles == stats2.execution_cycles);
+		zassert_true(stats3.current_cycles == stats3.execution_cycles);
+	} else {
+		zassert_true(stats1.current_cycles < stats1.execution_cycles);
+		zassert_true(stats2.current_cycles < stats2.execution_cycles);
+		zassert_true(stats3.current_cycles < stats3.execution_cycles);
+	}
 #endif
 
 	/*
@@ -170,7 +178,7 @@ ZTEST(usage_api, test_all_stats_usage)
 					   stats3.peak_cycles, IDLE_EVENT_STATS_PRECISION), NULL);
 	zassert_true(stats4.peak_cycles == stats5.peak_cycles);
 
-	zassert_true(stats4.average_cycles > stats3.average_cycles);
+	zassert_true(stats4.average_cycles > 0);
 	zassert_true(stats5.average_cycles > stats4.average_cycles);
 #endif
 

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 description: |
-  Main PLL node binding for Connectivity line devices (STM32F105/STM32F107)
+  STM32F105/F107 Main PLL.
 
   Takes one of clk_hse, pll2 or clk_hsi as input clock.
   When clk_hsi is used a fixed prescaler is applied. When input clock is hse or
@@ -55,6 +55,6 @@ properties:
   otgfspre:
     type: boolean
     description: |
-        Otpional PLL output divisor to generate a 48MHz USB clock.
+        Optional PLL output divisor to generate a 48MHz USB clock.
         When set, PLL output clock is not divided.
         Otherwise, PLL output clock is divided by 1.5.

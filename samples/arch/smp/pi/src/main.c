@@ -14,7 +14,7 @@
  * Amount of digits of Pi to calculate, must be a multiple of 4,
  * as used algorithm spits 4 digits on every iteration.
  */
-#define DIGITS_NUM	240
+#define DIGITS_NUM	66
 
 #define LENGTH		((DIGITS_NUM / 4) * 14)
 #define STACK_SIZE	((LENGTH * sizeof(int) + 1280))
@@ -29,6 +29,8 @@ static K_THREAD_STACK_ARRAY_DEFINE(tstack, THREADS_NUM, STACK_SIZE);
 static struct k_thread tthread[THREADS_NUM];
 static char th_buffer[THREADS_NUM][DIGITS_NUM + 1];
 static atomic_t th_counter = THREADS_NUM;
+
+K_SEM_DEFINE(main_sem, 0, 1);
 
 void test_thread(void *arg1, void *arg2, void *arg3)
 {
@@ -74,7 +76,9 @@ void test_thread(void *arg1, void *arg2, void *arg3)
 		buffer += 4;
 	}
 
-	atomic_dec(counter);
+	if (atomic_dec(counter) == 1) {
+		k_sem_give(&main_sem);
+	}
 }
 
 int main(void)
@@ -82,23 +86,21 @@ int main(void)
 	uint32_t start_time, stop_time, cycles_spent, nanoseconds_spent;
 	int i;
 
-	printk("Calculate first %d digits of Pi independently by %d threads.\n",
-	       DIGITS_NUM, THREADS_NUM);
+	printk("Calculate first %d digits of Pi independently by %d threads, on %d cores.\n",
+	       DIGITS_NUM-2, THREADS_NUM, CORES_NUM);
 
 	/* Capture initial time stamp */
 	start_time = k_cycle_get_32();
 
 	for (i = 0; i < THREADS_NUM; i++) {
 		k_thread_create(&tthread[i], tstack[i], STACK_SIZE,
-			       (k_thread_entry_t)test_thread,
+			       test_thread,
 			       (void *)&th_counter, (void *)th_buffer[i], NULL,
 			       K_PRIO_COOP(10), 0, K_NO_WAIT);
 	}
 
 	/* Wait for all workers to finish their calculations */
-	while (th_counter) {
-		k_sleep(K_MSEC(1));
-	}
+	k_sem_take(&main_sem, K_FOREVER);
 
 	/* Capture final time stamp */
 	stop_time = k_cycle_get_32();
@@ -110,7 +112,7 @@ int main(void)
 		printk("Pi value calculated by thread #%d: %s\n", i, th_buffer[i]);
 	}
 
-	printk("All %d threads executed by %d cores in %d msec\n", THREADS_NUM,
-	       CORES_NUM, nanoseconds_spent / 1000 / 1000);
+	printk("All %d threads executed by %d cores in %d ns\n", THREADS_NUM,
+	       CORES_NUM, nanoseconds_spent);
 	return 0;
 }

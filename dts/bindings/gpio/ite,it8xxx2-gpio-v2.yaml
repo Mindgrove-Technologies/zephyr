@@ -1,7 +1,7 @@
 # Copyright (c) 2023 ITE Corporation. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-description: This binding gives a base representation of the ITE gpio
+description: ITE IT8xxx2 GPIO V2
 
 compatible: "ite,it8xxx2-gpio-v2"
 
@@ -26,6 +26,20 @@ properties:
 
   wuc-mask:
     type: array
+
+  keyboard-controller:
+    type: boolean
+    description: |
+      When set, this GPIO controller has pins associated with the
+      keyboard controller. In this case the reg_gpcr property is
+      overloaded and used to write the keyboard GCTRL register.
+      This setting will be found in the gpio_ite_configure function
+      when the judgment of gpio_config->ksb_ctrl is true.
+      The GPIO control register that will be set for these three
+      nodes is as follows:
+      gpioksi:  0xf01d40-0xf01d47
+      gpioksol: 0xf01d48-0xf01d4f
+      gpioksoh: 0xf01d50-0xf01d57
 
 gpio-cells:
   - pin

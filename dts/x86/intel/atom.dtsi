@@ -12,24 +12,20 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		cpu: cpu@0 {
 			device_type = "cpu";
-			compatible = "intel,atom";
 			d-cache-line-size = <64>;
 			reg = <0>;
 		};
-	};
 
-	dram0: memory@0 {
-		device_type = "memory";
-		reg = <0x0 DT_DRAM_SIZE>;
 	};
 
 	intc: ioapic@fec00000  {
 		compatible = "intel,ioapic";
+		#address-cells = <1>;
+		#interrupt-cells = <3>;
 		reg = <0xfec00000 0x1000>;
 		interrupt-controller;
-		#interrupt-cells = <3>;
 	};
 
 	intc_loapic: loapic@fee00000  {
@@ -37,6 +33,12 @@
 		reg = <0xfee00000 0x1000>;
 		interrupt-controller;
 		#interrupt-cells = <3>;
+		#address-cells = <1>;
+	};
+
+	dram0: memory@DT_DRAM_BASE {
+		device_type = "memory";
+		reg = <DT_ADDR(DT_DRAM_BASE) DT_DRAM_SIZE>;
 	};
 
 	soc {
@@ -44,7 +46,6 @@
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		ranges;
-
 
 		uart0: uart@3f8 {
 			compatible = "ns16550";

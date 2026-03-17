@@ -1,0 +1,10 @@
+config HAS_MMIO
+    bool
+    default y
+
+config MMIO_HELPERS
+    bool
+    default y
+    depends on HAS_MMIO
+
+source "Kconfig.zephyr"

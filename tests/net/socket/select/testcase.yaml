@@ -5,11 +5,7 @@ common:
     - net
     - socket
     - userspace
-  filter: TOOLCHAIN_HAS_NEWLIB == 1
-  # FIXME: This test fails very frequently on mps2_an385 due to the system
-  #        timer stability issues, so keep it disabled until the root cause
-  #        is fixed (GitHub issue zephyrproject-rtos/zephyr#48608).
-  platform_exclude: mps2_an385
+  filter: CONFIG_FULL_LIBC_SUPPORTED
 tests:
   net.socket.select:
     extra_configs:

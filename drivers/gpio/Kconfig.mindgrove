@@ -1,0 +1,25 @@
+# SiFive Freedom GPIO configuration option
+
+# Copyright (c) 2017 Jean-Paul Etienne <fractalclone@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig GPIO_MINDGROVE
+	bool "mindgrove GPIO driver"
+	default y
+	help
+	  This option enables the Mindgrove GPIO driver.
+
+config GPIO_INIT_PRIORITY
+	int "GPIO init priority"
+	default KERNEL_INIT_PRIORITY_DEFAULT
+	help
+	  GPIO driver device initialization priority.
+
+config GPIO_MINDGROVE_AUTO_IRQ_CONNECT
+    bool "Automatically connect GPIO IRQs in the driver"
+    default y
+    help
+      If enabled the GPIO driver will call IRQ_CONNECT during init to
+      register the controller IRQ for each instance.  If disabled the
+      application/board is expected to register IRQ handlers directly
+      (e.g. with IRQ_DIRECT_CONNECT) for low-latency use-cases.

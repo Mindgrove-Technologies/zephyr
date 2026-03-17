@@ -7,11 +7,25 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+
+#include <zephyr/autoconf.h>
+#include <zephyr/bluetooth/audio/audio.h>
+#include <zephyr/bluetooth/audio/bap.h>
+#include <zephyr/bluetooth/hci_types.h>
+#include <zephyr/bluetooth/iso.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/sys/__assert.h>
+#include <zephyr/sys/atomic.h>
+#include <zephyr/sys/util.h>
+#include <zephyr/sys/util_macro.h>
+
 #include "bap_iso.h"
 #include "audio_internal.h"
 #include "bap_endpoint.h"
-
-#include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(bt_bap_iso, CONFIG_BT_BAP_ISO_LOG_LEVEL);
 
@@ -129,19 +143,12 @@ void bt_bap_iso_init(struct bt_bap_iso *iso, struct bt_iso_chan_ops *ops)
 	iso->chan.ops = ops;
 	iso->chan.qos = &iso->qos;
 
-	/* Setup points for both Tx and Rx
+	/* Setup the QoS for both Tx and Rx
 	 * This is due to the limitation in the ISO API where pointers like
-	 * the `qos->tx` shall be initialized before the CIS is connected if
-	 * ever want to use it for TX, and ditto for RX. They cannot be
-	 * initialized after the CIS has been connected
+	 * the `qos->tx` shall be initialized before the CIS is created
 	 */
 	iso->chan.qos->rx = &iso->rx.qos;
-	iso->chan.qos->rx->path = &iso->rx.path;
-	iso->chan.qos->rx->path->cc = iso->rx.cc;
-
 	iso->chan.qos->tx = &iso->tx.qos;
-	iso->chan.qos->tx->path = &iso->tx.path;
-	iso->chan.qos->tx->path->cc = iso->tx.cc;
 }
 
 static struct bt_bap_iso_dir *bap_iso_get_iso_dir(bool unicast_client, struct bt_bap_iso *iso,
@@ -161,6 +168,68 @@ static struct bt_bap_iso_dir *bap_iso_get_iso_dir(bool unicast_client, struct bt
 		return &iso->rx;
 	} else {
 		return &iso->tx;
+	}
+}
+
+void bt_bap_setup_iso_data_path(struct bt_bap_stream *stream)
+{
+	struct bt_audio_codec_cfg *codec_cfg = stream->codec_cfg;
+	struct bt_bap_ep *ep = stream->ep;
+	struct bt_bap_iso *bap_iso = ep->iso;
+	const bool is_unicast_client =
+		IS_ENABLED(CONFIG_BT_BAP_UNICAST_CLIENT) && bt_bap_ep_is_unicast_client(ep);
+	struct bt_bap_iso_dir *iso_dir = bap_iso_get_iso_dir(is_unicast_client, bap_iso, ep->dir);
+	struct bt_iso_chan_path path = {0};
+	uint8_t dir;
+	int err;
+
+	if (iso_dir == &bap_iso->rx) {
+		dir = BT_HCI_DATAPATH_DIR_CTLR_TO_HOST;
+	} else {
+		dir = BT_HCI_DATAPATH_DIR_HOST_TO_CTLR;
+	}
+
+	path.pid = codec_cfg->path_id;
+
+	/* Configure the data path to either use the controller for transcoding, or set the path to
+	 * be transparent to indicate that the transcoding happens somewhere else
+	 */
+	if (codec_cfg->ctlr_transcode) {
+		path.format = codec_cfg->id;
+		path.cid = codec_cfg->cid;
+		path.vid = codec_cfg->vid;
+		path.cc_len = codec_cfg->data_len;
+		path.cc = codec_cfg->data;
+	} else {
+		path.format = BT_HCI_CODING_FORMAT_TRANSPARENT;
+	}
+
+	err = bt_iso_setup_data_path(&bap_iso->chan, dir, &path);
+	if (err != 0) {
+		LOG_ERR("Failed to set ISO data path for ep %p and codec_cfg %p: %d", ep, codec_cfg,
+			err);
+	}
+}
+
+void bt_bap_remove_iso_data_path(struct bt_bap_stream *stream)
+{
+	struct bt_bap_ep *ep = stream->ep;
+	struct bt_bap_iso *bap_iso = ep->iso;
+	const bool is_unicast_client =
+		IS_ENABLED(CONFIG_BT_BAP_UNICAST_CLIENT) && bt_bap_ep_is_unicast_client(ep);
+	struct bt_bap_iso_dir *iso_dir = bap_iso_get_iso_dir(is_unicast_client, bap_iso, ep->dir);
+	uint8_t dir;
+	int err;
+
+	if (iso_dir == &bap_iso->rx) {
+		dir = BT_HCI_DATAPATH_DIR_CTLR_TO_HOST;
+	} else {
+		dir = BT_HCI_DATAPATH_DIR_HOST_TO_CTLR;
+	}
+
+	err = bt_iso_remove_data_path(&bap_iso->chan, dir);
+	if (err != 0) {
+		LOG_ERR("Failed to remove ISO data path for ep %p: %d", ep, err);
 	}
 }
 

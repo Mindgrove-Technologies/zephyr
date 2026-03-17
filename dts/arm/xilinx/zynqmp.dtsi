@@ -11,6 +11,10 @@
 
 / {
 	soc {
+		pinctrl: pinctrl@ff180000 {
+			reg = <0xff180000 0xc80>;
+			compatible = "xlnx,pinctrl-zynqmp";
+		};
 		flash0: flash@c0000000 {
 			compatible = "soc-nv-flash";
 			reg = <0xc0000000 DT_SIZE_M(32)>;
@@ -270,5 +274,28 @@
 				status = "okay";
 			};
 		};
+
+		i2c0: i2c@ff020000 {
+			compatible = "cdns,i2c";
+			reg = <0xff020000 0x1000>;
+			status = "disabled";
+			interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL
+					IRQ_DEFAULT_PRIORITY>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			fifo-depth = <16>;
+		};
+
+		i2c1: i2c@ff030000 {
+			compatible = "cdns,i2c";
+			reg = <0xff030000 0x1000>;
+			status = "disabled";
+			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL
+					IRQ_DEFAULT_PRIORITY>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			fifo-depth = <16>;
+		};
 	};
+
 };

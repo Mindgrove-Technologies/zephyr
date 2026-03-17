@@ -3,15 +3,36 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <errno.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
 
-#if defined(CONFIG_BT_BAP_UNICAST_SERVER)
-
-#include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/autoconf.h>
 #include <zephyr/bluetooth/audio/audio.h>
 #include <zephyr/bluetooth/audio/bap.h>
 #include <zephyr/bluetooth/audio/pacs.h>
+#include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/bluetooth/byteorder.h>
+#include <zephyr/bluetooth/conn.h>
+#include <zephyr/bluetooth/gap.h>
+#include <zephyr/bluetooth/hci_types.h>
+#include <zephyr/bluetooth/iso.h>
+#include <zephyr/bluetooth/uuid.h>
+#include <zephyr/kernel.h>
+#include <zephyr/net_buf.h>
+#include <zephyr/sys/printk.h>
+#include <zephyr/sys/util.h>
+#include <zephyr/sys/util_macro.h>
+
+#include "bap_common.h"
+#include "bap_stream_rx.h"
+#include "bap_stream_tx.h"
+#include "bstests.h"
 #include "common.h"
-#include "bap_unicast_common.h"
+
+#if defined(CONFIG_BT_BAP_UNICAST_SERVER)
 
 extern enum bst_result_t bst_result;
 
@@ -26,14 +47,14 @@ static const struct bt_audio_codec_cap lc3_codec_cap = {
 	.vid = 0x0000U,
 	.data_len = (3 + 1) + (2 + 1) + (2 + 1) + (5 + 1) + (2 + 1),
 	.data = {
-			BT_AUDIO_CODEC_DATA(BT_AUDIO_CODEC_LC3_FREQ,
-					    BT_BYTES_LIST_LE16(BT_AUDIO_CODEC_LC3_FREQ_16KHZ)),
-			BT_AUDIO_CODEC_DATA(BT_AUDIO_CODEC_LC3_DURATION,
-					    BT_AUDIO_CODEC_LC3_DURATION_10),
-			BT_AUDIO_CODEC_DATA(BT_AUDIO_CODEC_LC3_CHAN_COUNT, CHANNEL_COUNT_1),
-			BT_AUDIO_CODEC_DATA(BT_AUDIO_CODEC_LC3_FRAME_LEN, BT_BYTES_LIST_LE16(40U),
-					    BT_BYTES_LIST_LE16(40U)),
-			BT_AUDIO_CODEC_DATA(BT_AUDIO_CODEC_LC3_FRAME_COUNT, 1U),
+			BT_AUDIO_CODEC_DATA(BT_AUDIO_CODEC_CAP_TYPE_FREQ,
+					    BT_BYTES_LIST_LE16(BT_AUDIO_CODEC_CAP_FREQ_16KHZ)),
+			BT_AUDIO_CODEC_DATA(BT_AUDIO_CODEC_CAP_TYPE_DURATION,
+					    BT_AUDIO_CODEC_CAP_DURATION_10),
+			BT_AUDIO_CODEC_DATA(BT_AUDIO_CODEC_CAP_TYPE_CHAN_COUNT, CHANNEL_COUNT_1),
+			BT_AUDIO_CODEC_DATA(BT_AUDIO_CODEC_CAP_TYPE_FRAME_LEN,
+					    BT_BYTES_LIST_LE16(40U), BT_BYTES_LIST_LE16(40U)),
+			BT_AUDIO_CODEC_DATA(BT_AUDIO_CODEC_CAP_TYPE_FRAME_COUNT, 1U),
 		},
 	.meta_len = (5 + 1) + (LONG_META_LEN + 1U),
 	.meta = {
@@ -43,28 +64,16 @@ static const struct bt_audio_codec_cap lc3_codec_cap = {
 		},
 };
 
-static struct bt_bap_stream streams[CONFIG_BT_ASCS_ASE_SNK_COUNT + CONFIG_BT_ASCS_ASE_SRC_COUNT];
+static struct audio_test_stream
+	test_streams[CONFIG_BT_ASCS_MAX_ASE_SNK_COUNT + CONFIG_BT_ASCS_MAX_ASE_SRC_COUNT];
 
-static const struct bt_audio_codec_qos_pref qos_pref =
-	BT_AUDIO_CODEC_QOS_PREF(true, BT_GAP_LE_PHY_2M, 0x02, 10, 40000, 40000, 40000, 40000);
+static const struct bt_bap_qos_cfg_pref qos_pref =
+	BT_BAP_QOS_CFG_PREF(true, BT_GAP_LE_PHY_2M, 0x02, 10, 40000, 40000, 40000, 40000);
 
-static uint8_t unicast_server_addata[] = {
-	BT_UUID_16_ENCODE(BT_UUID_ASCS_VAL),    /* ASCS UUID */
-	BT_AUDIO_UNICAST_ANNOUNCEMENT_TARGETED, /* Target Announcement */
-	BT_BYTES_LIST_LE16(PREF_CONTEXT),
-	BT_BYTES_LIST_LE16(PREF_CONTEXT),
-	0x00, /* Metadata length */
-};
-
-static const struct bt_data unicast_server_ad[] = {
-	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-	BT_DATA_BYTES(BT_DATA_UUID16_ALL, BT_UUID_16_ENCODE(BT_UUID_ASCS_VAL)),
-	BT_DATA(BT_DATA_SVC_DATA16, unicast_server_addata, ARRAY_SIZE(unicast_server_addata)),
-};
 static struct bt_le_ext_adv *ext_adv;
 
 CREATE_FLAG(flag_stream_configured);
-
+CREATE_FLAG(flag_stream_started);
 static void print_ase_info(struct bt_bap_ep *ep, void *user_data)
 {
 	struct bt_bap_ep_info info;
@@ -75,8 +84,8 @@ static void print_ase_info(struct bt_bap_ep *ep, void *user_data)
 
 static struct bt_bap_stream *stream_alloc(void)
 {
-	for (size_t i = 0; i < ARRAY_SIZE(streams); i++) {
-		struct bt_bap_stream *stream = &streams[i];
+	for (size_t i = 0; i < ARRAY_SIZE(test_streams); i++) {
+		struct bt_bap_stream *stream = bap_stream_from_audio_test_stream(&test_streams[i]);
 
 		if (!stream->conn) {
 			return stream;
@@ -88,7 +97,7 @@ static struct bt_bap_stream *stream_alloc(void)
 
 static int lc3_config(struct bt_conn *conn, const struct bt_bap_ep *ep, enum bt_audio_dir dir,
 		      const struct bt_audio_codec_cfg *codec_cfg, struct bt_bap_stream **stream,
-		      struct bt_audio_codec_qos_pref *const pref, struct bt_bap_ascs_rsp *rsp)
+		      struct bt_bap_qos_cfg_pref *const pref, struct bt_bap_ascs_rsp *rsp)
 {
 	printk("ASE Codec Config: conn %p ep %p dir %u\n", conn, ep, dir);
 
@@ -96,7 +105,7 @@ static int lc3_config(struct bt_conn *conn, const struct bt_bap_ep *ep, enum bt_
 
 	*stream = stream_alloc();
 	if (*stream == NULL) {
-		printk("No streams available\n");
+		printk("No test_streams available\n");
 		*rsp = BT_BAP_ASCS_RSP(BT_BAP_ASCS_RSP_CODE_NO_MEM, BT_BAP_ASCS_REASON_NONE);
 		return -ENOMEM;
 	}
@@ -114,7 +123,7 @@ static int lc3_config(struct bt_conn *conn, const struct bt_bap_ep *ep, enum bt_
 
 static int lc3_reconfig(struct bt_bap_stream *stream, enum bt_audio_dir dir,
 			const struct bt_audio_codec_cfg *codec_cfg,
-			struct bt_audio_codec_qos_pref *const pref, struct bt_bap_ascs_rsp *rsp)
+			struct bt_bap_qos_cfg_pref *const pref, struct bt_bap_ascs_rsp *rsp)
 {
 	printk("ASE Codec Reconfig: stream %p\n", stream);
 
@@ -125,12 +134,16 @@ static int lc3_reconfig(struct bt_bap_stream *stream, enum bt_audio_dir dir,
 	return -ENOEXEC;
 }
 
-static int lc3_qos(struct bt_bap_stream *stream, const struct bt_audio_codec_qos *qos,
+static int lc3_qos(struct bt_bap_stream *stream, const struct bt_bap_qos_cfg *qos,
 		   struct bt_bap_ascs_rsp *rsp)
 {
+	struct audio_test_stream *test_stream = audio_test_stream_from_bap_stream(stream);
+
 	printk("QoS: stream %p qos %p\n", stream, qos);
 
 	print_qos(qos);
+
+	test_stream->tx_sdu_size = qos->sdu;
 
 	return 0;
 }
@@ -192,6 +205,11 @@ static int lc3_release(struct bt_bap_stream *stream, struct bt_bap_ascs_rsp *rsp
 	return 0;
 }
 
+static struct bt_bap_unicast_server_register_param param = {
+	CONFIG_BT_ASCS_MAX_ASE_SNK_COUNT,
+	CONFIG_BT_ASCS_MAX_ASE_SRC_COUNT
+};
+
 static const struct bt_bap_unicast_server_cb unicast_server_cb = {
 	.config = lc3_config,
 	.reconfig = lc3_reconfig,
@@ -228,16 +246,100 @@ static void stream_enabled_cb(struct bt_bap_stream *stream)
 	}
 }
 
-static void stream_recv(struct bt_bap_stream *stream, const struct bt_iso_recv_info *info,
-			struct net_buf *buf)
+static void stream_started_cb(struct bt_bap_stream *stream)
 {
-	printk("Incoming audio on stream %p len %u\n", stream, buf->len);
+	printk("Started: stream %p\n", stream);
+
+	if (bap_stream_tx_can_send(stream)) {
+		int err;
+
+		err = bap_stream_tx_register(stream);
+		if (err != 0) {
+			FAIL("Failed to register stream %p for TX: %d\n", stream, err);
+			return;
+		}
+	}
+
+	SET_FLAG(flag_stream_started);
+}
+
+static void stream_stopped_cb(struct bt_bap_stream *stream, uint8_t reason)
+{
+	printk("Stopped stream %p with reason 0x%02X\n", stream, reason);
+
+	if (bap_stream_tx_can_send(stream)) {
+		int err;
+
+		err = bap_stream_tx_unregister(stream);
+		if (err != 0) {
+			FAIL("Failed to unregister stream %p for TX: %d\n", stream, err);
+			return;
+		}
+	}
 }
 
 static struct bt_bap_stream_ops stream_ops = {
 	.enabled = stream_enabled_cb,
-	.recv = stream_recv
+	.started = stream_started_cb,
+	.stopped = stream_stopped_cb,
+	.recv = bap_stream_rx_recv_cb,
+	.sent = bap_stream_tx_sent_cb,
 };
+
+static void transceive_test_streams(void)
+{
+	struct bt_bap_stream *source_stream = NULL;
+	struct bt_bap_stream *sink_stream = NULL;
+	struct bt_bap_ep_info info;
+	int err;
+
+	for (size_t i = 0U; i < ARRAY_SIZE(test_streams); i++) {
+		struct bt_bap_stream *stream = bap_stream_from_audio_test_stream(&test_streams[i]);
+
+		if (stream->ep == NULL) {
+			break;
+		}
+
+		while (true) {
+			err = bt_bap_ep_get_info(stream->ep, &info);
+			if (err != 0) {
+				FAIL("Failed to get endpoint info for stream[%zu] %p: %d\n", i,
+				     stream, err);
+				return;
+			}
+
+			/* Ensure that all configured test_streams are in the streaming state before
+			 * starting TX and RX
+			 */
+			if (info.state == BT_BAP_EP_STATE_STREAMING) {
+				break;
+			}
+
+			k_sleep(K_MSEC(100));
+		}
+
+		if (info.dir == BT_AUDIO_DIR_SINK && sink_stream == NULL) {
+			sink_stream = stream;
+		} else if (info.dir == BT_AUDIO_DIR_SOURCE && source_stream == NULL) {
+			source_stream = stream;
+		}
+	}
+
+	if (source_stream != NULL) {
+		struct audio_test_stream *test_stream =
+			audio_test_stream_from_bap_stream(source_stream);
+
+		/* Keep sending until we reach the minimum expected */
+		while (test_stream->tx_cnt < MIN_SEND_COUNT) {
+			k_sleep(K_MSEC(100));
+		}
+	}
+
+	if (sink_stream != NULL) {
+		printk("Waiting for data\n");
+		WAIT_FOR_FLAG(flag_audio_received);
+	}
+}
 
 static void set_location(void)
 {
@@ -305,6 +407,20 @@ static void init(void)
 	static struct bt_pacs_cap cap = {
 		.codec_cap = &lc3_codec_cap,
 	};
+	const struct bt_pacs_register_param pacs_param = {
+#if defined(CONFIG_BT_PAC_SNK)
+		.snk_pac = true,
+#endif /* CONFIG_BT_PAC_SNK */
+#if defined(CONFIG_BT_PAC_SNK_LOC)
+		.snk_loc = true,
+#endif /* CONFIG_BT_PAC_SNK_LOC */
+#if defined(CONFIG_BT_PAC_SRC)
+		.src_pac = true,
+#endif /* CONFIG_BT_PAC_SRC */
+#if defined(CONFIG_BT_PAC_SRC_LOC)
+		.src_loc = true,
+#endif /* CONFIG_BT_PAC_SRC_LOC */
+	};
 	int err;
 
 	err = bt_enable(NULL);
@@ -314,6 +430,21 @@ static void init(void)
 	}
 
 	printk("Bluetooth initialized\n");
+
+	err = bt_pacs_register(&pacs_param);
+	if (err) {
+		FAIL("Could not register PACS (err %d)\n", err);
+		return;
+	}
+
+	bap_stream_tx_init();
+
+	err = bt_bap_unicast_server_register(&param);
+	if (err != 0) {
+		FAIL("Failed to register unicast server (err %d)\n", err);
+
+		return;
+	}
 
 	bt_bap_unicast_server_register_cb(&unicast_server_cb);
 
@@ -332,30 +463,35 @@ static void init(void)
 	set_location();
 	set_available_contexts();
 
-	for (size_t i = 0; i < ARRAY_SIZE(streams); i++) {
-		bt_bap_stream_cb_register(&streams[i], &stream_ops);
+	for (size_t i = 0; i < ARRAY_SIZE(test_streams); i++) {
+		bt_bap_stream_cb_register(bap_stream_from_audio_test_stream(&test_streams[i]),
+					  &stream_ops);
 	}
 
-	/* Create a non-connectable non-scannable advertising set */
-	err = bt_le_ext_adv_create(BT_LE_EXT_ADV_CONN_NAME, NULL, &ext_adv);
+	setup_connectable_adv(&ext_adv);
+}
+
+static void deinit(void)
+{
+	int err;
+
+	err = bt_bap_unicast_server_unregister_cb(&unicast_server_cb);
 	if (err != 0) {
-		FAIL("Failed to create advertising set (err %d)\n", err);
+		FAIL("Failed to unregister unicast server callbacks (err %d)\n", err);
 		return;
 	}
 
-	err = bt_le_ext_adv_set_data(ext_adv, unicast_server_ad, ARRAY_SIZE(unicast_server_ad),
-				     NULL, 0);
+	err = bt_bap_unicast_server_unregister();
 	if (err != 0) {
-		FAIL("Failed to set advertising data (err %d)\n", err);
+		FAIL("Failed to unregister unicast server (err %d)\n", err);
 		return;
 	}
 
-	err = bt_le_ext_adv_start(ext_adv, BT_LE_EXT_ADV_START_DEFAULT);
+	err = bt_pacs_unregister();
 	if (err != 0) {
-		FAIL("Failed to start advertising set (err %d)\n", err);
+		FAIL("Failed to unregister PACS (err %d)\n", err);
 		return;
 	}
-	printk("Advertising started\n");
 }
 
 static void test_main(void)
@@ -367,8 +503,12 @@ static void test_main(void)
 	WAIT_FOR_FLAG(flag_connected);
 	WAIT_FOR_FLAG(flag_stream_configured);
 
+
+	WAIT_FOR_FLAG(flag_stream_started);
+	transceive_test_streams();
 	WAIT_FOR_UNSET_FLAG(flag_connected);
 
+	deinit();
 	PASS("Unicast server passed\n");
 }
 
@@ -380,8 +520,10 @@ static void restart_adv_cb(struct k_work *work)
 
 	err = bt_le_ext_adv_start(ext_adv, BT_LE_EXT_ADV_START_DEFAULT);
 	if (err != 0) {
-		FAIL("Failed to start advertising set (err %d)\n", err);
-		return;
+		if (err != -EALREADY) {
+			FAIL("Failed to start advertising set (err %d)\n", err);
+			return;
+		}
 	}
 }
 
@@ -405,27 +547,14 @@ static void test_main_acl_disconnect(void)
 
 	init();
 
+	stream_ops.recv = NULL; /* We do not care about data in this test */
+
 	/* Create CONFIG_BT_MAX_CONN - 1 dummy advertising sets, to ensure that we only have 1 free
 	 * connection when attempting to restart advertising, which should ensure that the
 	 * bt_conn object is properly unref'ed by the stack
 	 */
 	for (size_t i = 0U; i < ARRAY_SIZE(dummy_ext_adv); i++) {
-		const struct bt_le_adv_param param = BT_LE_ADV_PARAM_INIT(
-			(BT_LE_ADV_OPT_EXT_ADV | BT_LE_ADV_OPT_CONNECTABLE),
-			BT_GAP_ADV_SLOW_INT_MAX, BT_GAP_ADV_SLOW_INT_MAX, NULL);
-		int err;
-
-		err = bt_le_ext_adv_create(&param, NULL, &dummy_ext_adv[i]);
-		if (err != 0) {
-			FAIL("Failed to create advertising set[%zu] (err %d)\n", i, err);
-			return;
-		}
-
-		err = bt_le_ext_adv_start(dummy_ext_adv[i], BT_LE_EXT_ADV_START_DEFAULT);
-		if (err != 0) {
-			FAIL("Failed to start advertising set[%zu] (err %d)\n", i, err);
-			return;
-		}
+		setup_connectable_adv(&dummy_ext_adv[i]);
 	}
 
 	bt_conn_cb_register(&conn_callbacks);
@@ -436,19 +565,21 @@ static void test_main_acl_disconnect(void)
 	/* The client will reconnect */
 	WAIT_FOR_UNSET_FLAG(flag_connected);
 	WAIT_FOR_FLAG(flag_connected);
+
+	deinit();
 	PASS("Unicast server ACL disconnect  passed\n");
 }
 
 static const struct bst_test_instance test_unicast_server[] = {
 	{
 		.test_id = "unicast_server",
-		.test_post_init_f = test_init,
+		.test_pre_init_f = test_init,
 		.test_tick_f = test_tick,
 		.test_main_f = test_main,
 	},
 	{
 		.test_id = "unicast_server_acl_disconnect",
-		.test_post_init_f = test_init,
+		.test_pre_init_f = test_init,
 		.test_tick_f = test_tick,
 		.test_main_f = test_main_acl_disconnect,
 	},

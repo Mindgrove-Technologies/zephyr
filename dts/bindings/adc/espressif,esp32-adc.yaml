@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 description: |
-  Espressif ESP32 ADC
+  ESP32 ADC.
+
   Possible available resolutions depends on the used chip.
     - ESP32     < 9,10,11,12 >
     - ESP32-S2  < 12 >
@@ -14,7 +15,7 @@ description: |
 
   Zephyr API is using gain unit to characterize ADC input.
   To achieve compatibility we choose to select those gain,
-  which coresponds to the ESP32 ADC attenuation feature.
+  which corresponds to the ESP32 ADC attenuation feature.
 
     ESP32,attenuation ~ zephyr,gain
     -----------------   -----------

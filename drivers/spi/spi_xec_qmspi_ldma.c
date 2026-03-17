@@ -16,6 +16,7 @@
 #include <zephyr/drivers/interrupt_controller/intc_mchp_xec_ecia.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/drivers/spi.h>
+#include <zephyr/drivers/spi/rtio.h>
 #include <zephyr/dt-bindings/clock/mchp_xec_pcr.h>
 #include <zephyr/dt-bindings/interrupt-controller/mchp-xec-ecia.h>
 #include <zephyr/irq.h>
@@ -215,7 +216,7 @@ static int qmspi_set_frequency(struct spi_qmspi_data *qdata, struct qmspi_regs *
  * SPI signalling mode: CPOL and CPHA
  * CPOL = 0 is clock idles low, 1 is clock idle high
  * CPHA = 0 Transmitter changes data on trailing of preceding clock cycle.
- *          Receiver samples data on leading edge of clock cyle.
+ *          Receiver samples data on leading edge of clock cycle.
  *        1 Transmitter changes data on leading edge of current clock cycle.
  *          Receiver samples data on the trailing edge of clock cycle.
  * SPI Mode nomenclature:
@@ -475,7 +476,7 @@ static inline int qmspi_xfr_cm_init(const struct device *dev,
  * RX data discard for certain SPI command protocols using dual/quad I/O.
  * 1. Get largest contiguous data size from SPI context.
  * 2. If the SPI TX context has a non-zero length configure Local-DMA TX
- *    channel 1 for contigous data size. If TX context has valid buffer
+ *    channel 1 for contiguous data size. If TX context has valid buffer
  *    configure channel to use context buffer with address increment.
  *    If the TX buffer pointer is NULL interpret byte length as the number
  *    of clocks to generate with output line(s) tri-stated. NOTE: The controller
@@ -487,7 +488,7 @@ static inline int qmspi_xfr_cm_init(const struct device *dev,
  *    For example, if I/O lines is 4 (quad) meaning 4 bits per clock and the
  *    user wants 7 clocks then the number of bit units is 4 * 7 = 28.
  * 3. If instead, the SPI RX context has a non-zero length configure Local-DMA
- *    RX channel 1 for the contigous data size. If RX context has a valid
+ *    RX channel 1 for the contiguous data size. If RX context has a valid
  *    buffer configure channel to use buffer with address increment else
  *    configure channel for driver data temporary buffer without address
  *    increment.
@@ -696,7 +697,7 @@ static int qmspi_xfr_start_async(const struct device *dev, const struct spi_buf_
 	return 0;
 }
 
-/* Wrapper to start asynchronous (interrupts enabled) SPI transction */
+/* Wrapper to start asynchronous (interrupts enabled) SPI transaction */
 static int qmspi_xfr_async(const struct device *dev,
 			   const struct spi_config *config,
 			   const struct spi_buf_set *tx_bufs,
@@ -985,10 +986,13 @@ static int qmspi_xec_init(const struct device *dev)
 	return 0;
 }
 
-static const struct spi_driver_api spi_qmspi_xec_driver_api = {
+static DEVICE_API(spi, spi_qmspi_xec_driver_api) = {
 	.transceive = qmspi_transceive_sync,
 #ifdef CONFIG_SPI_ASYNC
 	.transceive_async = qmspi_transceive_async,
+#endif
+#ifdef CONFIG_SPI_RTIO
+	.iodev_submit = spi_rtio_iodev_default_submit,
 #endif
 	.release = qmspi_release,
 };
@@ -1067,7 +1071,7 @@ static const struct spi_driver_api spi_qmspi_xec_driver_api = {
 		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(i),		\
 	};								\
 	PM_DEVICE_DT_INST_DEFINE(i, qmspi_xec_pm_action);		\
-	DEVICE_DT_INST_DEFINE(i, &qmspi_xec_init,			\
+	SPI_DEVICE_DT_INST_DEFINE(i, qmspi_xec_init,			\
 		PM_DEVICE_DT_INST_GET(i),				\
 		&qmspi_xec_data_##i, &qmspi_xec_config_##i,		\
 		POST_KERNEL, CONFIG_SPI_INIT_PRIORITY,			\

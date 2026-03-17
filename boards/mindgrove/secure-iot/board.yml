@@ -1,0 +1,11 @@
+board:
+  name: secure-iot
+  full_name: secure-iot
+  vendor: mindgrove
+  socs:
+    - name: secure-iot
+  revision:
+    format: letter
+    default: "A"
+    revisions:
+      - name: "A"

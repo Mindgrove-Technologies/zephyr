@@ -25,6 +25,7 @@ _west_cmds() {
   local -a zephyr_ext_cmds=(
   'completion[display shell completion scripts]'
   'boards[display information about supported boards]'
+  'shields[display information about supported shields]'
   'build[compile a Zephyr application]'
   'sign[sign a Zephyr binary for bootloader chain-loading]'
   'flash[flash and run a binary on a board]'
@@ -34,6 +35,7 @@ _west_cmds() {
   'zephyr-export[export Zephyr installation as a CMake config package]'
   'spdx[create SPDX bill of materials]'
   'blobs[work with binary blobs]'
+  'sdk[manage SDKs]'
   )
 
   local -a all_cmds=(${builtin_cmds} ${zephyr_ext_cmds})
@@ -102,8 +104,27 @@ _get_west_projs() {
 }
 
 _get_west_boards() {
-  _west_boards=($(__west_x boards --format={name}))
+  _west_boards=( $(__west_x boards --format='{name}|{qualifiers}') )
+  for i in {1..${#_west_boards[@]}}; do
+    local name="${_west_boards[$i]%%|*}"
+    local transformed_board="${_west_boards[$i]//|//}"
+    _west_boards[$i]="${transformed_board//,/ ${name}/}"
+  done
+  _west_boards=(${(@s/ /)_west_boards})
+
   _describe 'boards' _west_boards
+}
+
+_get_west_shields() {
+  _west_shields=( $(__west_x shields --format='{name}') )
+  for i in {1..${#_west_shields[@]}}; do
+    local name="${_west_shields[$i]%%|*}"
+    local transformed_shield="${_west_shields[$i]//|//}"
+    _west_shields[$i]="${transformed_shield//,/ ${name}/}"
+  done
+  _west_shields=(${(@s/ /)_west_shields})
+
+  _describe 'shields' _west_shields
 }
 
 _west_init() {
@@ -214,6 +235,17 @@ _west_boards() {
   {-n,--name}'[name regex]:regex:'
   '*--arch-root[Add an arch root]:arch root:_directories'
   '*--board-root[Add a board root]:board root:_directories'
+  '*--soc-root[Add a soc root]:soc root:_directories'
+  )
+
+  _arguments -S $opts
+}
+
+_west_shields() {
+  local -a opts=(
+  {-f,--format}'[format string]:format string:'
+  {-n,--name}'[name regex]:regex:'
+  '*--board-root[Add a board root]:board root:_directories'
   )
 
   _arguments -S $opts
@@ -234,6 +266,7 @@ _west_build() {
   {-o,--build-opt}'[options to pass to build tool (make or ninja)]:tool opt:'
   '(-n --just-print --dry-run --recon)'{-n,--just-print,--dry-run,--recon}"[just print build commands, don't run them]"
   '(-p --pristine)'{-p,--pristine}'[pristine build setting]:pristine:(auto always never)'
+  '--shield[shield to build for]:shield:_get_west_shields'
   )
   _arguments -S $opts \
       "1:source_dir:_directories"

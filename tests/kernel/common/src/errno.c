@@ -9,16 +9,7 @@
 #include <errno.h>
 #include <zephyr/sys/errno_private.h>
 
-/**
- * @brief Test the thread context
- *
- * @defgroup kernel_threadcontext_tests Thread Context Tests
- *
- * @ingroup all_tests
- *
- * @{
- * @}
- */
+
 #define N_THREADS 2
 #define STACK_SIZE (384 + CONFIG_TEST_EXTRA_STACK_SIZE)
 
@@ -59,11 +50,17 @@ static void errno_thread(void *_n, void *_my_errno, void *_unused)
 
 	k_fifo_put(&fifo, &result[n]);
 }
-
+/**
+ * @defgroup kernel_errno_tests Error Number
+ * @ingroup all_tests
+ * @{
+ * @}
+ *
+ * @addtogroup kernel_errno_tests
+ * @{
+ */
 /**
  * @brief Verify thread context
- *
- * @ingroup kernel_threadcontext_tests
  *
  * @details Check whether variable value per-thread are saved during
  *	context switch
@@ -118,9 +115,8 @@ ZTEST(common_errno, test_thread_context)
 
 void thread_entry_user(void *p1, void *p2, void *p3)
 {
-#ifdef CONFIG_ARCH_POSIX
-	/* The errno in native posix will be handled by native
-	 * operation system, so we skip it.
+#ifdef CONFIG_NATIVE_LIBC
+	/* The errno when using the host C library will be handled by it, so we skip it.
 	 */
 	ztest_test_skip();
 #else
@@ -141,8 +137,6 @@ void thread_entry_user(void *p1, void *p2, void *p3)
  *
  * @details Check whether a C standard errno can be stored successfully,
  *  no matter it is using tls or not.
- *
- * @ingroup kernel_threadcontext_tests
  */
 ZTEST_USER(common_errno, test_errno)
 {
@@ -161,6 +155,8 @@ ZTEST_USER(common_errno, test_errno)
 	k_thread_join(tid, K_FOREVER);
 }
 
+/**
+ * @}
+ */
 extern void *common_setup(void);
-
 ZTEST_SUITE(common_errno, NULL, common_setup, NULL, NULL, NULL);

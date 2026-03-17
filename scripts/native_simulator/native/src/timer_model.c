@@ -126,7 +126,12 @@ static inline void host_clock_gettime(struct timespec *tv)
 #endif
 }
 
-static uint64_t get_host_us_time(void)
+/*
+ * This function is globally available only for tests purposes
+ * It should not be used for any functional purposes,
+ * and as such is not present in this component header.
+ */
+uint64_t get_host_us_time(void)
 {
 	struct timespec tv;
 
@@ -450,7 +455,7 @@ static void cmd_rt_ratio_found(char *argv, int offset)
 {
 	NSI_ARG_UNUSED(argv);
 	NSI_ARG_UNUSED(offset);
-	if ((args.rt_ratio <= 0)) {
+	if (args.rt_ratio <= 0) {
 		nsi_print_error_and_exit("The ratio needs to be > 0. "
 					  "Please use --help for more info\n");
 	}

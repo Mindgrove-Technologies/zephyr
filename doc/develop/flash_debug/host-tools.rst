@@ -13,6 +13,7 @@ file declares that support properly. See :ref:`west-build-flash-debug` for
 more information on these commands.
 
 .. _atmel_sam_ba_bootloader:
+.. _runner_bossac:
 
 SAM Boot Assistant (SAM-BA)
 ***************************
@@ -28,7 +29,14 @@ The typical command to flash the board is:
 
 .. code-block:: console
 
-	west flash [ -r bossac ] [ -p /dev/ttyX ]
+	west flash [ -r bossac ] [ -p /dev/ttyX ] [ --erase ]
+
+.. note::
+
+    By default, flashing with bossac will only erase the flash pages containing
+    the flashed application, leaving other pages untouched. Should you wish to
+    erase the entire flash of the target when flashing, pass the ``--erase``
+    parameter when flashing.
 
 Flash configuration for devices:
 
@@ -176,10 +184,10 @@ options are available passing the runner option, for instance
 More implementation details can be found in the :ref:`boards` documentation.
 As a quick reference, see these three board documentation pages:
 
-  - :ref:`sam4e_xpro` (ROM bootloader)
-  - :ref:`adafruit_feather_m0_basic_proto` (Adafruit UF2 bootloader)
-  - :ref:`arduino_nano_33_iot` (Arduino bootloader)
-  - :ref:`arduino_nano_33_ble` (Arduino legacy bootloader)
+  - :zephyr:board:`sam4e_xpro` (ROM bootloader)
+  - :zephyr:board:`adafruit_feather_m0_basic_proto` (Adafruit UF2 bootloader)
+  - :zephyr:board:`arduino_nano_33_iot` (Arduino bootloader)
+  - :zephyr:board:`arduino_nano_33_ble` (Arduino legacy bootloader)
 
 Enabling BOSSAC on Windows Native [Experimental]
 ------------------------------------------------
@@ -200,6 +208,7 @@ Windows PATH. A specific bossac executable can be used by passing the
 
 
 .. _linkserver-debug-host-tools:
+.. _runner_linkserver:
 
 LinkServer Debug  Host Tools
 ****************************
@@ -220,6 +229,24 @@ LinkServer is compatible with the following debug probes:
 - :ref:`lpclink2-cmsis-onboard-debug-probe`
 - :ref:`mcu-link-cmsis-onboard-debug-probe`
 - :ref:`opensda-daplink-onboard-debug-probe`
+
+To use LinkServer with West commands, the install folder should be added to the
+:envvar:`PATH` :ref:`environment variable <env_vars>`.  The default installation
+path to add is:
+
+.. tabs::
+
+   .. group-tab:: Linux
+
+      .. code-block:: console
+
+         /usr/local/LinkServer
+
+   .. group-tab:: Windows
+
+      .. code-block:: console
+
+         c:\nxp\LinkServer_<version>
 
 Supported west commands:
 
@@ -252,7 +279,12 @@ LinkServer west runner   ``--probe`` option to pass the probe index.
 
    west flash --runner=linkserver --override /device/memory/5/flash-driver=MIMXRT500_SFDP_MXIC_OSPI_S.cfx
 
+4. LinkServer does not install an implicit breakpoint at the reset handler. If
+   you would like to single step from the start of their application, you
+   will need to add a breakpoint at ``main`` or the reset handler manually.
+
 .. _jlink-debug-host-tools:
+.. _runner_jlink:
 
 J-Link Debug Host Tools
 ***********************
@@ -283,6 +315,7 @@ required.
 Note that the J-Link GDB server does not yet support Zephyr RTOS-awareness.
 
 .. _openocd-debug-host-tools:
+.. _runner_openocd:
 
 OpenOCD Debug Host Tools
 ************************
@@ -310,6 +343,7 @@ Check if your SoC is listed in `OpenOCD Supported Devices`_.
    - Add ``C:\Program Files\OpenOCD\bin`` to 'PATH' environment variable
 
 .. _pyocd-debug-host-tools:
+.. _runner_pyocd:
 
 pyOCD Debug Host Tools
 **********************
@@ -321,12 +355,15 @@ Started Guide. pyOCD includes support for Zephyr RTOS-awareness.
 
 These debug host tools are compatible with the following debug probes:
 
+- :ref:`lpclink2-cmsis-onboard-debug-probe`
+- :ref:`mcu-link-cmsis-onboard-debug-probe`
 - :ref:`opensda-daplink-onboard-debug-probe`
 - :ref:`stlink-v21-onboard-debug-probe`
 
 Check if your SoC is listed in `pyOCD Supported Devices`_.
 
 .. _lauterbach-trace32-debug-host-tools:
+.. _runner_trace32:
 
 Lauterbach TRACE32 Debug Host Tools
 ***********************************
@@ -377,6 +414,152 @@ Zephyr RTOS Awareness
 To enable Zephyr RTOS awareness follow the steps described in
 `Lauterbach TRACE32 Zephyr OS Awareness Manual`_.
 
+.. _nxp-s32-debug-host-tools:
+.. _runner_nxp_s32dbg:
+
+NXP S32 Debug Probe Host Tools
+******************************
+
+:ref:`nxp-s32-debug-probe` is designed to work in conjunction with
+`NXP S32 Design Studio for S32 Platform`_.
+
+Download (registration required) NXP S32 Design Studio for S32 Platform and
+follow the `S32 Design Studio for S32 Platform Installation User Guide`_ to get
+the necessary debug host tools and associated USB device drivers.
+
+Note that Zephyr RTOS-awareness support for the NXP S32 GDB server depends on
+the target device. Consult the product release notes for more information.
+
+Supported west commands:
+
+1. debug
+#. debugserver
+#. attach
+
+Basic usage
+-----------
+
+Before starting, add NXP S32 Design Studio installation directory to the system
+:ref:`PATH environment variable <env_vars>`. Alternatively, it can be passed to
+the runner on each invocation via ``--s32ds-path`` as shown below:
+
+.. tabs::
+
+   .. group-tab:: Linux
+
+      .. code-block:: console
+
+         west debug --s32ds-path=/opt/NXP/S32DS.3.5
+
+   .. group-tab:: Windows
+
+      .. code-block:: console
+
+         west debug --s32ds-path=C:\NXP\S32DS.3.5
+
+If multiple S32 debug probes are connected to the host via USB, the runner will
+ask the user to select one via command line prompt before continuing. The
+connection string for the probe can be also specified when invoking the runner
+via ``--dev-id=<connection-string>``. Consult NXP S32 debug probe user manual
+for details on how to construct the connection string. For example, if using a
+probe with serial ID ``00:04:9f:00:ca:fe``:
+
+.. code-block:: console
+
+   west debug --dev-id='s32dbg:00:04:9f:00:ca:fe'
+
+It is possible to pass extra options to the debug host tools via ``--tool-opt``.
+When executing ``debug`` or ``attach`` commands, the tool options will be passed
+to the GDB client only. When executing ``debugserver``, the tool options will be
+passed to the GDB server. For example, to load a Zephyr application to SRAM and
+afterwards detach the debug session:
+
+.. code-block:: console
+
+   west debug --tool-opt='--batch'
+
+.. _runner_probe_rs:
+
+probe-rs Debug Host Tools
+*************************
+
+probe-rs is an open-source embedded toolkit written in Rust. It provides
+out-of-the-box support for a variety of debug probes, including CMSIS-DAP,
+ST-Link, SEGGER J-Link, FTDI and built-in USB-JTAG interface on ESP32 devices.
+
+Check `probe-rs Installation`_ for more setup details.
+
+Check if your SoC is listed in `probe-rs Supported Devices`_.
+
+.. _runner_rfp:
+
+Renesas Flash Programmer (RFP) Host Tools
+*****************************************
+
+Renesas provides `Renesas Flash Programmer`_ as an official programming tool for Renesas boards
+using the Renesas standard boot firmware. It is available as a GUI and CLI.
+
+For boards configured with the ``rfp`` west runner, the RFP CLI can be easily used to flash Zephyr.
+
+Supported west commands:
+
+1. flash
+
+Once downloaded, if ``rfp-cli`` is not placed somewhere in your system PATH, you can pass the location
+to ``rfp-cli`` when flashing:
+
+.. code-block:: console
+
+   west flash --rfp-cli ~/Downloads/RFP_CLI_Linux_V31800_x64/linux-x64/rfp-cli
+
+.. _stm32cubeprog-flash-host-tools:
+.. _runner_stm32cubeprogrammer:
+
+STM32CubeProgrammer Flash Host Tools
+************************************
+
+STMicroelectronics provides `STM32CubeProgrammer`_ (STM32CubeProg) as an official programming tool
+for STM32 boards on Linux |reg|, macOS |reg|, and Windows |reg| operating systems.
+
+It provides an easy-to-use and efficient environment for reading, writing, and verifying device memory
+through both the debug interface (JTAG and SWD) and the bootloader interface (UART and USB DFU, I2C, SPI, and CAN).
+
+It offers a wide range of features to program STM32 internal memories (such as flash, RAM, and OTP)
+as well as external memories.
+
+It also allows option programming and upload, programming content verification, and programming automation
+through scripting.
+
+It is delivered in GUI (graphical user interface) and CLI (command-line interface) versions.
+
+It is compatible with the following debug probes:
+
+- :ref:`stlink-v21-onboard-debug-probe`
+- :ref:`jlink-external-debug-probe`
+- Standalone `ST-LINK-V2`_, `ST-LINK-V3`_, and `STLINK-V3PWR`_ probes
+
+Install STM32CubeProgrammer
+---------------------------
+
+The easiest way to get `STM32CubeProgrammer`_ is to download it from STMicroelectronics website.
+A valid email address is needed to receive the downloading link.
+
+Alternatively, it can be installed as part of `STM32CubeCLT`_ all-in-one multi-OS command-line toolset
+which also includes GDB debugger client and server.
+
+If you have STM32CubeIDE installed on your system, then STM32CubeProg is already present.
+
+Basic usage
+-----------
+
+`STM32CubeProgrammer`_ is setup as the default west runner for all active STM32 boards supported by Zephyr.
+It can be used through the ``west flash`` command to flash Zephyr applications.
+
+.. code-block:: console
+
+   west flash --runner stm32cubeprogrammer
+
+For advanced usage via the GUI or CLI, check out the `STM32CubeProgrammer User Manual`_.
 
 .. _J-Link Software and Documentation Pack:
    https://www.segger.com/downloads/jlink/#J-LinkSoftwareAndDocumentationPack
@@ -415,4 +598,37 @@ To enable Zephyr RTOS awareness follow the steps described in
 	https://www.nxp.com/design/software/development-software/mcuxpresso-software-and-tools-/mcuxpresso-for-visual-studio-code:MCUXPRESSO-VSC
 
 .. _MCUXpresso Installer:
-	https://www.nxp.com/lgfiles/updates/mcuxpresso/MCUXpressoInstaller.exe
+	https://github.com/nxp-mcuxpresso/vscode-for-mcux/wiki/Dependency-Installation
+
+.. _NXP S32 Design Studio for S32 Platform:
+   https://www.nxp.com/design/software/development-software/s32-design-studio-ide/s32-design-studio-for-s32-platform:S32DS-S32PLATFORM
+
+.. _Renesas Flash Programmer:
+   https://www.renesas.com/en/software-tool/renesas-flash-programmer-programming-gui
+
+.. _S32 Design Studio for S32 Platform Installation User Guide:
+   https://www.nxp.com/webapp/Download?colCode=S32DSIG
+
+.. _probe-rs Installation:
+   https://probe.rs/docs/getting-started/installation/
+
+.. _probe-rs Supported Devices:
+   https://probe.rs/targets/
+
+.. _STM32CubeProgrammer:
+   https://www.st.com/en/development-tools/stm32cubeprog.html
+
+.. _STM32CubeCLT:
+   https://www.st.com/en/development-tools/stm32cubeclt.html
+
+.. _STM32CubeProgrammer User Manual:
+   https://www.st.com/resource/en/user_manual/um2237-stm32cubeprogrammer-software-description-stmicroelectronics.pdf
+
+.. _ST-LINK-V2:
+   https://www.st.com/en/development-tools/st-link-v2.html
+
+.. _ST-LINK-V3:
+   https://www.st.com/en/development-tools/stlink-v3set.html
+
+.. _STLINK-V3PWR:
+   https://www.st.com/en/development-tools/stlink-v3pwr.html

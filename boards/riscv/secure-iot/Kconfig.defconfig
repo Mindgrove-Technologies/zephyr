@@ -1,6 +1,0 @@
-if BOARD_SECURE_IOT
-
-config BOARD
-	default "Secure IoT"
-
-endif

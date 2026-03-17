@@ -10,7 +10,7 @@
 #include <adsp_interrupt.h>
 #include "dma_intel_adsp_hda.h"
 
-static const struct dma_driver_api intel_adsp_hda_dma_host_in_api = {
+static DEVICE_API(dma, intel_adsp_hda_dma_host_in_api) = {
 	.config = intel_adsp_hda_dma_host_in_config,
 	.reload = intel_adsp_hda_dma_host_reload,
 	.start = intel_adsp_hda_dma_start,
@@ -35,7 +35,7 @@ static const struct dma_driver_api intel_adsp_hda_dma_host_in_api = {
 												   \
 	PM_DEVICE_DT_INST_DEFINE(inst, intel_adsp_hda_dma_pm_action);				   \
 												   \
-	DEVICE_DT_INST_DEFINE(inst, &intel_adsp_hda_dma_init,					   \
+	DEVICE_DT_INST_DEFINE(inst, intel_adsp_hda_dma_init,					   \
 			      PM_DEVICE_DT_INST_GET(inst),					   \
 			      &intel_adsp_hda_dma##inst##_data,                                    \
 			      &intel_adsp_hda_dma##inst##_config, POST_KERNEL,                     \
@@ -49,7 +49,8 @@ static const struct dma_driver_api intel_adsp_hda_dma_host_in_api = {
 			    DEVICE_DT_INST_GET(inst),			\
 			    DT_INST_IRQ(inst, sense));			\
 		irq_enable(DT_INST_IRQN(inst));			\
-		IF_ENABLED(CONFIG_SOC_SERIES_INTEL_ACE, (ACE_DINT[0].ie[ACE_INTL_HDAHIDMA] = 1;)) \
+		IF_ENABLED(CONFIG_SOC_SERIES_INTEL_ADSP_ACE,	\
+			    (ACE_DINT[0].ie[ACE_INTL_HDAHIDMA] = 1;))	\
 	}
 
 DT_INST_FOREACH_STATUS_OKAY(INTEL_ADSP_HDA_DMA_HOST_IN_INIT)

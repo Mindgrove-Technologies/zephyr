@@ -1,0 +1,30 @@
+/dts-v1/;
+
+#include <vision-soc/riscv64-vision-soc.dtsi>
+
+/ {
+	model = "mindgrove,visionsoc";
+	compatible = "mindgrove,visionsoc-dev";
+
+chosen {
+		zephyr,console = &uart0;
+	};
+};
+
+&uart0 {
+	status = "okay";
+	current-speed = <115200>;
+	clock-frequency = <100000000>;
+	// current-speed = <62500000>;
+	// clock-frequency = <1000000000>;
+};
+
+&uart1 {
+	status = "okay";
+	current-speed = <62500000>;
+	clock-frequency = <1000000000>;
+};
+
+&plic {
+	status = "okay";
+};

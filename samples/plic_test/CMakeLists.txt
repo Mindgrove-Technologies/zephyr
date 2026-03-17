@@ -6,3 +6,9 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(plic_test)
 
 target_sources(app PRIVATE src/main.c)
+
+if(CONFIG_XIP)
+    zephyr_code_relocate(FILES src/main.c LOCATION ROM_TEXT NOCOPY)
+    zephyr_code_relocate(FILES src/main.c LOCATION RAM_DATA)
+    zephyr_code_relocate(FILES src/main.c LOCATION RAM_BSS)
+endif()
