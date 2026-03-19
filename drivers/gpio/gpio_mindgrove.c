@@ -229,7 +229,7 @@ static const struct gpio_mindgrove_config gpio_mindgrove_config_##n = { \
         .port_pin_mask = GPIO_PORT_PIN_MASK_FROM_DT_INST(n), \
     }, \
     .base         = DT_INST_REG_ADDR(n), \
-    .irq_num      = DT_INST_IRQN(n), \
+    .irq_num      = DT_INST_IRQ_BY_IDX(0, 0, irq) + CONFIG_2ND_LVL_ISR_TBL_OFFSET, \
     .irq_priority = DT_INST_IRQ_BY_IDX(n, 0, priority), \
 }; \
 static struct gpio_mindgrove_data gpio_mindgrove_data_##n; \

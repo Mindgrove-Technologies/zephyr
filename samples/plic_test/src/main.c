@@ -9,7 +9,7 @@
 LOG_MODULE_REGISTER(gpio_test, LOG_LEVEL_INF);
 
 #define GPIO_NODE  DT_NODELABEL(gpio0)
-#define TEST_PIN   1
+#define TEST_PIN   0
 
 /* PLIC / GPIO register addresses */
 #define PLIC_PEND  0x0C001000U
@@ -34,7 +34,8 @@ static void gpio_interrupt_cb(const struct device *dev,
     }
 
     /* Re-enable PLIC source if needed */
-    riscv_plic_irq_enable(43);
+    riscv_plic_irq_enable(13);
+
 }
 
 int main(void)
@@ -64,7 +65,7 @@ int main(void)
                              GPIO_INT_LEVEL_LOW);
 
     /* Enable PLIC source */
-    riscv_plic_irq_enable(43);
+    riscv_plic_irq_enable(13);
 
     printk("[MAIN] interrupt configured. Monitoring pin...\n");
 
