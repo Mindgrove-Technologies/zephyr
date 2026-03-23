@@ -2,14 +2,14 @@
 
 #define DMA_BASE                    0x07000000UL
 
-#define DMA_CCR_P2P          ((uint32_t)1U << 18)
-#define DMA_CCR_MEM2MEM      ((uint32_t)1U << 16)
+#define DMA_CFG_PERIPH_TO_PERIPH          ((uint32_t)1U << 18)
+#define DMA_CFG_MEM_TO_MEM              ((uint32_t)1U << 16)
 #define DMA_CCR_PL(x)        ((uint32_t)(x) << 14)
 #define DMA_CCR_MSIZE(x)     ((uint32_t)(x) << 12)
 #define DMA_CCR_PSIZE(x)     ((uint32_t)(x) << 10)
 #define DMA_CCR_MINC(x)      ((uint32_t)(x) << 8)
 #define DMA_CCR_PINC(x)      ((uint32_t)(x) << 6)
-#define DMA_CCR_DIR          (1U << 4)
+#define DMA_CFG_TRANSFER_DIR          (1U << 4)
 #define DMA_CCR_TEIE         (1U << 3)
 #define DMA_CCR_HTIE         (1U << 2)
 #define DMA_CCR_TCIE         (1U << 1)
@@ -18,8 +18,9 @@
 #define DMA_IFCR_TCIF        (1U << 1)
 #define DMA_IFCR_GIF         (1U << 0)
 #define DMA_CCR_EN           (1U << 0)
-#define MODE_FAST_SRC         (1U << 2)
-#define MODE_FAST_DEST        (1U << 3)
+
+#define DMA_MODE_FAST_SOURCE            ((uint8_t)1U << 2)
+#define DMA_MODE_FAST_DESTINATION       ((uint8_t)1U << 3)
 
 #define DMA_FAST_PERIPH_BURST   (0U)
 #define DMA_INC_ENABLE          (1U)
@@ -203,37 +204,111 @@ typedef enum {
 
     UART0_OUTP_READY,            /* UART0 RX ready */
     UART0_CAN_TAKE_INPUT,        /* UART0 TX ready */
-    UART1_OUTP_READY,
-    UART1_CAN_TAKE_INPUT,
-    UART2_OUTP_READY,
-    UART2_CAN_TAKE_INPUT,
-    UART3_OUTP_READY,
-    UART3_CAN_TAKE_INPUT,
-    UART4_OUTP_READY,
-    UART4_CAN_TAKE_INPUT,
+    UART1_OUTP_READY,            /* UART1 RX ready */
+    UART1_CAN_TAKE_INPUT,        /* UART1 TX ready */
+    UART2_OUTP_READY,            /* UART2 RX ready */
+    UART2_CAN_TAKE_INPUT,        /* UART2 TX ready */
+    UART3_OUTP_READY,            /* UART3 RX ready */
+    UART3_CAN_TAKE_INPUT,        /* UART3 TX ready */
+    UART4_OUTP_READY,            /* UART4 RX ready */
+    UART4_CAN_TAKE_INPUT,        /* UART4 TX ready */
 
     SPI0_OUTP_READY,             /* SPI0 RX ready */
     SPI0_CAN_TAKE_INPUT,         /* SPI0 TX ready */
-    SPI1_OUTP_READY,
-    SPI1_CAN_TAKE_INPUT,
-    SPI2_OUTP_READY,
-    SPI2_CAN_TAKE_INPUT,
-    SPI3_OUTP_READY,
-    SPI3_CAN_TAKE_INPUT,
+    SPI1_OUTP_READY,             /* SPI1 RX ready */
+    SPI1_CAN_TAKE_INPUT,         /* SPI1 TX ready */
+    SPI2_OUTP_READY,             /* SPI2 RX ready */
+    SPI2_CAN_TAKE_INPUT,         /* SPI2 TX ready */
+    SPI3_OUTP_READY,             /* SPI3 RX ready */
+    SPI3_CAN_TAKE_INPUT,         /* SPI3 TX ready */
 
     QSPI1_READY,                 /* QSPI1 data ready */
     QSPI0_READY,                 /* QSPI0 data ready */
 
-    GPIO_BUF_4_8_OUTP_READY,     /* GPIO buffer (4/8) output ready */
-    GPIO_BUF_8_OUTP_READY,
-    GPIO_BUF_4_OUTP_READY,
-    GPIO_BUF_2_OUTP_READY,
+    PRO_IO_FUSION_OUTP_READY,   /* Pro_IO Fusion (12-bit) output ready */
+    PRO_IO_OCTA_OUTP_READY,     /* Pro_IO Octa (8-bit) output ready */
+    PRO_IO_TETRA_OUTP_READY,    /* Pro_IO Tetra (4-bit) output ready */
+    PRO_IO_DUO_OUTP_READY,      /* Pro_IO Duo (2-bit) output ready */
 
-    GPIO_BUF_4_8_CAN_TAKE_INP,   /* GPIO buffer input request */
-    GPIO_BUF_8_CAN_TAKE_INP,
-    GPIO_BUF_4_CAN_TAKE_INP,
-    GPIO_BUF_2_CAN_TAKE_INP,
+    PRO_IO_FUSION_CAN_TAKE_INP, /* Pro_IO Fusion (12-bit) input request */
+    PRO_IO_OCTA_CAN_TAKE_INP,   /* Pro_IO Octa (8-bit) input request */
+    PRO_IO_TETRA_CAN_TAKE_INP,  /* Pro_IO Tetra (4-bit) input request */
+    PRO_IO_DUO_CAN_TAKE_INP,    /* Pro_IO Duo (2-bit) input request */
 
     ITRACE_OUTP_READY,           /* Instruction trace output ready */
     ADC_OUTP_READY               /* ADC conversion complete */
 };
+
+/* ================= CRYPTO PERIPHERALS ================= */
+
+#define AES_INP_REG_ADDR        (0x04000000U)  /* AES input register */
+#define SHA_INP_REG_ADDR        (0x03000000U)  /* SHA input register */
+#define RSA_INP_REG_ADDR        (0x05000000U)  /* RSA input register */
+
+#define AES_OUT_REG_ADDR        (0x40000040U)  /* AES output register */
+#define SHA_OUT_REG_ADDR        (0x03000080U)  /* SHA output register */
+#define RSA_OUT_REG_ADDR        (0x05000080U)  /* RSA output register */
+
+/* ================= QSPI ================= */
+
+#define QSPI0_DATA_REG_ADDR     (0x00060220U)  /* QSPI0 data register */
+#define QSPI1_DATA_REG_ADDR     (0x00060320U)  /* QSPI1 data register */
+
+
+/* ================= UART TX/RX REGISTERS ================= */
+
+#define UART0_TX_REG_ADDR       (0x00011304U)  /* UART0 TX register */
+#define UART1_TX_REG_ADDR       (0x00011404U)  /* UART1 TX register */
+#define UART2_TX_REG_ADDR       (0x00011504U)  /* UART2 TX register */
+#define UART3_TX_REG_ADDR       (0x00011604U)  /* UART3 TX register */
+#define UART4_TX_REG_ADDR       (0x00011704U)  /* UART4 TX register */
+
+#define UART0_RX_REG_ADDR       (0x00011308U)  /* UART0 RX register */
+#define UART1_RX_REG_ADDR       (0x00011408U)  /* UART1 RX register */
+#define UART2_RX_REG_ADDR       (0x00011508U)  /* UART2 RX register */
+#define UART3_RX_REG_ADDR       (0x00011608U)  /* UART3 RX register */
+#define UART4_RX_REG_ADDR       (0x00011708U)  /* UART4 RX register */
+
+/* ================= SPI TX/RX REGISTERS ================= */
+
+#define SPI0_TX_REG_ADDR        (0x00020008U)  /* SPI0 TX register */
+#define SPI1_TX_REG_ADDR        (0x00020108U)  /* SPI1 TX register */
+#define SPI2_TX_REG_ADDR        (0x00020208U)  /* SPI2 TX register */
+#define SPI3_TX_REG_ADDR        (0x00020308U)  /* SPI3 TX register */
+
+#define SPI0_RX_REG_ADDR        (0x0002000CU)  /* SPI0 RX register */
+#define SPI1_RX_REG_ADDR        (0x0002010CU)  /* SPI1 RX register */
+#define SPI2_RX_REG_ADDR        (0x0002020CU)  /* SPI2 RX register */
+#define SPI3_RX_REG_ADDR        (0x0002030CU)  /* SPI3 RX register */
+
+
+/* ================= OTHER PERIPHERALS ================= */
+
+/* Instruction trace data register */
+#define ITRACE_DATA_REG_ADDR    (0x00060140U)
+
+/* ADC data register */
+#define ADC_DATA_REG_ADDR       (0x00032004U)
+
+
+/* ================= PRO IO ============================= */
+
+/* Pro IO Duo data register */
+#define PRO_IO_DUO_DATA_REG_ADDR     (0x00040270U)
+
+/* Pro IO Tetra data register */
+#define PRO_IO_TETRA_DATA_REG_ADDR   (0x00040278U)
+
+/* Pro IO Octa data register */
+#define PRO_IO_OCTA_DATA_REG_ADDR    (0x00040280U)
+
+/* Pro IO Fusion data register */
+#define PRO_IO_FUSION_DATA_REG_ADDR  (0x00040288U)
+
+/* ================= Memory Regions ================= */
+
+#define DMA_RAM_START_ADDR        (0x80000000U)
+#define DMA_RAM_END_ADDR          (0x80020000U)
+
+#define DMA_FLASH_START_ADDR      (0x90000000U)
+#define DMA_FLASH_END_ADDR        (0xD0000000U)
