@@ -515,6 +515,8 @@ void main(void)
         return;
     }
 
+    printk("=== DMA UART P2P TEST START ===\n");
+
     /* Configure UARTs for DMA */
     struct uart_config uart_cfg = {
         .baudrate = UART_BAUD,
@@ -567,8 +569,9 @@ void main(void)
 
     /* Verify */
     if (memcmp(tx_str, rx_buffer, BUFFER_SIZE) == 0) {
-        printk("✅ TEST PASSED\n");
+         printk("TEST PASSED\n");
     } else {
         printk("❌ TEST FAILED\n");
     }
+    printk("=== DMA UART P2P TEST END ===\n");
 }

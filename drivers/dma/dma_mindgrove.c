@@ -5,13 +5,15 @@
 #include <zephyr/irq.h>
 #include <zephyr/sys/util.h>
 #include <zephyr/kernel.h>
-#include <zephyr/sys/printk.h>
+#include <zephyr/logging/log.h>
 #include <errno.h>
 #include <zephyr/drivers/interrupt_controller/riscv_plic.h>
 
 #include "dma_mindgrove.h"
 
 #define DMA_CHANNELS_COUNT 8U
+
+LOG_MODULE_REGISTER(dma_custom, LOG_LEVEL_DBG);
 
 /*
  * PLIC offset: number of CPU-level IRQ slots before PLIC sources start.
@@ -116,7 +118,6 @@ static int dma_custom_configure(const struct device *dev, uint32_t channel,
             break;
         case UART2_RX_REG_ADDR:  /*UART2 RX reg - > Slow*/
             request_select = UART2_OUTP_READY;
-            printk("UART2 RX reg selected\n");
             break;
         case UART3_RX_REG_ADDR:  /*UART3 RX reg - > Slow*/
             request_select = UART3_OUTP_READY;
@@ -436,7 +437,7 @@ static void dma_custom_isr(const void *arg)
     uint32_t isr_status = regs->DMA_ISR;
     
     /* Print raw status for debugging */
-    printk("[DMA ISR] Raw ISR status: 0x%08x\n", isr_status);
+    LOG_DBG("[DMA ISR] Raw ISR status: 0x%08x\n", isr_status);
 
     for (uint32_t i = 0; i < DMA_CHANNELS_COUNT; i++) {
         uint32_t tc_flag = BIT(i * 4 + 1);
@@ -450,7 +451,7 @@ static void dma_custom_isr(const void *arg)
 
         /* Read remaining transfer count BEFORE clearing */
         uint16_t remaining = regs->CH[i].DMA_CNDTR;
-        printk("[DMA ISR] Channel %d: TC=%d, HT=%d, TE=%d, Remaining=%d\n", 
+        LOG_DBG("[DMA ISR] Channel %d: TC=%d, HT=%d, TE=%d, Remaining=%d\n", 
                i, 
                (isr_status & tc_flag) ? 1 : 0,
                (isr_status & ht_flag) ? 1 : 0,
@@ -467,13 +468,13 @@ static void dma_custom_isr(const void *arg)
 
             if (isr_status & te_flag) {
                 status = -EIO;
-                printk("[DMA ISR] CH%u ERROR\n", i);
+                LOG_DBG("[DMA ISR] CH%u ERROR\n", i);
             } else if (isr_status & tc_flag) {
                 status = 0;
-                printk("[DMA ISR] CH%u COMPLETE\n", i);
+                LOG_DBG("[DMA ISR] CH%u COMPLETE\n", i);
             }  else if (isr_status & ht_flag) {
                 status = 1;
-                printk("[DMA ISR] CH%u HALF, Remaining: %d/%d\n", 
+                LOG_DBG("[DMA ISR] CH%u HALF, Remaining: %d/%d\n", 
                        i, remaining, cfg->head_block->block_size);
             } else {
                 continue;
@@ -503,7 +504,7 @@ static int dma_custom_init(const struct device *dev)
 {
     const struct dma_custom_config *config = dev->config;
 
-    printk("[DMA] base=0x%x plic_src=%u zirq=%u prio=%u\n",
+    LOG_DBG("[DMA] base=0x%x plic_src=%u zirq=%u prio=%u\n",
            config->base_addr, config->plic_src,
            get_zirq(config->plic_src), config->priority);
 
@@ -521,21 +522,21 @@ static int dma_custom_init(const struct device *dev)
                                                                                     \
         /* sanity checks */                                                         \
         if (zirq >= CONFIG_NUM_IRQS) {                                              \
-            printk("  ERROR: zirq out of range!\n");                                \
+            LOG_DBG("  ERROR: zirq out of range!\n");                               \
         }                                                                           \
                                                                                     \
         riscv_plic_set_priority(zirq, 2U);                                          \
                                                                                     \
-        printk("  priority set OK\n");                                              \
+        LOG_DBG("  priority set OK\n");                                             \
                                                                                     \
         irq_connect_dynamic(zirq, prio, dma_custom_isr,                             \
                             DEVICE_DT_INST_GET(inst), 0);                           \
                                                                                     \
-        printk("  irq connected\n");                                                \
+        LOG_DBG("  irq connected\n");                                               \
                                                                                     \
         irq_enable(zirq);                                                           \
                                                                                     \
-        printk("  irq enabled\n");                                                  \
+        LOG_DBG("  irq enabled\n");                                                 \
     }                                                                               \
     static const struct dma_custom_config dma_config_##inst = {                     \
         .base_addr       = DT_INST_REG_ADDR(inst),                                  \
