@@ -6,7 +6,9 @@ config BOARD
 config RISCV_HAS_CLIC
     default n
 
-config NUM_IRQS_AGGREGATOR
+# Increase total IRQ table size
+config NUM_IRQS
     int
-    default 16
+    default 160
+
 endif

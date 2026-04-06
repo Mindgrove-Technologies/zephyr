@@ -1,7 +1,8 @@
-/* 
- * @copyright Copyright (c) Mindgrove Technologies Pvt. Ltd 2025. All rights reserved.
- * 
- * SPDX-License-Identifier: Apache-2.0
+/*
+ * Mindgrove PLIC Driver - Dynamic ISR table offset
+ *
+ * Zephyr IRQ = PLIC source + dynamic offset computed at runtime.
+ * Works for GPIO, UART, DMA, and any PLIC-attached device.
  */
 
 #define DT_DRV_COMPAT mindgrove_plic
@@ -21,168 +22,166 @@ LOG_MODULE_REGISTER(intc_plic, LOG_LEVEL_DBG);
 #define PLIC_NODE DT_NODELABEL(plic0)
 #endif
 
-#define PLIC_BASE_ADDR     DT_REG_ADDR(PLIC_NODE)
-#define PLIC_REG_SIZE      DT_REG_SIZE(PLIC_NODE)
-#define PLIC_CPU_IRQ_NUM   DT_IRQN(PLIC_NODE)
-#define PLIC_MAX_SOURCES   DT_PROP(PLIC_NODE, riscv_ndev)
-#define PLIC_MIN_IRQ       1U
+#define PLIC_BASE    DT_REG_ADDR(PLIC_NODE)
+#define PLIC_SIZE    DT_REG_SIZE(PLIC_NODE)
+#define PLIC_CPU_IRQ DT_IRQN(PLIC_NODE)
+#define PLIC_MAX_SRC DT_PROP(PLIC_NODE, riscv_ndev)
+#define PLIC_MIN_SRC 1U
 
-#define PLIC_PRIORITY_OFFSET   0x0000U  
-#define PLIC_PENDING_OFFSET    0x1000U  
-#define PLIC_ENABLE_OFFSET     0x2000U  
-#define PLIC_THRESHOLD_OFFSET  0x200000U 
-#define PLIC_CLAIM_OFFSET      0x200004U 
-#define PLIC_PRIORITY_STRIDE   4U
-#define PLIC_ENABLE_UNIT_BITS  32U 
-#define PLIC_ENABLE_UNIT_SIZE  4U 
+#define PLIC_PRIO_BASE     0x0000U
+#define PLIC_PEND_BASE     0x1000U
+#define PLIC_EN_BASE       0x2000U
+#define PLIC_THRESHOLD     0x200000U
+#define PLIC_CLAIM         0x200004U
+#define PLIC_PRIO_STRIDE   4U
+#define PLIC_THRESHOLD_VAL 1U
 
-static inline uint32_t plic_read32(uintptr_t a) { return sys_read32((mem_addr_t)a); }
-static inline void plic_write32(uintptr_t a, uint32_t v) { sys_write32(v, (mem_addr_t)a); }
+/* Global offset for PLIC source 0 in _sw_isr_table */
+static uint32_t g_plic_offset = 0U;
 
-static inline bool plic_addr_valid(uintptr_t addr)
+/* Read/write helpers */
+static inline uint32_t plic_rd(uint32_t off) { return sys_read32((mem_addr_t)(PLIC_BASE + off)); }
+static inline void     plic_wr(uint32_t off, uint32_t val) { sys_write32(val, (mem_addr_t)(PLIC_BASE + off)); }
+
+/* Compute dynamic offset from a reference device in DT (like gpio0) */
+static void plic_compute_offset(void)
 {
-    if (PLIC_BASE_ADDR == 0) return false;
-    if (addr < PLIC_BASE_ADDR) return false;
-    uintptr_t off = addr - PLIC_BASE_ADDR;
-    return (off < (uintptr_t)PLIC_REG_SIZE);
+    /* Pick a reference PLIC-attached device */
+#if DT_NODE_EXISTS(DT_NODELABEL(gpio0))
+    const uint32_t ref_zirq = DT_IRQN(DT_NODELABEL(gpio0));
+    const uint32_t ref_src  = 2; /* GPIO1 maps to PLIC source 2 */
+#else
+    /* fallback */
+    const uint32_t ref_zirq = PLIC_CPU_IRQ + 1;
+    const uint32_t ref_src  = 1;
+#endif
+
+    g_plic_offset = ref_zirq - ref_src;
+    printk("[PLIC] init: base=0x%lx cpu_irq=%u max_src=%u dynamic_offset=%u\n",
+           (unsigned long)PLIC_BASE, PLIC_CPU_IRQ, PLIC_MAX_SRC, g_plic_offset);
 }
 
-static inline uintptr_t plic_ctx_threshold_addr(uintptr_t base, unsigned ctx)
+/* Convert Zephyr IRQ to PLIC source */
+static uint32_t to_src(uint32_t zirq)
 {
-    return base + PLIC_THRESHOLD_OFFSET + (ctx * 0x1000U);
-}
-
-uint32_t riscv_plic_get_irq(void)
-{
-    uintptr_t claim = PLIC_BASE_ADDR + PLIC_CLAIM_OFFSET;
-    if (!plic_addr_valid(claim)) return 0U;
-    return plic_read32(claim);
-}
-
-void riscv_plic_complete(uint32_t irq)
-{
-    uintptr_t claim = PLIC_BASE_ADDR + PLIC_CLAIM_OFFSET;
-    if (plic_addr_valid(claim)) {
-        plic_write32(claim, irq);
-        __asm__ volatile ("fence iorw, iorw" ::: "memory");
+    if (zirq < g_plic_offset) {
+        return 0U; /* CPU-local IRQ */
     }
-}
 
-void riscv_plic_set_priority(uint32_t irq, uint32_t priority)
-{
-    if (irq < PLIC_MIN_IRQ || irq > PLIC_MAX_SOURCES) return;
-
-    uintptr_t prio_addr = PLIC_BASE_ADDR + PLIC_PRIORITY_OFFSET + (irq * PLIC_PRIORITY_STRIDE);
-    if (plic_addr_valid(prio_addr)) {
-        plic_write32(prio_addr, priority);
-        __asm__ volatile ("fence iorw, iorw" ::: "memory");
+    uint32_t src = zirq - g_plic_offset;
+    if (src < PLIC_MIN_SRC || src > PLIC_MAX_SRC) {
+        printk("[PLIC] ERROR: src %u out of range [%u..%u]\n",
+               src, PLIC_MIN_SRC, PLIC_MAX_SRC);
+        return 0U;
     }
+    return src;
 }
 
-void riscv_plic_irq_enable(uint32_t irq)
+/* Enable bit register calculation */
+static void en_reg(uint32_t src, uint32_t *off, uint32_t *bit)
 {
-    if (irq < PLIC_MIN_IRQ || irq > PLIC_MAX_SOURCES) return;
-
-    uintptr_t word_addr = PLIC_BASE_ADDR + PLIC_ENABLE_OFFSET + ((irq / PLIC_ENABLE_UNIT_BITS) * PLIC_ENABLE_UNIT_SIZE);
-    uint32_t bit_mask = (1U << (irq % PLIC_ENABLE_UNIT_BITS));
-
-    if (plic_addr_valid(word_addr)) {
-        uint32_t val = plic_read32(word_addr);
-        val |= bit_mask; 
-        plic_write32(word_addr, val);
-        __asm__ volatile ("fence iorw, iorw" ::: "memory");
-    }
+    *off = PLIC_EN_BASE + (src / 32U) * 4U;
+    *bit = src % 32U;
 }
 
-void riscv_plic_irq_disable(uint32_t irq)
+/* Public API */
+uint32_t riscv_plic_get_irq(void) { return plic_rd(PLIC_CLAIM); }
+
+void riscv_plic_complete(uint32_t src)
 {
-    if (irq < PLIC_MIN_IRQ || irq > PLIC_MAX_SOURCES) return;
-
-    uintptr_t word_addr = PLIC_BASE_ADDR + PLIC_ENABLE_OFFSET + ((irq / PLIC_ENABLE_UNIT_BITS) * PLIC_ENABLE_UNIT_SIZE);
-    uint32_t bit_mask = (1U << (irq % PLIC_ENABLE_UNIT_BITS));
-
-    if (plic_addr_valid(word_addr)) {
-        uint32_t val = plic_read32(word_addr);
-        val &= ~bit_mask; 
-        plic_write32(word_addr, val);
-        __asm__ volatile ("fence iorw, iorw" ::: "memory");
-    }
+    if (src == 0) return;
+    plic_wr(PLIC_CLAIM, src);
+    __asm__ volatile("fence iorw, iorw" ::: "memory");
 }
 
-const struct device *riscv_plic_get_dev(void)
+void riscv_plic_set_priority(uint32_t zirq, uint32_t prio)
 {
-    return DEVICE_DT_INST_GET(0);
+    uint32_t src = (zirq >= g_plic_offset) ? to_src(zirq) : zirq;
+    if (src < PLIC_MIN_SRC || src > PLIC_MAX_SRC) return;
+    plic_wr(PLIC_PRIO_BASE + src * PLIC_PRIO_STRIDE, prio);
+    __asm__ volatile("fence iorw, iorw" ::: "memory");
 }
 
+void riscv_plic_irq_enable(uint32_t zirq)
+{
+    uint32_t src = to_src(zirq);
+    if (src == 0U) return;
+    uint32_t off, bit;
+    en_reg(src, &off, &bit);
+    uint32_t val = plic_rd(off) | BIT(bit);
+    plic_wr(off, val);
+    __asm__ volatile("fence iorw, iorw" ::: "memory");
+}
+
+void riscv_plic_irq_disable(uint32_t zirq)
+{
+    uint32_t src = to_src(zirq);
+    if (src == 0U) return;
+    uint32_t off, bit;
+    en_reg(src, &off, &bit);
+    uint32_t val = plic_rd(off) & ~BIT(bit);
+    plic_wr(off, val);
+    __asm__ volatile("fence iorw, iorw" ::: "memory");
+}
+
+uint32_t riscv_plic_get_pending(uint32_t src)
+{
+    if (src < PLIC_MIN_SRC || src > PLIC_MAX_SRC) return 0U;
+    uint32_t off = PLIC_PEND_BASE + (src / 32U) * 4U;
+    return (plic_rd(off) >> (src % 32U)) & 1U;
+}
+
+const struct device *riscv_plic_get_dev(void) { return DEVICE_DT_INST_GET(0); }
+
+/* External interrupt handler */
 static void plic_ext_handler(const void *arg)
 {
     ARG_UNUSED(arg);
-    while (1) {
-        uint32_t src = riscv_plic_get_irq();
-        if (src == 0U) break;
-        
-        if (src < PLIC_MIN_IRQ || src > PLIC_MAX_SOURCES) {
-            riscv_plic_complete(src);
-            continue;
-        }
+    uint32_t src = riscv_plic_get_irq();
+    if (src == 0 || src > PLIC_MAX_SRC) return riscv_plic_complete(src);
 
-        if (_sw_isr_table[src].isr) {
-            _sw_isr_table[src].isr(_sw_isr_table[src].arg);
-        }
-        riscv_plic_complete(src);
-    }
-    LOG_INF("PLIC CPU IRQ enabled via workqueue.");
+    uint32_t idx = src + g_plic_offset;
+    struct _isr_table_entry *e = &_sw_isr_table[idx];
+    if (e->isr) e->isr(e->arg);
+
+    riscv_plic_complete(src);
 }
 
-/* Config and Init */
-struct plic_config { uintptr_t base; unsigned int ext_irq; unsigned int ctx_index; };
-struct plic_data { };
+/* Device config/data */
+struct plic_cfg { uintptr_t base; unsigned int irq; };
+struct plic_dat { };
+static const struct plic_cfg plic_cfg0 = { .base = PLIC_BASE, .irq = PLIC_CPU_IRQ };
+static struct plic_dat plic_dat0;
 
-static const struct plic_config plic_config_0 = {
-    .base = PLIC_BASE_ADDR,
-    .ext_irq = PLIC_CPU_IRQ_NUM,
-    .ctx_index = 0,
-};
-
+/* Initialize PLIC driver */
 static int plic_init(const struct device *dev)
 {
-    const struct plic_config *cfg = dev->config;
-    uintptr_t base = cfg->base;
-    unsigned int ctx = cfg->ctx_index;
+    ARG_UNUSED(dev);
 
-    if (base == 0) return -ENODEV;
+    /* Compute dynamic offset from DT */
+    plic_compute_offset();
 
-    /* 1. Clear all Enables First */
-    unsigned int num_enable_words = (PLIC_MAX_SOURCES / PLIC_ENABLE_UNIT_BITS) + 1U;
-    for (unsigned i = 0; i < num_enable_words; ++i) {
-        uintptr_t addr = base + PLIC_ENABLE_OFFSET + (i * PLIC_ENABLE_UNIT_SIZE); 
-        if (plic_addr_valid(addr)) {
-             plic_write32(addr, 0U);
-        }
-    }
-    
-    /* 2. Clear all Priorities */
-    for (unsigned i = PLIC_MIN_IRQ; i <= PLIC_MAX_SOURCES; ++i) {
-        riscv_plic_set_priority(i, 0U);
+    /* Clear enable registers */
+    for (unsigned int i = 0; i < ((PLIC_MAX_SRC + 31) / 32); i++) {
+        plic_wr(PLIC_EN_BASE + i * 4U, 0U);
     }
 
-    /* 3. Connect the CPU aggregated IRQ */
-    IRQ_CONNECT(PLIC_CPU_IRQ_NUM,
-                0,
-                plic_ext_handler,
-                NULL,
-                0);
+    /* Clear priorities */
+    for (unsigned int i = PLIC_MIN_SRC; i <= PLIC_MAX_SRC; i++) {
+        plic_wr(PLIC_PRIO_BASE + i * PLIC_PRIO_STRIDE, 0U);
+    }
 
-    /* 4. Lower Threshold IMMEDIATELY to allow interrupts */
-    plic_write32(plic_ctx_threshold_addr(base, ctx), 0U);
-    
-    /* 5. Enable the CPU's external interrupt line (IRQ 11) */
-    irq_enable(PLIC_CPU_IRQ_NUM);
+    /* Set threshold */
+    plic_wr(PLIC_THRESHOLD, PLIC_THRESHOLD_VAL);
 
-    LOG_INF("PLIC init OK. Threshold=0. CPU IRQ %d Enabled.", PLIC_CPU_IRQ_NUM);
+    /* Connect CPU IRQ */
+    IRQ_CONNECT(PLIC_CPU_IRQ, 0, plic_ext_handler, NULL, 0);
+    irq_enable(PLIC_CPU_IRQ);
+
     return 0;
 }
 
-DEVICE_DT_INST_DEFINE(0, plic_init, NULL, NULL, &plic_config_0,
-                      PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT, NULL);
-
+DEVICE_DT_INST_DEFINE(0, plic_init, NULL,
+                      &plic_dat0, &plic_cfg0,
+                      PRE_KERNEL_1, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,
+                      NULL);

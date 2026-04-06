@@ -1,0 +1,13 @@
+description: Mindgrove General Purpose Timer (GPTIMER)
+
+compatible: "mindgrove,gptimer"
+
+include: base.yaml
+
+properties:
+  reg:
+    required: true
+  interrupts:
+    required: true
+  label:
+    type: string

@@ -188,5 +188,38 @@
       compatible = "shakti,i2c0";
       reg= <0x0 0x44100 0x0 0x100>;
     };
+/* Timers are now correctly placed under 'soc' */
+    timer0: gptimer@44200 {
+        compatible = "mindgrove,gptimer";
+        reg = <0x44200 0x20>;
+        interrupt-parent = <&plic0>;
+        interrupts = <47 1>; 
+        status = "okay";
+    };
+
+    timer1: gptimer@44220 {
+        compatible = "mindgrove,gptimer";
+        reg = <0x44220 0x20>;
+        interrupt-parent = <&plic0>;
+        interrupts = <48 1>; 
+        status = "okay";
+    };
+
+    timer2: gptimer@44240 {
+        compatible = "mindgrove,gptimer";
+        reg = <0x44240 0x20>;
+        interrupt-parent = <&plic0>;
+        interrupts = <49 1>; 
+        status = "okay";
+    };
+
+    timer3: gptimer@44260 {
+        compatible = "mindgrove,gptimer";
+        reg = <0x44260 0x20>;
+        interrupt-parent = <&plic0>;
+        interrupts = <50 1>; 
+        status = "okay";
+    };
+    
+    };
   };
-};
