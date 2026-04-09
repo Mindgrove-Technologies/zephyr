@@ -50,7 +50,7 @@ static int dma_custom_configure(const struct device *dev, uint32_t channel,
     const struct dma_custom_config *config = dev->config;
     struct dma_custom_data *data = dev->data;
 
-    uint32_t ccr = 0U;
+    uint32_t config_reg = 0U;
     uint16_t request_select = 0U;
     uint8_t mode_flag = 0U;
     uint8_t request_shift = 0U;
@@ -58,6 +58,7 @@ static int dma_custom_configure(const struct device *dev, uint32_t channel,
     volatile uint32_t *src_addr, *dest_addr, *temp;
 
     DMA_Type *regs = (DMA_Type *)(uintptr_t)config->base_addr;
+
 
     if (channel >= DMA_CHANNELS_COUNT) return -EINVAL;
 
@@ -69,8 +70,10 @@ static int dma_custom_configure(const struct device *dev, uint32_t channel,
                              : (cfg->dest_data_size == 4) ? 2
                              : (cfg->dest_data_size == 2) ? 1 : 0;
 
-    DMA_CHANNEL_Type *chan_reg = &regs->CH[channel];
-    chan_reg->DMA_CNDTR = (uint16_t)(cfg->head_block->block_size);
+    DMA_CHANNEL_Type *chan_reg = &regs->CHANNEL[channel];
+
+   
+    chan_reg->TRANSFER_LENGTH_REG = (uint16_t)(cfg->head_block->block_size);
 
     src_addr  = (volatile uint32_t *)cfg->head_block->source_address;
     dest_addr = (volatile uint32_t *)cfg->head_block->dest_address;
@@ -277,7 +280,21 @@ static int dma_custom_configure(const struct device *dev, uint32_t channel,
         }
     }
 
-    chan_reg->DMA_CSELR = request_select;
+    chan_reg->REQUEST_SELECT_REG = request_select;
+    /* ================= Read Current CCR ================= */
+     config_reg = chan_reg->CONFIG_REG;
+
+    /* ================= Clear Relevant Fields ================= */
+    config_reg &= ~(DMA_CFG_PERIPH_TO_PERIPH_MASK |
+                    DMA_CFG_TRANSFER_DIR_MASK     |
+                    DMA_CFG_MEM_TO_MEM_MASK       |
+                    DMA_CFG_PRIORITY_LEVEL_MASK   |
+                    DMA_CFG_MEM_DATA_SIZE_MASK    |
+                    DMA_CFG_PERIPH_DATA_SIZE_MASK |
+                    DMA_CFG_MEM_ADDR_INC_MASK     |
+                    DMA_CFG_PERIPH_ADDR_INC_MASK);
+
+   
 
     /* ================= Mode Decode ================= */
 
@@ -292,7 +309,7 @@ static int dma_custom_configure(const struct device *dev, uint32_t channel,
     switch (mode_flag & 0x03U) {
     case 0U: {
             /* P2P */
-        p2p = DMA_CFG_PERIPH_TO_PERIPH;
+        config_reg |= DMA_CFG_PERIPH_TO_PERIPH;
 
         pinc = ((mode_flag & DMA_MODE_FAST_SOURCE) == 0U) ?
                DMA_SLOW_PERIPH_BURST : DMA_FAST_PERIPH_BURST;
@@ -303,21 +320,21 @@ static int dma_custom_configure(const struct device *dev, uint32_t channel,
         break;
     }
 
-    case 1U: {
-            /* M2P */
-        temp = src_addr;
-        src_addr  = dest_addr;
-        dest_addr = temp;
+    case 1U: /* M2P */
+        {
+            temp      = src_addr;
+            src_addr  = dest_addr;
+            dest_addr = temp;
+            
 
-        dir = DMA_CFG_TRANSFER_DIR;
+            config_reg |= DMA_CFG_TRANSFER_DIR;
 
-        pinc = ((mode_flag & DMA_MODE_FAST_DESTINATION) == 0U) ?
-               DMA_SLOW_PERIPH_BURST : DMA_FAST_PERIPH_BURST;
+            pinc = ((mode_flag & DMA_MODE_FAST_DESTINATION) == 0U) ?
+                DMA_SLOW_PERIPH_BURST : DMA_FAST_PERIPH_BURST;
 
-        minc = DMA_INC_ENABLE;
-
-        break;
-    }
+            minc = DMA_INC_ENABLE;
+            break;
+        }
 
     case 2U: {
             /* P2M */
@@ -329,18 +346,12 @@ static int dma_custom_configure(const struct device *dev, uint32_t channel,
         break;
     }
 
+    
     case 3U: {
-            /* M2M */
-        temp = src_addr;
-        src_addr  = dest_addr;
-        dest_addr = temp;
-
-        dir = DMA_CFG_TRANSFER_DIR;
-        m2m = DMA_CFG_MEM_TO_MEM;
-
+        config_reg |= DMA_CFG_MEM_TO_MEM;
+        
         pinc = DMA_INC_ENABLE;
         minc = DMA_INC_ENABLE;
-
         break;
     }
 
@@ -348,19 +359,24 @@ static int dma_custom_configure(const struct device *dev, uint32_t channel,
         return EINVAL;
     }
 
-    chan_reg->DMA_CPAR = (uint32_t)src_addr;
-    chan_reg->DMA_CMAR = (uint32_t)dest_addr;
+    /* ================= Program Addresses ================= */
+    chan_reg->PERIPH_ADDR_REG = (uint32_t)src_addr;
+    chan_reg->MEM_ADDR_REG = (uint32_t)dest_addr;
+     /* ================= Set Required Fields ================= */
+    /* Set new configuration */
+    config_reg |= DMA_CFG_PRIORITY_LEVEL(cfg->channel_priority) |
+                  DMA_CFG_MEM_DATA_SIZE(src_size_index) |
+                  DMA_CFG_PERIPH_DATA_SIZE(dest_size_index) |
+                  DMA_CFG_MEM_ADDR_INC(minc) |
+                  DMA_CFG_PERIPH_ADDR_INC(pinc);
+
     data->chan_cfgs[channel] = cfg;
 
-    ccr = DMA_CCR_PL(cfg->channel_priority) | DMA_CCR_MSIZE(src_size_index) |
-          DMA_CCR_PSIZE(dest_size_index) | DMA_CCR_MINC(minc) | DMA_CCR_PINC(pinc) |
-          dir | m2m | p2p;
-
     if (cfg->dma_callback) {
-        ccr |= (DMA_CCR_TCIE | DMA_CCR_TEIE | DMA_CCR_HTIE);
+        config_reg |= (DMA_CFG_TC_INT_ENABLE | DMA_CFG_ERR_INT_ENABLE | DMA_CFG_HALF_INT_ENABLE);
     }
-
-    chan_reg->DMA_CCR |= ccr;
+      /* ================= Write Back ================= */
+    chan_reg->CONFIG_REG = config_reg;
     return 0;
 }
 
@@ -376,12 +392,12 @@ static int dma_custom_start(const struct device *dev, uint32_t channel)
     if (channel >= DMA_CHANNELS_COUNT) return -EINVAL;
 
     /* Clear pending interrupts */
-    if (regs->DMA_ISR) {
-        regs->DMA_IFCR = regs->DMA_ISR;
+    if (regs->INTERRUPT_STATUS_REG) {
+        regs->INT_FLAG_CLEAR_REG = regs->INTERRUPT_STATUS_REG;
     }
 
     /* Enable DMA channel */
-    regs->CH[channel].DMA_CCR |= DMA_CCR_EN;
+    regs->CHANNEL[channel].CONFIG_REG |= DMA_CFG_CHANNEL_ENABLE;
 
     /* Enable PLIC source — use Zephyr IRQ number */
     riscv_plic_irq_enable(get_zirq(config->plic_src));
@@ -400,7 +416,7 @@ static int dma_custom_stop(const struct device *dev, uint32_t channel)
 
     if (channel >= DMA_CHANNELS_COUNT) return -EINVAL;
 
-    regs->CH[channel].DMA_CCR &= ~BIT(0);
+    regs->CHANNEL[channel].CONFIG_REG &= ~BIT(0);
     return 0;
 }
 
@@ -416,9 +432,9 @@ static int dma_custom_get_status(const struct device *dev, uint32_t channel,
 
     if (channel >= DMA_CHANNELS_COUNT || stat == NULL) return -EINVAL;
 
-    uint32_t ccr = regs->CH[channel].DMA_CCR;
+    uint32_t ccr = regs->CHANNEL[channel].CONFIG_REG;
     stat->busy           = (ccr & BIT(0)) != 0U;
-    stat->pending_length = regs->CH[channel].DMA_CNDTR;
+    stat->pending_length = regs->CHANNEL[channel].TRANSFER_LENGTH_REG;
     stat->dir            = (ccr & BIT(4)) ? MEMORY_TO_PERIPHERAL : PERIPHERAL_TO_MEMORY;
     return 0;
 }
@@ -434,7 +450,7 @@ static void dma_custom_isr(const void *arg)
     struct dma_custom_data *data = dev->data;
     DMA_Type *regs = (DMA_Type *)(uintptr_t)config->base_addr;
 
-    uint32_t isr_status = regs->DMA_ISR;
+    uint32_t isr_status = regs->INTERRUPT_STATUS_REG;
     
     /* Print raw status for debugging */
     LOG_DBG("[DMA ISR] Raw ISR status: 0x%08x\n", isr_status);
@@ -450,7 +466,7 @@ static void dma_custom_isr(const void *arg)
         }
 
         /* Read remaining transfer count BEFORE clearing */
-        uint16_t remaining = regs->CH[i].DMA_CNDTR;
+        uint16_t remaining = regs->CHANNEL[i].TRANSFER_LENGTH_REG;
         LOG_DBG("[DMA ISR] Channel %d: TC=%d, HT=%d, TE=%d, Remaining=%d\n", 
                i, 
                (isr_status & tc_flag) ? 1 : 0,
@@ -459,7 +475,7 @@ static void dma_custom_isr(const void *arg)
                remaining);
 
         /* Clear interrupt flags */
-        regs->DMA_IFCR = ch_mask;
+        regs->INT_FLAG_CLEAR_REG = ch_mask;
 
         const struct dma_config *cfg = data->chan_cfgs[i];
         if (cfg && cfg->dma_callback) {
