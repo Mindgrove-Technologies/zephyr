@@ -30,5 +30,4 @@ zephyr_library_sources_ifdef(
 )
 
 zephyr_library_sources_ifdef(CONFIG_CRYPTO_MINDGROVE_RSA mindgrove_rsa_padding.c)
-zephyr_library_sources_ifdef(CONFIG_CRYPTO_MINDGROVE_RSA mindgrove_rsa.c)
 zephyr_library_sources_ifdef(CONFIG_CRYPTO_MINDGROVE_RSA bignum.c)

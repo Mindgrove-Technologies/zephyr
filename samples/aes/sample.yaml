@@ -1,7 +1,7 @@
 sample:
   description: AES sample
     application
-  name: aes_sanity
+  name: aes
 common:
   tags: introduction
   integration_platforms:

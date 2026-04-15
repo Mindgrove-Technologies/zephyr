@@ -11,8 +11,12 @@ extern "C" {
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "mindgrove_rsa.h"
 #include "rsa_padding.h"
+
+#define RSA_NULL_PAD         0
+#define RSAES_PKCS1_v1_5_PAD 1
+#define RSAES_OAEP_PAD       2
+
 typedef struct { /*!< RSA Structure                                                             */
 	// volatile  uint32_t  RESERVED[48];
 	volatile uint64_t RSA_INPUT; /*!< RSA input register */
