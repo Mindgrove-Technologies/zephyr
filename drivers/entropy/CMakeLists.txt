@@ -41,4 +41,6 @@ zephyr_library_sources_ifdef(CONFIG_ENTROPY_MAXQ10XX_RNG    entropy_maxq10xx.c)
 zephyr_library_sources_ifdef(CONFIG_ENTROPY_RENESAS_RA      entropy_renesas_ra.c)
 zephyr_library_sources_ifdef(CONFIG_ENTROPY_SY1XX_TRNG      entropy_sy1xx_trng.c)
 
+zephyr_library_sources_ifdef(CONFIG_ENTROPY_MINDGROVE_TRNG entropy_mindgrove.c)
+
 zephyr_library_link_libraries_ifdef(CONFIG_BUILD_WITH_TFM tfm_api)
