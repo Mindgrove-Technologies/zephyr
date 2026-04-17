@@ -3,7 +3,7 @@
 #include <zephyr/drivers/entropy.h>
 #include <zephyr/sys/printk.h>
 
-#define SAMPLES_TO_COLLECT 10
+#define SAMPLES_TO_COLLECT 3
 #define BUFFER_SIZE 16
 
 int main(void)
@@ -42,6 +42,5 @@ int main(void)
         k_msleep(500);
     }
 
-    printk("\nTest Complete. If the values above change every reboot, your TRNG is alive.\n");
     return 0;
 }

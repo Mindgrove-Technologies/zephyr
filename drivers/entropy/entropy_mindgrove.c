@@ -1,14 +1,14 @@
-#include <zephyr/drivers/entropy.h>
-#include <zephyr/sys/sys_io.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/logging/log.h>
-#include <zephyr/kernel.h> // <--- Add this
+#include <zephyr/kernel.h>             /* for k_busy_wait */
+#include <zephyr/device.h>             /* for DEVICE_DT_INST_DEFINE */
+#include <zephyr/drivers/entropy.h>    /* for entropy_driver_api */
+#include <zephyr/sys/printk.h>         /* for debugging printk */
+#include <zephyr/logging/log.h>        /* for LOG_ERR/LOG_INF */
 
 #define DT_DRV_COMPAT mindgrove_trng
 
 /* Register Bit Definitions */
 #define VCTRL_CMD_GET_RANDOM    0x1U
-#define VSTAT_BUSY_BIT          BIT(31)
+#define VSTAT_BUSY_BIT          (1UL << (31))
 
 /* Hardware Structure Mapping */
 typedef struct {
@@ -24,6 +24,8 @@ struct vtrng_config {
     uint8_t instance_id;
 };
 
+#define IS_ALIGNED(addr, size) \
+    ((((uintptr_t)(const uint8_t *)(addr)) & ((size) - 1U)) == 0U)
 
 /**
  * @brief Core hardware logic. 
@@ -31,9 +33,9 @@ struct vtrng_config {
  */
 static int vtrng_generate(const struct device *dev, uint8_t *out, uint16_t len)
 {
-    printk("TRNG: Generating %u bytes of entropy...\n", len);
+    //printk("TRNG: Generating %u bytes of entropy...\n", len);
     const struct vtrng_config *cfg = dev->config;
-    vtrng_regs_t *regs = (vtrng_regs_t *)(cfg->base + (cfg->instance_id * sizeof(vtrng_regs_t)));
+    vtrng_regs_t *regs = (vtrng_regs_t *)(cfg->base);
     uint16_t remaining = len;
 
 
