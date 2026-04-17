@@ -111,7 +111,7 @@ static ALWAYS_INLINE void queue_thread(struct k_thread *thread)
 	if (should_queue_thread(thread)) {
 		runq_add(thread);
 	}
-	*((uint32_t*)(0x40218))=1<<thread->id;
+
 #ifdef CONFIG_SMP
 	if (thread == _current) {
 		/* add current to end of queue means "yield" */
