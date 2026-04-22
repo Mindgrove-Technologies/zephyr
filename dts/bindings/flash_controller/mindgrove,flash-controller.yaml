@@ -1,0 +1,31 @@
+description: Mindgrove QSPI Flash Controller and JEDEC Flash
+
+compatible: "mindgrove,qspi-flash"
+
+include: [base.yaml, flash-controller.yaml]
+
+properties:
+  reg:
+    required: true
+    description: Mapping for the QSPI controller registers.
+
+  # JEDEC/Flash specific properties
+  size:
+    type: int
+    description: Total flash capacity in bits.
+
+  jedec-id:
+    type: uint8-array
+    description: |
+      JEDEC ID as defined in the manufacturer datasheet.
+      Example: [ef 40 18] for Winbond W25Q128.
+
+  # Custom Controller properties
+  dummy-cycles:
+    type: int
+    default: 4
+    description: Number of dummy clock cycles for fast read.
+
+  max-frequency:
+    type: int
+    description: Maximum QSPI bus frequency in Hz.
