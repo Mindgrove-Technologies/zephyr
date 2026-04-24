@@ -570,7 +570,53 @@ static int flash_qspi_erase(const struct device *dev,
 
     return 0;
 }
+#if defined(CONFIG_FLASH_JESD216_API)
+static int flash_qspi_sfdp_read(const struct device *dev,
+                                off_t addr,
+                                void *data,
+                                size_t len)
+{
+    const struct flash_qspi_config *cfg = dev->config;
+    const QUADSPI_Type *qspi = cfg->qspi;
 
+    flash_msg.qspi_inst = qspi;
+    flash_msg.address_mode = CCR_ADMODE_SINGLE_LINE;
+    flash_msg.address_size = CCR_ADSIZE_24_BIT;
+    flash_msg.address = addr;
+    flash_msg.instruction = 0x5A;
+    flash_msg.instruction_mode = CCR_IMODE_SINGLE_LINE;
+    flash_msg.data_mode = CCR_DMODE_SINGLE_LINE;
+    flash_msg.functional_mode = CCR_FMODE_INDIRECT_READ;
+    flash_msg.dummy_cycles = 8;
+    flash_msg.length = len;
+    flash_msg.data_buffer = data;
+
+    return QSPI_Transaction(&flash_msg);
+}
+static int flash_qspi_read_jedec_id(const struct device *dev,
+                                    uint8_t *id)
+{
+    const struct flash_qspi_config *cfg = dev->config;
+    const QUADSPI_Type *qspi = cfg->qspi;
+
+    flash_msg.qspi_inst = qspi;
+    flash_msg.address_mode = CCR_ADMODE_NIL;
+    flash_msg.address_size = CCR_ADSIZE_24_BIT;
+    flash_msg.instruction = 0x9F;
+    flash_msg.instruction_mode = CCR_IMODE_SINGLE_LINE;
+    flash_msg.data_mode = CCR_DMODE_SINGLE_LINE;
+    flash_msg.functional_mode = CCR_FMODE_INDIRECT_READ;
+    flash_msg.dummy_mode = 0;
+    flash_msg.dummy_cycles = 0;
+    flash_msg.dummy_bit = 0;
+    flash_msg.mm_mode = CCR_MM_MODE_XIP;
+    flash_msg.alternate_byte_mode = CCR_ABMODE_NIL;
+    flash_msg.length = 3;
+    flash_msg.data_buffer = id;
+
+    return QSPI_Transaction(&flash_msg);
+}
+#endif
 /* ============================================================================
  * Flash Driver API Structure
  * ============================================================================ */
@@ -580,6 +626,10 @@ static const struct flash_driver_api flash_qspi_api = {
     .write = flash_qspi_write,
     .erase = flash_qspi_erase,
     .get_parameters = flash_qspi_get_parameters,
+#if defined(CONFIG_FLASH_JESD216_API)
+    .sfdp_read = flash_qspi_sfdp_read,
+    .read_jedec_id = flash_qspi_read_jedec_id
+#endif
 };
 
 /* ============================================================================

@@ -5,8 +5,7 @@ menuconfig FLASH_MINDGROVE
 	default y
 	depends on DT_HAS_MINDGROVE_QSPI_FLASH_ENABLED
 	select FLASH_HAS_DRIVER_ENABLED
-	# Note: Un-comment the line below only after you implement flash_get_page_layout
-	# select FLASH_HAS_PAGE_LAYOUT 
+	select FLASH_JESD216
 	help
 	  Enable the Mindgrove QSPI flash driver for Secure IoT SoC.
 

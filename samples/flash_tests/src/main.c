@@ -188,6 +188,60 @@ int test_chip_erase(const struct device *flash_dev)
     return 0;
 }
 
+/* ================= JEDEC ID TEST ================= */
+
+int test_jedec_id(const struct device *flash_dev)
+{
+    uint8_t id[3];
+    int ret;
+
+    printk("\n--- JEDEC ID Test ---\n");
+
+    ret = flash_read_jedec_id(flash_dev, id);
+    if (ret != 0) {
+        printk("FAIL: flash_read_jedec_id returned %d\n", ret);
+        return -1;
+    }
+
+    printk("Manufacturer ID : 0x%02X\n", id[0]);
+    printk("Memory Type     : 0x%02X\n", id[1]);
+    printk("Capacity ID     : 0x%02X\n", id[2]);
+
+    printk("PASS: JEDEC ID test\n");
+    return 0;
+}
+
+/* ================= SFDP TEST ================= */
+
+int test_sfdp_read(const struct device *flash_dev)
+{
+    uint8_t sfdp[16];
+    int ret;
+
+    printk("\n--- SFDP Read Test ---\n");
+
+    ret = flash_sfdp_read(flash_dev, 0, sfdp, sizeof(sfdp));
+    if (ret != 0) {
+        printk("FAIL: flash_sfdp_read returned %d\n", ret);
+        return -1;
+    }
+
+    print_buf("SFDP Header: ", sfdp, sizeof(sfdp));
+
+    /* Signature should be S F D P */
+    if (sfdp[0] != 0x53 ||
+        sfdp[1] != 0x46 ||
+        sfdp[2] != 0x44 ||
+        sfdp[3] != 0x50) {
+
+        printk("FAIL: Invalid SFDP signature\n");
+        return -1;
+    }
+
+    printk("PASS: Valid SFDP signature found\n");
+    return 0;
+}
+
 /* ================= MAIN ================= */
 
 void main(void)
@@ -199,6 +253,16 @@ void main(void)
         return;
     }
     printk("Flash device ready: %s\n", flash_dev->name);
+      if (test_jedec_id(flash_dev) != 0)
+      {
+        printk("JEDEC ID test FAILED\n");
+        return;
+      }
+
+    if (test_sfdp_read(flash_dev) != 0){
+        printk("SFDP read test FAILED\n");
+        return;
+    }
 
     if (test_indirect_read(flash_dev) != 0) {
         printk("Indirect read test FAILED\n");
@@ -217,3 +281,4 @@ void main(void)
 
     printk("\nAll tests PASSED\n");
 }
+
