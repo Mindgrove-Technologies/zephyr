@@ -28,17 +28,16 @@ chosen {
 	current-speed = <115200>;
 	clock-frequency = <30000000>;
 };
-
-&uart3 {
-	status = "okay";
-	current-speed = <115200>;
-	clock-frequency = <35000000>;
-};
-&uart4 {
-	status = "okay";
-	current-speed = <115200>;
-	clock-frequency = <35000000>;
-};
+//&uart3 {
+//	status = "okay";
+//	current-speed = <115200>;
+//	clock-frequency = <35000000>;
+//};
+//&uart4 {
+//	status = "okay";
+//	current-speed = <115200>;
+//	clock-frequency = <35000000>;
+//};
 
 &i2c0 {
 	status = "ok";

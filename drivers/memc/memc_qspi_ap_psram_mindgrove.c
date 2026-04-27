@@ -1,8 +1,11 @@
+/* drivers/memc/mmemc_qspi_ap_psram_mindgrove.c */
 
-#include <stdint.h>
-#define MAX_QSPI_FREQ 75000000UL
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/devicetree.h>
 
-// QSPI BARE METAL MACROS (from QSPI driver header, adapted for flash use)
+#define DT_DRV_COMPAT mindgrove_qspi_psram
+
 #define WRITE 0
 #define READ 1
 
@@ -137,6 +140,7 @@ typedef union{
 #define RMC_WINSTR(x)  ((uint32_t)(x) << 8U)
 #define RMC_RINSTR(x)  ((uint32_t)(x))
 
+#define MAX_QSPI_FREQ 75000000UL
 #define CLOCK_FREQUENCY_FPGA        30000000UL
 
 //ll
@@ -345,35 +349,280 @@ typedef struct {
 } qspi_msg;
 
 
+/* PSRAM driver owns its own msg instance — no sharing with flash */
+static qspi_msg psram_msg = {
+    .PRESCALER = 20,
+    .CLK_MODE  = 0,
+    .FMEM_SIZE = 27,
+    .csht      = 7,
+};
 
-/* ================================
- * FLASH COMMANDS (JEDEC standard)
- * ================================ */
+struct psram_config {
+    const QUADSPI_Type *qspi;
+    uint32_t size;
+    uint8_t  prescaler;
+};
 
-/* Read */
-#define FLASH_CMD_READ                0x03   /* 1-1-1 */
-#define FLASH_CMD_FAST_READ           0x0B   /* 1-1-1 fast */
-#define FLASH_CMD_FAST_READ_QUAD      0x6B   /* 1-1-4 */
-#define FLASH_CMD_FAST_READ_QUAD_IO   0xEB   /* 1-4-4 */
+struct psram_data {
+    bool initialized;
+};
 
-/* Program */
-#define FLASH_CMD_PAGE_PROGRAM        0x02   /* 1-1-1 */
-#define FLASH_CMD_QUAD_PAGE_PROGRAM   0x32   /* 1-1-4 */
+#define POW2_MINUS1(n)   ((1U << (n)) - 1U)
 
-/* Erase */
-#define FLASH_CMD_ERASE_4K            0x20
-#define FLASH_CMD_ERASE_32K           0x52
-#define FLASH_CMD_ERASE_CHIP          0xC7
+/* Declare QSPI_Transaction from flash driver — same silicon, same function */
 
-/* Control */
-#define FLASH_CMD_WRITE_ENABLE        0x06
-#define FLASH_CMD_WRITE_DISABLE       0x04
+uint16_t QSPI_Transaction(qspi_msg *msg) {
+    uint32_t remaining;
+    volatile QUADSPI_Type *qspi_regs;
+    void *word_ptr;
+    uint64_t *word64;
+    uint32_t *word32;
+    uint16_t *word16;
+    uint8_t *word8;
 
-/* Status */
-#define FLASH_CMD_READ_SR1            0x05
-#define FLASH_CMD_READ_SR2            0x35
-#define FLASH_CMD_READ_SR3            0x15
+    if (msg == NULL) {
+        return -EFAULT;
+    }
 
-/* IDs */
-#define FLASH_CMD_READ_JEDEC_ID       0x9F
-#define FLASH_CMD_READ_SFDP           0x5A
+    if (msg->qspi_inst == NULL) {
+        return -EFAULT;
+    }
+
+    if ((msg->data_mode != CCR_DMODE_NO_DATA) &&
+        (msg->functional_mode != CCR_FMODE_MMM) &&
+        (msg->data_buffer == NULL)) {
+        return -EFAULT;
+    }
+
+    /**
+     * Clock validation: QSPI clock = 30MHz / (PRESCALER + 1)
+     * Must not exceed MAX_QSPI_FREQ.
+     */
+    if (((uint64_t)CLOCK_FREQUENCY_FPGA /
+            ((uint64_t)msg->PRESCALER + 1ULL)) > MAX_QSPI_FREQ) {
+        return EPERM;
+    }
+
+    qspi_regs = (volatile QUADSPI_Type *)msg->qspi_inst;
+
+    /* Wait for QSPI controller to become idle before reconfiguration */
+    while ((qspi_regs->SR & SR_BUSY) != 0U) { }
+
+    /**
+     * Configure QSPI Control Register (CR):
+     * PRESCALER, PMM, APMS, interrupt enables, TCEN, EN
+     */
+    qspi_regs->CR =
+        CR_PRESCALER(msg->PRESCALER) | CR_PMM(msg->PMM) | CR_APMS(msg->APMS) |
+        CR_TOIE(msg->TOIE) | CR_SMIE(msg->SMIE) | CR_FTIE(msg->FTIE) |
+        CR_TCIE(msg->TCIE) | CR_TEIE(msg->TEIE) | CR_TCEN(msg->TCEN) |
+        CR_EN(1U);
+
+    /**
+     * Configure Device Configuration Register (DCR):
+     * FSIZE, CKMODE, CSHT
+     */
+    qspi_regs->DCR =
+        DCR_FSIZE(msg->FMEM_SIZE) | DCR_CKMODE(msg->CLK_MODE) |
+        DCR_CSHT(msg->csht);
+
+    /* Clear all pending flags before initiating new transaction */
+    qspi_regs->FCR = (FCR_CTOF | FCR_CSMF | FCR_CTCF | FCR_CTEF);
+
+    /* Configure data length (register uses 0-based count) */
+    if (msg->length > 0U) {
+        qspi_regs->DLR = msg->length - 1U;
+    }
+
+    /**
+     * Configure Communication Configuration Register (CCR):
+     * instruction, address, alternate byte, dummy cycles, data, functional mode
+     */
+    qspi_regs->CCR =
+        CCR_INSTRUCTION(msg->instruction) | CCR_IMODE(msg->instruction_mode) |
+        CCR_ADMODE(msg->address_mode) | CCR_ADSIZE(msg->address_size) |
+        CCR_ABMODE(msg->alternate_byte_mode) |
+        CCR_ABSIZE(msg->alternate_byte_size) | CCR_DCYC(msg->dummy_cycles) |
+        CCR_DUMMY_CONFIRMATION(msg->dummy_mode) | CCR_DMODE(msg->data_mode) |
+        CCR_FMODE(msg->functional_mode) | CCR_SIOO(msg->sioo) |
+        CCR_DUMMY_BIT(msg->dummy_bit) | CCR_MM_MODE(msg->mm_mode);
+
+    if ((msg->functional_mode == CCR_FMODE_MMM) &&
+            (msg->mm_mode == CCR_MM_MODE_RAM)) {
+        /* Memory-Mapped RAM mode */
+        qspi_regs->RMC = RMC_WDCYC(msg->wr_dcyc) | RMC_RDCYC(msg->rd_dcyc) |
+                    RMC_WINSTR(msg->wr_instr) | RMC_RINSTR(msg->rd_instr);
+
+    } else if ((msg->functional_mode == CCR_FMODE_INDIRECT_READ) ||
+               (msg->functional_mode == CCR_FMODE_INDIRECT_WRITE)) {
+        /* Indirect Read/Write mode */
+
+        if (msg->alternate_byte_mode != CCR_ABMODE_NIL) {
+            qspi_regs->ABR = msg->alternate_byte;
+        }
+
+        if (msg->address_mode != CCR_ADMODE_NIL) {
+            qspi_regs->AR = msg->address;
+        }
+
+        remaining = msg->length;
+        word_ptr = msg->data_buffer;
+
+        /* 64-bit burst transfers */
+        qspi_regs->CR &= ~CR_FTHRES_MASK;
+        qspi_regs->CR |= CR_FTHRES(7U);
+
+        while (IS_ALIGNED(word_ptr, 8U) && (remaining >= 8U)) {
+            word64 = (uint64_t *)word_ptr;
+            while ((qspi_regs->SR & SR_FTF) == 0U) { }
+            if (msg->functional_mode == CCR_FMODE_INDIRECT_WRITE) {
+                qspi_regs->DR.data_64 = *word64;
+            } else {
+                *word64 = qspi_regs->DR.data_64;
+            }
+            word_ptr = (void *)((uint8_t *)word_ptr + 8U);
+            remaining -= 8U;
+        }
+
+        /* 32-bit burst transfers */
+        qspi_regs->CR &= ~CR_FTHRES_MASK;
+        qspi_regs->CR |= CR_FTHRES(3U);
+
+        while (IS_ALIGNED(word_ptr, 4U) && (remaining >= 4U)) {
+            word32 = (uint32_t *)word_ptr;
+            while ((qspi_regs->SR & SR_FTF) == 0U) { }
+            if (msg->functional_mode == CCR_FMODE_INDIRECT_WRITE) {
+                qspi_regs->DR.data_32 = *word32;
+            } else {
+                *word32 = qspi_regs->DR.data_32;
+            }
+            word_ptr = (void *)((uint8_t *)word_ptr + 4U);
+            remaining -= 4U;
+        }
+
+        /* 16-bit burst transfers */
+        qspi_regs->CR &= ~CR_FTHRES_MASK;
+        qspi_regs->CR |= CR_FTHRES(1U);
+
+        while (IS_ALIGNED(word_ptr, 2U) && (remaining >= 2U)) {
+            word16 = (uint16_t *)word_ptr;
+            while ((qspi_regs->SR & SR_FTF) == 0U) { }
+            if (msg->functional_mode == CCR_FMODE_INDIRECT_WRITE) {
+                qspi_regs->DR.data_16 = *word16;
+            } else {
+                *word16 = qspi_regs->DR.data_16;
+            }
+            word_ptr = (void *)((uint8_t *)word_ptr + 2U);
+            remaining -= 2U;
+        }
+
+        /* 8-bit transfers for remaining bytes */
+        qspi_regs->CR &= ~CR_FTHRES_MASK;
+        qspi_regs->CR |= CR_FTHRES(0U);
+
+        while (remaining > 0U) {
+            word8 = (uint8_t *)word_ptr;
+            while ((qspi_regs->SR & SR_FTF) == 0U) { }
+            if (msg->functional_mode == CCR_FMODE_INDIRECT_WRITE) {
+                qspi_regs->DR.data_8 = *word8;
+            } else {
+                *word8 = qspi_regs->DR.data_8;
+            }
+            word_ptr = (void *)((uint8_t *)word_ptr + 1U);
+            remaining -= 1U;
+        }
+
+        /* Wait for transfer completion and controller idle */
+        while ((qspi_regs->SR & SR_TCF) == 0U) { }
+        while ((qspi_regs->SR & SR_BUSY) != 0U) { }
+
+        /* Disable QSPI controller to conserve power */
+        qspi_regs->CR &= ~CR_EN(1U);
+
+    } else if ((msg->functional_mode == CCR_FMODE_MMM) &&
+               (msg->mm_mode == CCR_MM_MODE_XIP)) {
+        /* XIP memory-mapped mode — no data transfer */
+
+    } else if (msg->functional_mode == CCR_FMODE_APM) {
+        /* Automatic polling mode */
+        qspi_regs->PSMKR = msg->status_mask;
+        qspi_regs->PSMAR = msg->status_match;
+
+    } else {
+        return -EINVAL;
+    }
+
+    return 0;
+}
+static int psram_init(const struct device *dev)
+{
+    const struct psram_config *cfg = dev->config;
+    struct psram_data *data = dev->data;
+    uint16_t ret;
+
+    /* Reset Enable */
+    psram_msg.address          = 0x0U;
+    psram_msg.qspi_inst        = (volatile QUADSPI_Type *)cfg->qspi;
+    psram_msg.address_mode     = CCR_ADMODE_NIL;
+    psram_msg.address_size     = CCR_ADSIZE_24_BIT;
+    psram_msg.instruction      = 0x66;
+    psram_msg.instruction_mode = CCR_IMODE_SINGLE_LINE;
+    psram_msg.dummy_mode       = 0;
+    psram_msg.data_mode        = CCR_DMODE_NO_DATA;
+    psram_msg.functional_mode  = CCR_FMODE_INDIRECT_WRITE;
+    psram_msg.dummy_cycles     = 1;
+    psram_msg.dummy_bit        = 0;
+    psram_msg.mm_mode          = CCR_MM_MODE_XIP;
+    psram_msg.alternate_byte_mode = CCR_ABMODE_NIL;
+    psram_msg.fthresh          = POW2_MINUS1(0);
+    psram_msg.length           = 0;
+
+    ret = QSPI_Transaction(&psram_msg);
+    if (ret != 0) return -EIO;
+
+    /* Reset Command */
+    psram_msg.instruction = 0x99;
+    ret = QSPI_Transaction(&psram_msg);
+    if (ret != 0) return -EIO;
+
+    /* Enter Quad Mode */
+    psram_msg.instruction = 0x35;
+    ret = QSPI_Transaction(&psram_msg);
+    if (ret != 0) return -EIO;
+
+    /* Enter RAM Mode - 4 line */
+    psram_msg.mm_mode          = CCR_MM_MODE_RAM;
+    psram_msg.functional_mode  = CCR_FMODE_MMM;
+    psram_msg.instruction_mode = CCR_IMODE_FOUR_LINE;
+    psram_msg.address_mode     = CCR_ADMODE_FOUR_LINE;
+    psram_msg.data_mode        = CCR_DMODE_FOUR_LINE;
+    psram_msg.wr_instr         = 0x38;
+    psram_msg.wr_dcyc          = 0;
+    psram_msg.rd_instr         = 0xEB;
+    psram_msg.rd_dcyc          = 6;
+
+    ret = QSPI_Transaction(&psram_msg);
+    if (ret != 0) return -EIO;
+
+    data->initialized = true;
+    return 0;
+}
+
+#define PSRAM_DEFINE(inst)                                              \
+    static struct psram_data psram_data_##inst;                        \
+                                                                        \
+    static const struct psram_config psram_cfg_##inst = {              \
+        .qspi      = (const QUADSPI_Type *)DT_INST_REG_ADDR(inst),    \
+        .size      = DT_INST_PROP(inst, size),                        \
+    };                                                                 \
+                                                                        \
+    DEVICE_DT_INST_DEFINE(inst,                                        \
+                          psram_init,                                  \
+                          NULL,                                        \
+                          &psram_data_##inst,                          \
+                          &psram_cfg_##inst,                           \
+                          POST_KERNEL,                                 \
+                          CONFIG_MEMC_MINDGROVE_PSRAM_INIT_PRIORITY,   \
+                          NULL);   /* no standard API for PSRAM */
+
+DT_INST_FOREACH_STATUS_OKAY(PSRAM_DEFINE)

@@ -136,7 +136,7 @@ uint16_t QSPI_Transaction(qspi_msg *msg) {
     }
 
     /**
-     * Clock validation: QSPI clock = 30MHz / (PRESCALER + 1)
+     * Clock validation: QSPI clock = 700MHz / (PRESCALER + 1)
      * Must not exceed MAX_QSPI_FREQ.
      */
     if (((uint64_t)CLOCK_FREQUENCY_FPGA /
