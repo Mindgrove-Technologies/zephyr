@@ -201,20 +201,50 @@ static int ecb_crypt(struct cipher_ctx *ctx, struct cipher_pkt *pkt)
 
 static int cbc_crypt(struct cipher_ctx *ctx, struct cipher_pkt *pkt, uint8_t *iv)
 {
-	struct mindgrove_session *s = ctx->drv_sessn_state;
-	uint8_t iv_local[16];
-	if (s->iterated_bits == 0) {
-		memcpy(s->iv, iv, 16); // Save base IV for first run
-	}
-	int rc = AES_Run(pkt->out_buf, pkt->in_buf, s->key, s->iv, pkt->in_len * 8, s->key_bits,
-			 AES_CBC, s->encrypt, s->iterated_bits);
-	if (rc) {
-		return rc;
-	}
-	// Update iterated bits
-	s->iterated_bits += pkt->in_len * 8;	
-	pkt->out_len = pkt->in_len;
-	return 0;
+    struct mindgrove_session *s = ctx->drv_sessn_state;
+    uint8_t *hw_out = pkt->out_buf;
+    uint8_t *hw_in = pkt->in_buf;
+    uint32_t data_len = pkt->in_len;
+    uint8_t *active_iv = iv;
+
+    if (s->encrypt == AES_ENC) {
+        /* ENCRYPTION PATH (Already working) */
+        if (pkt->out_buf_max >= (pkt->in_len + 16)) {
+            memcpy(pkt->out_buf, iv, 16);
+            hw_out = pkt->out_buf + 16;
+            pkt->out_len = pkt->in_len + 16;
+        } else {
+            hw_out = pkt->out_buf;
+            pkt->out_len = pkt->in_len;
+        }
+    } else {
+        /* DECRYPTION PATH (The fix for your failure) */
+        /* If in_len is larger than the output capacity, Zephyr sent [IV][Data] */
+        if (pkt->in_len > 16 && pkt->in_len > pkt->out_buf_max) {
+            active_iv = pkt->in_buf; // Use the IV prepended in the input buffer
+            hw_in = pkt->in_buf + 16; // Start decrypting from offset 16
+            data_len = pkt->in_len - 16;
+            pkt->out_len = data_len;
+        } else {
+            /* Standard KAT/3.2 Path */
+            active_iv = iv;
+            hw_in = pkt->in_buf;
+            data_len = pkt->in_len;
+            pkt->out_len = data_len;
+        }
+    }
+
+    /* Update session IV for hardware state */
+    memcpy(s->iv, active_iv, 16);
+
+    int rc = AES_Run(hw_out, hw_in, s->key, s->iv, 
+                     data_len * 8, s->key_bits,
+                     AES_CBC, s->encrypt, s->iterated_bits);
+
+    if (!rc) {
+        s->iterated_bits += data_len * 8;
+    }
+    return rc;
 }
 
 static int ctr_crypt(struct cipher_ctx *ctx, struct cipher_pkt *pkt, uint8_t *iv)

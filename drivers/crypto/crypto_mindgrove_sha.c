@@ -313,43 +313,51 @@ struct mindgrove_sha_dev_data {
 
 static int mindgrove_sha_hash(struct hash_ctx *ctx, struct hash_pkt *pkt, bool finish)
 {
-	struct mindgrove_sha_dev_data *data = ctx->drv_sessn_state;
-	long int bits = pkt->in_len * 8;
-	long int total_bits = data->iterated_length_bits + bits;
-	int ret;
-	// For intermediate calls: total_length = 0 (unknown)
-	// For final calls: total_length = actual total bits
-	int hw_total_length = finish ? total_bits : 0;
+    struct mindgrove_sha_dev_data *data = ctx->drv_sessn_state;
+    const uint8_t *src = pkt->in_buf;
+    uint32_t remaining_bytes = pkt->in_len;
+    int ret;
 
-	const uint8_t *input_ptr = pkt->in_buf;
-	uint8_t dummy = 0;
-	if (input_ptr == NULL && bits == 0) {
-		input_ptr = &dummy;
-	}
+    /* * 1. Process all full 64-byte (512-bit) blocks in this packet.
+     * We loop here because the hardware only processes one block at a time 
+     * when called with the intermediate (non-final) logic.
+     */
+    while (remaining_bytes > 64) {
+        ret = SHA256_Multi_Run(src, 64 * 8, 0, data->iterated_length_bits);
+        if (ret != SUCCESS) {
+            return -EIO;
+        }
 
-	// SHA256_Multi_Run Call if we have data OR if it's finalization
-	if (bits > 0 || finish) {
-		ret = SHA256_Multi_Run(input_ptr, bits, hw_total_length,
-				       data->iterated_length_bits);
+        data->iterated_length_bits += (64 * 8);
+        src += 64;
+        remaining_bytes -= 64;
+    }
 
-		if (ret != SUCCESS) {
-			return -EIO;
-		}
+    /* * 2. Handle the final chunk of this packet.
+     * If 'finish' is true, SHA256_Multi_Run will apply NIST padding 
+     * based on the 'hw_total_length'.
+     */
+    int hw_total_length = finish ? (data->iterated_length_bits + (remaining_bytes * 8)) : 0;
+    
+    // We pass only the 'remaining_bytes' (0 to 64) to the multi-run function.
+    ret = SHA256_Multi_Run(src, remaining_bytes * 8, hw_total_length, 
+                           data->iterated_length_bits);
+    if (ret != SUCCESS) {
+        return -EIO;
+    }
 
-		// Update iterated length only if we processed data
-		if (bits > 0) {
-			data->iterated_length_bits += bits;
-		}
-	}
+    data->iterated_length_bits += (remaining_bytes * 8);
 
-	// If this is the final call, read output
-	if (finish) {
-		size_t hash_len = 0;
-		sha256_read_output(pkt->out_buf, &hash_len);
-		data->iterated_length_bits = 0;
-	}
+    /* 3. If this is the finalization call, extract the digest from hardware */
+    if (finish) {
+        size_t hash_len = 0;
+        sha256_read_output(pkt->out_buf, &hash_len);
+        
+        // Reset state for the next potential session
+        data->iterated_length_bits = 0;
+    }
 
-	return 0;
+    return 0;
 }
 
 /* ============================= */

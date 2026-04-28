@@ -119,7 +119,7 @@ void hex_string_to_byte_array(const char *hex_str, uint8_t *byte_array, size_t *
  * @return Returns nothing. By the end of the function, you will have either passed the checks
  * or an error would have been thrown causing the program to exit.
  */
-static void do_checks_rsa(unsigned char *mod_text, int input_len_bits, int exp_len_bits,
+static int do_checks_rsa(unsigned char *mod_text, int input_len_bits, int exp_len_bits,
 			  int mod_len_bits, struct_rsa_padding rsa_padding)
 {
 	// Length of input, exp, mod should be less than 2048 bits
