@@ -1,0 +1,6 @@
+manifest:
+  projects:
+    - name: mbedtls
+      url: https://github.com/zephyrproject-rtos/mbedtls
+      path: modules/crypto/mbedtls
+      revision: v3.5.2
