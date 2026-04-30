@@ -1,24 +1,24 @@
-# MindGrove AES driver
+# MINDGROVE AES driver
 config CRYPTO_MINDGROVE_AES
-    bool "MindGrove AES hardware accelerator"
+    bool "MINDGROVE AES hardware accelerator"
     depends on CRYPTO
     help
-      Enable the MindGrove hardware AES accelerator driver.
+      Enable the MINDGROVE hardware AES accelerator driver.
 
-# Enable the MindGrove SHA driver
+# Enable the MINDGROVE SHA driver
 config ENABLE_MINDGROVE
-    bool "Enable MindGrove SHA driver"
+    bool "Enable MINDGROVE SHA driver"
     default y
     help
-      Enable the MindGrove SHA-256 hardware accelerator driver.
+      Enable the MINDGROVE SHA-256 hardware accelerator driver.
 
 if ENABLE_MINDGROVE
 
 config CRYPTO_MINDGROVE_SHA256
-    bool "MindGrove SHA-256 hardware accelerator"
+    bool "MINDGROVE SHA-256 hardware accelerator"
     depends on CRYPTO
     help
-      Enable MindGrove SHA-256 hardware accelerator driver.
+      Enable MINDGROVE SHA-256 hardware accelerator driver.
 
 config MINDGROVE_SHA_MAX_SESSIONS
     int "Maximum number of concurrent SHA sessions"

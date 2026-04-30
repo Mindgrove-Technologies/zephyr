@@ -9,6 +9,6 @@ properties:
   reg:
     required: true
     description: Register address and size
-    
+
   status:
     required: false
