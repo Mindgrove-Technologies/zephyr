@@ -28,8 +28,10 @@ zephyr_library_sources_ifdef(
   CONFIG_CRYPTO_MINDGROVE_RSA
   crypto_mindgrove_rsa.c
 )
-zephyr_include_directories(
-    /home/deeptha/work/zephyr/modules/crypto/mbedtls/include
-)
+if(DEFINED ZEPHYR_MBEDTLS_MODULE_DIR)
+    zephyr_include_directories(${ZEPHYR_MBEDTLS_MODULE_DIR}/include)
+else()
+    zephyr_include_directories(${ZEPHYR_BASE}/modules/crypto/mbedtls/include)
+endif()
 zephyr_library_sources_ifdef(CONFIG_CRYPTO_MINDGROVE_RSA mindgrove_rsa_padding.c)
 # zephyr_library_link_libraries(mbedTLS)

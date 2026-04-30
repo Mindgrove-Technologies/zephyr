@@ -46,10 +46,6 @@ extern "C" {
 #include <stddef.h>
 #include <stdlib.h>
 
-// #include "sha256.h"
-// #include "crypto_defines.h"
-// #include "errors.h"
-
 /**
  * @brief Encrypts a message using RSAES PKCS#1 v1.5 padding.
  *

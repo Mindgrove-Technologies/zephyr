@@ -50,7 +50,6 @@ typedef struct {
 #define SHA_STATUS_OUT_READY (1 << 1) /* Output digest ready */
 
 #define byte_length 8
-// crypto_mindgrove_sha.h
 
 extern const int sha_block_length_bits;
 extern const int sha_max_inputlen_bits;
