@@ -1,4 +1,4 @@
-description: Mindgrove QSPI PSRAM
+description: MINDGROVE QSPI PSRAM
 
 compatible: "mindgrove,qspi-psram"
 

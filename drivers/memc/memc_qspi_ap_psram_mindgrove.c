@@ -349,7 +349,7 @@ typedef struct {
 } qspi_msg;
 
 
-/* PSRAM driver owns its own msg instance — no sharing with flash */
+/* PSRAM msg instance */
 static qspi_msg psram_msg = {
     .PRESCALER = 20,
     .CLK_MODE  = 0,
@@ -369,7 +369,7 @@ struct psram_data {
 
 #define POW2_MINUS1(n)   ((1U << (n)) - 1U)
 
-/* Declare QSPI_Transaction from flash driver — same silicon, same function */
+/* QSPI_Transaction*/
 
 uint16_t QSPI_Transaction(qspi_msg *msg) {
     uint32_t remaining;

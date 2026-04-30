@@ -1,9 +1,9 @@
 config MEMC_MINDGROVE_PSRAM
-    bool "Mindgrove QSPI PSRAM driver"
+    bool "MINDGROVE QSPI PSRAM driver"
     default y
     depends on DT_HAS_MINDGROVE_QSPI_PSRAM_ENABLED
     help
-      Enable the Mindgrove QSPI PSRAM driver for Secure IoT SoC.
+      Enable the MINDGROVE QSPI PSRAM driver for Secure IoT SoC.
       Initializes PSRAM into quad memory-mapped mode on boot.
 
 if MEMC_MINDGROVE_PSRAM
@@ -12,7 +12,7 @@ config MEMC_MINDGROVE_PSRAM_INIT_PRIORITY
     int "PSRAM initialization priority"
     default 85
     help
-      Initialization priority for the Mindgrove PSRAM driver.
+      Initialization priority for the MINDGROVE PSRAM driver.
       Must be higher than flash init priority so flash initializes first.
 
 endif # MEMC_MINDGROVE_PSRAM

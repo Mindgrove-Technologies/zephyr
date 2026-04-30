@@ -1,4 +1,4 @@
-description: Mindgrove QSPI Flash Controller and JEDEC Flash
+description: MINDGROVE QSPI Flash Controller and JEDEC Flash
 
 compatible: "mindgrove,qspi-flash"
 
