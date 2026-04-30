@@ -6,7 +6,7 @@
 #include "crypto_mindgrove_rsa.h"
 #include "crypto_mindgrove_sha.h"
 #include "rsa_padding.h"
-#include "bignum.h"
+#include <mbedtls/bignum.h>
 
 #define DT_DRV_COMPAT mindgrove_rsa2048
 
@@ -238,62 +238,69 @@ static inline void zero_ext(uint64_t number, unsigned base)
  */
 uint32_t RSA_Run(uint8_t *output, uint8_t *input, uint8_t *exp, uint8_t *mod)
 {
-	size_t r2modn_size;
-	bn_int modulus, r2modn_result;
-	uint8_t load_input[256];
-	char r2modn[256] __attribute__((aligned(16))) = {0};
+    mbedtls_mpi N, R2, R2modN;
+    uint8_t load_input[256];
+    uint8_t r2modn[256] = {0};
 
-	volatile uint8_t *status_reg = &rsa_instance->RSA_STATUS;
+    volatile uint64_t *load_input_arr = (uint64_t *)load_input;
+    uint64_t *output_arr              = (uint64_t *)load_input;
 
-	volatile uint64_t *load_input_arr = (uint64_t *)load_input;
-	uint64_t *output_arr = (uint64_t *)load_input;
+    mbedtls_mpi_init(&N);
+    mbedtls_mpi_init(&R2);
+    mbedtls_mpi_init(&R2modN);
 
-	BN_INIT(&modulus);
-	BN_INIT(&r2modn_result);
+    /* Load modulus from bytes */
+    mbedtls_mpi_read_binary(&N, mod, 256);
 
-	// Convert the bytes value to bignum value
-	BigNum_Read_Unsigned_Bin(&modulus, mod, 256);
+    /* Compute R2 = 2^4096 */
+    mbedtls_mpi_lset(&R2, 1);
+    mbedtls_mpi_shift_l(&R2, 4096);
 
-	//  Calculating r2 mod n
-	BigNum_Calculate_R2_Mod_N(&modulus, &r2modn_result);
+    /* Compute R2 mod N */
+    mbedtls_mpi_mod_mpi(&R2modN, &R2, &N);
 
-	// Convert the bignum value to byte value
-	BigNum_Unsigned_Bin_Size(&r2modn_result, &r2modn_size);
-	
+    /* Write result into r2modn, right-aligned in 256 bytes */
+    size_t r2modn_size = mbedtls_mpi_size(&R2modN);
+    mbedtls_mpi_write_binary(&R2modN,
+                             r2modn + (256 - r2modn_size),
+                             r2modn_size);
 
-	BigNum_Write_Unsigned_Bin(&r2modn_result, (uint8_t *)r2modn + (256 - r2modn_size), 256);
+    mbedtls_mpi_free(&N);
+    mbedtls_mpi_free(&R2);
+    mbedtls_mpi_free(&R2modN);
 
-	uint8_t *src[4] = {input, exp, mod, (uint8_t *)r2modn};
-	uint64_t *dest[4] = {&rsa_instance->RSA_INPUT, &rsa_instance->RSA_EXP,
-			     &rsa_instance->RSA_MOD, &rsa_instance->RSA_RSqrMODN};
+    /* Load input, exp, mod, r2modn into hardware */
+    uint8_t  *src[4]  = {input, exp, mod, r2modn};
+    uint64_t *dest[4] = {
+        (uint64_t *)&rsa_instance->RSA_INPUT,
+        (uint64_t *)&rsa_instance->RSA_EXP,
+        (uint64_t *)&rsa_instance->RSA_MOD,
+        (uint64_t *)&rsa_instance->RSA_RSqrMODN
+    };
 
-	for (uint8_t j = 0; j < 4; j++) {
-		
-		for (uint16_t i = 0; i < 256; i++) {
-			load_input[i] = src[j][i];
-		}
+    for (uint8_t j = 0; j < 4; j++) {
+        for (uint16_t i = 0; i < 256; i++) {
+            load_input[i] = src[j][i];
+        }
+        for (uint8_t i = 0; i < 32; i++) {
+            swap_endian_in_place(&load_input_arr[i]);
+            *(dest[j]) = load_input_arr[i];
+        }
+    }
 
-		for (uint8_t i = 0; i < 32; i++) {
-			swap_endian_in_place(&load_input_arr[i]);
-			*(dest[j]) = load_input_arr[i];
-		}
-	}
+    /* Wait for hardware completion */
+    while (!(rsa_instance->RSA_STATUS & 1))
+        ;
 
-	//  Wait for hardware to signal completion
-	while (!(rsa_instance->RSA_STATUS & 1))
-		;
+    /* Read output */
+    for (uint8_t i = 0; i < 32; i++) {
+        output_arr[i] = (uint64_t)(rsa_instance->RSA_OUTPUT);
+        zero_ext(output_arr[i], 16);
+        swap_endian_in_place(&output_arr[i]);
+    }
 
-	for (uint8_t i = 0; i < 32; i++) {
-		output_arr[i] = (uint64_t)(rsa_instance->RSA_OUTPUT);
-		// zero_ext is kept as per original logic, but its output is commented in the source
-		zero_ext(output_arr[i], 16);
-		swap_endian_in_place(&output_arr[i]);
-	}
-
-	// Copy the processed data from output_arr (which points to load_input) to final output
-	memcpy(output, load_input, 256);
-
-	return 0;
+    memcpy(output, load_input, 256);
+    return 0;
 }
 
 
