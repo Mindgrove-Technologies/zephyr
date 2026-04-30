@@ -22,8 +22,8 @@
 #define CRYPTO_DEV_COMPAT st_stm32_cryp
 #elif DT_HAS_COMPAT_STATUS_OKAY(bflb_sec_eng_aes)
 #define CRYPTO_DEV_COMPAT bflb_sec_eng_aes
-#elif DT_HAS_COMPAT_STATUS_OKAY(mindgrove_aes)    /* Add this line */
-#define CRYPTO_DEV_COMPAT mindgrove_aes           /* Add this line */
+#elif DT_HAS_COMPAT_STATUS_OKAY(mindgrove_aes)    
+#define CRYPTO_DEV_COMPAT mindgrove_aes           
 #else
 #error "You need to enable one crypto device"
 #endif
