@@ -5,6 +5,5 @@
 int main(void)
 {
 	printk("hello world\n");
-
 	return 0;
 }

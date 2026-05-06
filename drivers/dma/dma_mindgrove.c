@@ -8,20 +8,11 @@
 #include <zephyr/logging/log.h>
 #include <errno.h>
 #include <zephyr/drivers/interrupt_controller/riscv_plic.h>
-
 #include "dma_mindgrove.h"
 
 #define DMA_CHANNELS_COUNT 8U
 
 LOG_MODULE_REGISTER(dma_custom, LOG_LEVEL_DBG);
-
-/*
- * PLIC offset: number of CPU-level IRQ slots before PLIC sources start.
- * Confirmed: CONFIG_2ND_LVL_ISR_TBL_OFFSET = 41 on this SoC.
- * DT_INST_IRQN() is broken on this SoC (encodes priority bits).
- * Always use: zirq = DT_INST_IRQ_BY_IDX(n, 0, irq) + PLIC_OFFSET
- */
-#define PLIC_OFFSET CONFIG_2ND_LVL_ISR_TBL_OFFSET
 
 struct dma_custom_data {
     struct dma_context ctx;
@@ -30,15 +21,11 @@ struct dma_custom_data {
 
 struct dma_custom_config {
     uint32_t base_addr;
-    uint32_t plic_src;   /* raw PLIC source from DT */
+    uint32_t plic_src;       /* raw PLIC source from DT */
+    uint32_t encoded_irqn;   /* DT_INST_IRQN — multilevel encoded, for irq_enable */
     uint32_t priority;
     void (*irq_config_func)(const struct device *dev);
 };
-
-static inline uint32_t get_zirq(uint32_t plic_src)
-{
-    return plic_src + PLIC_OFFSET;
-}
 
 /* -------------------------------------------------- */
 /* CONFIGURE                                          */
@@ -54,33 +41,42 @@ static int dma_custom_configure(const struct device *dev, uint32_t channel,
     uint16_t request_select = 0U;
     uint8_t mode_flag = 0U;
     uint8_t request_shift = 0U;
-    uint32_t pinc = 0U, minc = 0U, m2m = 0U, p2p = 0U, dir = 0U;
+    uint32_t pinc = 0U, minc = 0U;
     volatile uint32_t *src_addr, *dest_addr, *temp;
 
     DMA_Type *regs = (DMA_Type *)(uintptr_t)config->base_addr;
 
+    if (channel >= DMA_CHANNELS_COUNT) {
+        return -EINVAL;
+    }
 
-    if (channel >= DMA_CHANNELS_COUNT) return -EINVAL;
+    /* -------------------------------------------------------
+     * FIX 1: Disable channel and wait before reconfiguring.
+     * Matches baremetal DMA_Transfer_Configure which waits
+     * for EN=0 before touching any channel registers.
+     * ------------------------------------------------------- */
+    regs->CHANNEL[channel].CONFIG_REG &= ~DMA_CFG_CHANNEL_ENABLE;
+    while (regs->CHANNEL[channel].CONFIG_REG & DMA_CFG_CHANNEL_ENABLE) {
+        k_busy_wait(1U);
+    }
 
-    uint32_t src_size_index = (cfg->source_data_size == 8) ? 3
-                            : (cfg->source_data_size == 4) ? 2
-                            : (cfg->source_data_size == 2) ? 1 : 0;
+    uint32_t src_size_index = (cfg->source_data_size == 8U) ? 3U
+                            : (cfg->source_data_size == 4U) ? 2U
+                            : (cfg->source_data_size == 2U) ? 1U : 0U;
 
-    uint32_t dest_size_index = (cfg->dest_data_size == 8) ? 3
-                             : (cfg->dest_data_size == 4) ? 2
-                             : (cfg->dest_data_size == 2) ? 1 : 0;
+    uint32_t dest_size_index = (cfg->dest_data_size == 8U) ? 3U
+                             : (cfg->dest_data_size == 4U) ? 2U
+                             : (cfg->dest_data_size == 2U) ? 1U : 0U;
 
     DMA_CHANNEL_Type *chan_reg = &regs->CHANNEL[channel];
 
-   
     chan_reg->TRANSFER_LENGTH_REG = (uint16_t)(cfg->head_block->block_size);
 
     src_addr  = (volatile uint32_t *)cfg->head_block->source_address;
     dest_addr = (volatile uint32_t *)cfg->head_block->dest_address;
 
+    /* ================= Source Detection ================= */
 
-    
- /* Memory / Flash detection */
     if ((((uint32_t)src_addr >= DMA_RAM_START_ADDR) &&
          ((uint32_t)src_addr <= DMA_RAM_END_ADDR)) ||
         (((uint32_t)src_addr >= DMA_FLASH_START_ADDR) &&
@@ -88,295 +84,236 @@ static int dma_custom_configure(const struct device *dev, uint32_t channel,
         mode_flag = 1U;  /* Memory source */
     } else {
         switch ((uint32_t)src_addr) {
-        case AES_OUT_REG_ADDR: /* AES output reg -> Fast */
+        case AES_OUT_REG_ADDR:
             request_select = AES_OUTP_READY;
             mode_flag |= DMA_MODE_FAST_SOURCE;
             break;
-
-        case SHA_OUT_REG_ADDR: /* SHA output reg -> Fast */
+        case SHA_OUT_REG_ADDR:
             request_select = SHA_OUTP_READY;
             mode_flag |= DMA_MODE_FAST_SOURCE;
             break;
-
-        case RSA_OUT_REG_ADDR: /* RSA output reg -> Fast */
+        case RSA_OUT_REG_ADDR:
             request_select = RSA_OUTP_READY;
             mode_flag |= DMA_MODE_FAST_SOURCE;
             break;
-
-        case QSPI0_DATA_REG_ADDR: /* QSPI0 data reg -> Fast */
+        case QSPI0_DATA_REG_ADDR:
             request_select = QSPI0_READY;
             mode_flag |= DMA_MODE_FAST_SOURCE;
             break;
-
-        case QSPI1_DATA_REG_ADDR: /* QSPI1 data reg -> Fast */
+        case QSPI1_DATA_REG_ADDR:
             request_select = QSPI1_READY;
             mode_flag |= DMA_MODE_FAST_SOURCE;
             break;
-
-        case UART0_RX_REG_ADDR:  /*UART0 RX reg - > Slow*/
+        case UART0_RX_REG_ADDR:
             request_select = UART0_OUTP_READY;
             break;
-        case UART1_RX_REG_ADDR:  /*UART1 RX reg - > Slow*/
+        case UART1_RX_REG_ADDR:
             request_select = UART1_OUTP_READY;
             break;
-        case UART2_RX_REG_ADDR:  /*UART2 RX reg - > Slow*/
+        case UART2_RX_REG_ADDR:
             request_select = UART2_OUTP_READY;
             break;
-        case UART3_RX_REG_ADDR:  /*UART3 RX reg - > Slow*/
+        case UART3_RX_REG_ADDR:
             request_select = UART3_OUTP_READY;
             break;
-        case UART4_RX_REG_ADDR:  /*UART4 RX reg - > Slow*/
+        case UART4_RX_REG_ADDR:
             request_select = UART4_OUTP_READY;
             break;
-
-        case SPI0_RX_REG_ADDR:  /*SPI0 RX reg - > Slow*/
+        case SPI0_RX_REG_ADDR:
             request_select = SPI0_OUTP_READY;
             break;
-        case SPI1_RX_REG_ADDR:  /*SPI1 RX reg - > Slow*/
+        case SPI1_RX_REG_ADDR:
             request_select = SPI1_OUTP_READY;
             break;
-        case SPI2_RX_REG_ADDR:  /*SPI2 RX reg - > Slow*/
+        case SPI2_RX_REG_ADDR:
             request_select = SPI2_OUTP_READY;
             break;
-        case SPI3_RX_REG_ADDR:  /*SPI3 RX reg - > Slow*/
+        case SPI3_RX_REG_ADDR:
             request_select = SPI3_OUTP_READY;
             break;
-
-        case ITRACE_DATA_REG_ADDR:  /*ITRACE Data reg - > Slow*/
+        case ITRACE_DATA_REG_ADDR:
             request_select = ITRACE_OUTP_READY;
             break;
-        case ADC_DATA_REG_ADDR:  /*ADC Data reg - > Slow*/
+        case ADC_DATA_REG_ADDR:
             request_select = ADC_OUTP_READY;
             break;
-
-        case PRO_IO_DUO_DATA_REG_ADDR:  /*PRO IO DUO Data Reg -> Slow*/
+        case PRO_IO_DUO_DATA_REG_ADDR:
             request_select = PRO_IO_DUO_OUTP_READY;
             break;
-        case PRO_IO_TETRA_DATA_REG_ADDR:  /*PRO IO TETRA Data Reg -> Slow*/
+        case PRO_IO_TETRA_DATA_REG_ADDR:
             request_select = PRO_IO_TETRA_OUTP_READY;
             break;
-        case PRO_IO_OCTA_DATA_REG_ADDR:  /*PRO IO OCAT Data Reg -> Slow*/
+        case PRO_IO_OCTA_DATA_REG_ADDR:
             request_select = PRO_IO_OCTA_OUTP_READY;
             break;
-        case PRO_IO_FUSION_DATA_REG_ADDR:  /*PRO IO FUSION Data Reg -> Slow*/
+        case PRO_IO_FUSION_DATA_REG_ADDR:
             request_select = PRO_IO_FUSION_OUTP_READY;
             break;
-
         default:
-            return EINVAL;
+            return -EINVAL;
         }
     }
 
-    /* If source addr is memory don't left shift, else left shift 6 times */
-    request_shift = (mode_flag == 1U) ? 0U : 6U;
-
     /* ================= Destination Detection ================= */
 
-    /* Memory / Flash detection */
     if ((((uint32_t)dest_addr >= DMA_RAM_START_ADDR) &&
          ((uint32_t)dest_addr <= DMA_RAM_END_ADDR)) ||
         (((uint32_t)dest_addr >= DMA_FLASH_START_ADDR) &&
          ((uint32_t)dest_addr <= DMA_FLASH_END_ADDR))) {
         mode_flag |= (1U << 1);
     } else {
+        /* -------------------------------------------------------
+         * FIX 2: Compute request_shift AFTER source detection,
+         * inside the destination peripheral block — matching the
+         * baremetal driver which sets shift based on whether the
+         * source was memory (shift=0) or peripheral (shift=6).
+         * ------------------------------------------------------- */
+        request_shift = (mode_flag == 1U) ? 0U : 6U;
+
         switch ((uint32_t)dest_addr) {
-        case AES_INP_REG_ADDR:  /*AES input reg -> Fast*/
-            request_select |=
-            ((uint16_t)AES_CAN_TAKE_INPUT << (uint16_t)request_shift);
+        case AES_INP_REG_ADDR:
+            request_select |= ((uint16_t)AES_CAN_TAKE_INPUT << request_shift);
             mode_flag |= DMA_MODE_FAST_DESTINATION;
             break;
-
-        case SHA_INP_REG_ADDR:  /*SHA input reg -> Fast*/
-            request_select |=
-            ((uint16_t)SHA_CAN_TAKE_INPUT << (uint16_t)request_shift);
+        case SHA_INP_REG_ADDR:
+            request_select |= ((uint16_t)SHA_CAN_TAKE_INPUT << request_shift);
             mode_flag |= DMA_MODE_FAST_DESTINATION;
             break;
-
-        case RSA_INP_REG_ADDR:  /*RSA input reg -> Fast*/
-            request_select |=
-            ((uint16_t)RSA_CAN_TAKE_INPUT << (uint16_t)request_shift);
+        case RSA_INP_REG_ADDR:
+            request_select |= ((uint16_t)RSA_CAN_TAKE_INPUT << request_shift);
             mode_flag |= DMA_MODE_FAST_DESTINATION;
             break;
-
-        case QSPI0_DATA_REG_ADDR:  /*QSPI0 data reg -> Fast*/
-            request_select |=
-            ((uint16_t)QSPI0_READY << (uint16_t)request_shift);
+        case QSPI0_DATA_REG_ADDR:
+            request_select |= ((uint16_t)QSPI0_READY << request_shift);
             mode_flag |= DMA_MODE_FAST_DESTINATION;
             break;
-
-        case QSPI1_DATA_REG_ADDR:  /*QSPI1 data reg -> Fast*/
-            request_select |=
-            ((uint16_t)QSPI1_READY << (uint16_t)request_shift);
+        case QSPI1_DATA_REG_ADDR:
+            request_select |= ((uint16_t)QSPI1_READY << request_shift);
             mode_flag |= DMA_MODE_FAST_DESTINATION;
             break;
-
-        case UART0_TX_REG_ADDR:  /*UART0 TX reg -> Slow*/
-            request_select |=
-            ((uint16_t)UART0_CAN_TAKE_INPUT << (uint16_t)request_shift);
+        case UART0_TX_REG_ADDR:
+            request_select |= ((uint16_t)UART0_CAN_TAKE_INPUT << request_shift);
             break;
-
-        case UART1_TX_REG_ADDR:  /*UART1 TX reg -> Slow*/
-            request_select |=
-            ((uint16_t)UART1_CAN_TAKE_INPUT << (uint16_t)request_shift);
+        case UART1_TX_REG_ADDR:
+            request_select |= ((uint16_t)UART1_CAN_TAKE_INPUT << request_shift);
             break;
-
-        case UART2_TX_REG_ADDR:  /*UART2 TX reg -> Slow*/
-            request_select |=
-            ((uint16_t)UART2_CAN_TAKE_INPUT << (uint16_t)request_shift);
+        case UART2_TX_REG_ADDR:
+            request_select |= ((uint16_t)UART2_CAN_TAKE_INPUT << request_shift);
             break;
-
-        case UART3_TX_REG_ADDR:  /*UART3 TX reg -> Slow*/
-            request_select |=
-            ((uint16_t)UART3_CAN_TAKE_INPUT << (uint16_t)request_shift);
+        case UART3_TX_REG_ADDR:
+            request_select |= ((uint16_t)UART3_CAN_TAKE_INPUT << request_shift);
             break;
-
-        case UART4_TX_REG_ADDR:  /*UART4 TX reg -> Slow*/
-            request_select |=
-            ((uint16_t)UART4_CAN_TAKE_INPUT << (uint16_t)request_shift);
+        case UART4_TX_REG_ADDR:
+            request_select |= ((uint16_t)UART4_CAN_TAKE_INPUT << request_shift);
             break;
-
-        case SPI0_TX_REG_ADDR:  /*SPI0 TX reg - > Slow*/
-            request_select |=
-            ((uint16_t)SPI0_CAN_TAKE_INPUT << (uint16_t)request_shift);
+        case SPI0_TX_REG_ADDR:
+            request_select |= ((uint16_t)SPI0_CAN_TAKE_INPUT << request_shift);
             break;
-
-        case SPI1_TX_REG_ADDR:  /*SPI1 TX reg - > Slow*/
-            request_select |=
-            ((uint16_t)SPI1_CAN_TAKE_INPUT << (uint16_t)request_shift);
+        case SPI1_TX_REG_ADDR:
+            request_select |= ((uint16_t)SPI1_CAN_TAKE_INPUT << request_shift);
             break;
-
-        case SPI2_TX_REG_ADDR:  /*SPI2 TX reg - > Slow*/
-            request_select |=
-            ((uint16_t)SPI2_CAN_TAKE_INPUT << (uint16_t)request_shift);
+        case SPI2_TX_REG_ADDR:
+            request_select |= ((uint16_t)SPI2_CAN_TAKE_INPUT << request_shift);
             break;
-
-        case SPI3_TX_REG_ADDR:  /*SPI3 TX reg - > Slow*/
-            request_select |=
-            ((uint16_t)SPI3_CAN_TAKE_INPUT << (uint16_t)request_shift);
+        case SPI3_TX_REG_ADDR:
+            request_select |= ((uint16_t)SPI3_CAN_TAKE_INPUT << request_shift);
             break;
-
-        case PRO_IO_DUO_DATA_REG_ADDR: /*PRO IO DUO Data Reg -> Slow*/
-            request_select |=
-            ((uint16_t)PRO_IO_DUO_CAN_TAKE_INP << (uint16_t)request_shift);
+        case PRO_IO_DUO_DATA_REG_ADDR:
+            request_select |= ((uint16_t)PRO_IO_DUO_CAN_TAKE_INP << request_shift);
             break;
-
-        case PRO_IO_TETRA_DATA_REG_ADDR:  /*PRO IO TETRA Data Reg -> Slow*/
-            request_select |=
-            ((uint16_t)PRO_IO_TETRA_CAN_TAKE_INP << (uint16_t)request_shift);
+        case PRO_IO_TETRA_DATA_REG_ADDR:
+            request_select |= ((uint16_t)PRO_IO_TETRA_CAN_TAKE_INP << request_shift);
             break;
-
-        case PRO_IO_OCTA_DATA_REG_ADDR:  /*PRO IO OCTA Data Reg -> Slow*/
-            request_select |=
-            ((uint16_t)PRO_IO_OCTA_CAN_TAKE_INP << (uint16_t)request_shift);
+        case PRO_IO_OCTA_DATA_REG_ADDR:
+            request_select |= ((uint16_t)PRO_IO_OCTA_CAN_TAKE_INP << request_shift);
             break;
-
-        case PRO_IO_FUSION_DATA_REG_ADDR:  /*PRO IO FUSION Data Reg -> Slow*/
-            request_select |=
-            ((uint16_t)PRO_IO_FUSION_CAN_TAKE_INP << (uint16_t)request_shift);
+        case PRO_IO_FUSION_DATA_REG_ADDR:
+            request_select |= ((uint16_t)PRO_IO_FUSION_CAN_TAKE_INP << request_shift);
             break;
-
         default:
-            return EINVAL;
+            return -EINVAL;
         }
     }
 
     chan_reg->REQUEST_SELECT_REG = request_select;
+
     /* ================= Read Current CCR ================= */
-     config_reg = chan_reg->CONFIG_REG;
+    config_reg = chan_reg->CONFIG_REG;
 
     /* ================= Clear Relevant Fields ================= */
     config_reg &= ~(DMA_CFG_PERIPH_TO_PERIPH_MASK |
-                    DMA_CFG_TRANSFER_DIR_MASK     |
-                    DMA_CFG_MEM_TO_MEM_MASK       |
-                    DMA_CFG_PRIORITY_LEVEL_MASK   |
-                    DMA_CFG_MEM_DATA_SIZE_MASK    |
-                    DMA_CFG_PERIPH_DATA_SIZE_MASK |
-                    DMA_CFG_MEM_ADDR_INC_MASK     |
+                    DMA_CFG_TRANSFER_DIR_MASK      |
+                    DMA_CFG_MEM_TO_MEM_MASK        |
+                    DMA_CFG_PRIORITY_LEVEL_MASK    |
+                    DMA_CFG_MEM_DATA_SIZE_MASK     |
+                    DMA_CFG_PERIPH_DATA_SIZE_MASK  |
+                    DMA_CFG_MEM_ADDR_INC_MASK      |
                     DMA_CFG_PERIPH_ADDR_INC_MASK);
 
-   
-
     /* ================= Mode Decode ================= */
-
-    /**
-     * mode_flag    Operation
-     * 0            P2P
-     * 1            M2P
-     * 2            P2M
-     * 3            M2M
+    /*
+     * mode_flag & 0x03:
+     *   0 = P2P, 1 = M2P, 2 = P2M, 3 = M2M
      */
-
     switch (mode_flag & 0x03U) {
-    case 0U: {
-            /* P2P */
+    case 0U: /* P2P */
         config_reg |= DMA_CFG_PERIPH_TO_PERIPH;
-
         pinc = ((mode_flag & DMA_MODE_FAST_SOURCE) == 0U) ?
                DMA_SLOW_PERIPH_BURST : DMA_FAST_PERIPH_BURST;
-
         minc = ((mode_flag & DMA_MODE_FAST_DESTINATION) == 0U) ?
                DMA_SLOW_PERIPH_BURST : DMA_FAST_PERIPH_BURST;
-
         break;
-    }
 
     case 1U: /* M2P */
-        {
-            temp      = src_addr;
-            src_addr  = dest_addr;
-            dest_addr = temp;
-            
+        temp      = src_addr;
+        src_addr  = dest_addr;
+        dest_addr = temp;
+        config_reg |= DMA_CFG_TRANSFER_DIR;
+        pinc = ((mode_flag & DMA_MODE_FAST_DESTINATION) == 0U) ?
+               DMA_SLOW_PERIPH_BURST : DMA_FAST_PERIPH_BURST;
+        minc = DMA_INC_ENABLE;
+        break;
 
-            config_reg |= DMA_CFG_TRANSFER_DIR;
-
-            pinc = ((mode_flag & DMA_MODE_FAST_DESTINATION) == 0U) ?
-                DMA_SLOW_PERIPH_BURST : DMA_FAST_PERIPH_BURST;
-
-            minc = DMA_INC_ENABLE;
-            break;
-        }
-
-    case 2U: {
-            /* P2M */
+    case 2U: /* P2M */
         pinc = ((mode_flag & DMA_MODE_FAST_SOURCE) == 0U) ?
                DMA_SLOW_PERIPH_BURST : DMA_FAST_PERIPH_BURST;
-
         minc = DMA_INC_ENABLE;
-
         break;
-    }
 
-    
-    case 3U: {
+    case 3U: /* M2M */
         config_reg |= DMA_CFG_MEM_TO_MEM;
-        
         pinc = DMA_INC_ENABLE;
         minc = DMA_INC_ENABLE;
         break;
-    }
 
     default:
-        return EINVAL;
+        return -EINVAL;
     }
 
     /* ================= Program Addresses ================= */
     chan_reg->PERIPH_ADDR_REG = (uint32_t)src_addr;
-    chan_reg->MEM_ADDR_REG = (uint32_t)dest_addr;
-     /* ================= Set Required Fields ================= */
-    /* Set new configuration */
+    chan_reg->MEM_ADDR_REG    = (uint32_t)dest_addr;
+
+    /* ================= Set Required Fields ================= */
     config_reg |= DMA_CFG_PRIORITY_LEVEL(cfg->channel_priority) |
-                  DMA_CFG_MEM_DATA_SIZE(src_size_index) |
-                  DMA_CFG_PERIPH_DATA_SIZE(dest_size_index) |
-                  DMA_CFG_MEM_ADDR_INC(minc) |
+                  DMA_CFG_MEM_DATA_SIZE(src_size_index)          |
+                  DMA_CFG_PERIPH_DATA_SIZE(dest_size_index)      |
+                  DMA_CFG_MEM_ADDR_INC(minc)                     |
                   DMA_CFG_PERIPH_ADDR_INC(pinc);
 
     data->chan_cfgs[channel] = cfg;
 
     if (cfg->dma_callback) {
-        config_reg |= (DMA_CFG_TC_INT_ENABLE | DMA_CFG_ERR_INT_ENABLE | DMA_CFG_HALF_INT_ENABLE);
+        config_reg |= (DMA_CFG_TC_INT_ENABLE |
+                       DMA_CFG_ERR_INT_ENABLE );
+     if (cfg->complete_callback_en) {
+        config_reg |= DMA_CFG_HALF_INT_ENABLE;
     }
-      /* ================= Write Back ================= */
+    }
+
+    /* ================= Write Back ================= */
     chan_reg->CONFIG_REG = config_reg;
+
     return 0;
 }
 
@@ -389,18 +326,23 @@ static int dma_custom_start(const struct device *dev, uint32_t channel)
     const struct dma_custom_config *config = dev->config;
     DMA_Type *regs = (DMA_Type *)config->base_addr;
 
-    if (channel >= DMA_CHANNELS_COUNT) return -EINVAL;
-
-    /* Clear pending interrupts */
-    if (regs->INTERRUPT_STATUS_REG) {
-        regs->INT_FLAG_CLEAR_REG = regs->INTERRUPT_STATUS_REG;
+    if (channel >= DMA_CHANNELS_COUNT) {
+        return -EINVAL;
     }
 
-    /* Enable DMA channel */
+    /* Clear any stale interrupt flags before enabling */
+    if (regs->INTERRUPT_STATUS_REG) {
+        uint32_t s = regs->INTERRUPT_STATUS_REG;
+        regs->INT_FLAG_CLEAR_REG |=  s;
+        regs->INT_FLAG_CLEAR_REG &= ~s;
+    }
+    __asm__ volatile("fence rw, rw" ::: "memory");
+
+    /* Enable channel */
     regs->CHANNEL[channel].CONFIG_REG |= DMA_CFG_CHANNEL_ENABLE;
 
-    /* Enable PLIC source — use Zephyr IRQ number */
-    riscv_plic_irq_enable(get_zirq(config->plic_src));
+    /* Enable IRQ through Zephyr multilevel IRQ path */
+    irq_enable(config->encoded_irqn);
 
     return 0;
 }
@@ -414,9 +356,13 @@ static int dma_custom_stop(const struct device *dev, uint32_t channel)
     const struct dma_custom_config *config = dev->config;
     DMA_Type *regs = (DMA_Type *)config->base_addr;
 
-    if (channel >= DMA_CHANNELS_COUNT) return -EINVAL;
+    if (channel >= DMA_CHANNELS_COUNT) {
+        return -EINVAL;
+    }
 
-    regs->CHANNEL[channel].CONFIG_REG &= ~BIT(0);
+    regs->CHANNEL[channel].CONFIG_REG &= ~DMA_CFG_CHANNEL_ENABLE;
+    irq_disable(config->encoded_irqn);
+    
     return 0;
 }
 
@@ -430,12 +376,15 @@ static int dma_custom_get_status(const struct device *dev, uint32_t channel,
     const struct dma_custom_config *config = dev->config;
     DMA_Type *regs = (DMA_Type *)config->base_addr;
 
-    if (channel >= DMA_CHANNELS_COUNT || stat == NULL) return -EINVAL;
+    if (channel >= DMA_CHANNELS_COUNT || stat == NULL) {
+        return -EINVAL;
+    }
 
-    uint32_t ccr = regs->CHANNEL[channel].CONFIG_REG;
+    uint32_t ccr     = regs->CHANNEL[channel].CONFIG_REG;
     stat->busy           = (ccr & BIT(0)) != 0U;
     stat->pending_length = regs->CHANNEL[channel].TRANSFER_LENGTH_REG;
-    stat->dir            = (ccr & BIT(4)) ? MEMORY_TO_PERIPHERAL : PERIPHERAL_TO_MEMORY;
+    stat->dir            = (ccr & BIT(4)) ?
+                           MEMORY_TO_PERIPHERAL : PERIPHERAL_TO_MEMORY;
     return 0;
 }
 
@@ -451,47 +400,52 @@ static void dma_custom_isr(const void *arg)
     DMA_Type *regs = (DMA_Type *)(uintptr_t)config->base_addr;
 
     uint32_t isr_status = regs->INTERRUPT_STATUS_REG;
-    
-    /* Print raw status for debugging */
-    LOG_DBG("[DMA ISR] Raw ISR status: 0x%08x\n", isr_status);
+
+    LOG_DBG("[DMA ISR] Raw ISR status: 0x%08x", isr_status);
 
     for (uint32_t i = 0; i < DMA_CHANNELS_COUNT; i++) {
-        uint32_t tc_flag = BIT(i * 4 + 1);
-        uint32_t te_flag = BIT(i * 4 + 3);
-        uint32_t ht_flag = BIT(i * 4 + 2);
-        uint32_t ch_mask = tc_flag | te_flag | ht_flag;
+        uint32_t tc_flag = BIT(i * 4U + 1U);
+        uint32_t ht_flag = BIT(i * 4U + 2U);
+        uint32_t te_flag = BIT(i * 4U + 3U);
+        uint32_t ch_mask = tc_flag | ht_flag | te_flag;
 
         if (!(isr_status & ch_mask)) {
             continue;
         }
 
-        /* Read remaining transfer count BEFORE clearing */
         uint16_t remaining = regs->CHANNEL[i].TRANSFER_LENGTH_REG;
-        LOG_DBG("[DMA ISR] Channel %d: TC=%d, HT=%d, TE=%d, Remaining=%d\n", 
-               i, 
-               (isr_status & tc_flag) ? 1 : 0,
-               (isr_status & ht_flag) ? 1 : 0,
-               (isr_status & te_flag) ? 1 : 0,
-               remaining);
+        LOG_DBG("[DMA ISR] Channel %u: TC=%d HT=%d TE=%d Remaining=%u",
+                i,
+                (isr_status & tc_flag) ? 1 : 0,
+                (isr_status & ht_flag) ? 1 : 0,
+                (isr_status & te_flag) ? 1 : 0,
+                remaining);
 
-        /* Clear interrupt flags */
-        regs->INT_FLAG_CLEAR_REG = ch_mask;
+        /* -------------------------------------------------------
+         * FIX 3: Clear interrupt flags with a write-then-clear
+         * pulse, matching the baremetal DMA_Clear_Interrupt_Flags
+         * which does:  REG |= mask  then  REG &= ~mask
+         * A single write is not sufficient to clear the flags.
+         * ------------------------------------------------------- */
+        regs->INT_FLAG_CLEAR_REG |=  ch_mask;
+        regs->INT_FLAG_CLEAR_REG &= ~ch_mask;
 
         const struct dma_config *cfg = data->chan_cfgs[i];
-        if (cfg && cfg->dma_callback) {
 
+        if (cfg != NULL && cfg->dma_callback != NULL) {
             int status;
 
             if (isr_status & te_flag) {
                 status = -EIO;
-                LOG_DBG("[DMA ISR] CH%u ERROR\n", i);
+                LOG_DBG("[DMA ISR] CH%u ERROR", i);
             } else if (isr_status & tc_flag) {
                 status = 0;
-                LOG_DBG("[DMA ISR] CH%u COMPLETE\n", i);
-            }  else if (isr_status & ht_flag) {
+                regs->CHANNEL[i].CONFIG_REG &= ~DMA_CFG_CHANNEL_ENABLE;
+                LOG_DBG("[DMA ISR] CH%u COMPLETE", i);
+            } else if (isr_status & ht_flag) {
                 status = 1;
-                LOG_DBG("[DMA ISR] CH%u HALF, Remaining: %d/%d\n", 
-                       i, remaining, cfg->head_block->block_size);
+                LOG_DBG("[DMA ISR] CH%u HALF Remaining=%u/%u",
+                        i, remaining, cfg->head_block->block_size);
             } else {
                 continue;
             }
@@ -501,15 +455,66 @@ static void dma_custom_isr(const void *arg)
     }
 }
 
+static int dma_custom_suspend(const struct device *dev, uint32_t channel)
+{
+    ARG_UNUSED(dev);
+    ARG_UNUSED(channel);
+    return -ENOSYS;  /* not supported */
+}
+
+static int dma_custom_resume(const struct device *dev, uint32_t channel)
+{
+    ARG_UNUSED(dev);
+    ARG_UNUSED(channel);
+    return -ENOSYS;  /* not supported */
+}
+
+static int dma_custom_request_channel(const struct device *dev,
+                                      void *filter_param)
+{
+    struct dma_custom_data *data = dev->data;
+    ARG_UNUSED(filter_param);
+
+    /*
+     * dma_context.atomic is a bitmask of in-use channels.
+     * Find the first bit that is 0 (free), set it, return the index.
+     * This is exactly what dma_request_channel is supposed to do.
+     */
+    for (uint32_t i = 0; i < DMA_CHANNELS_COUNT; i++) {
+        if (!atomic_test_and_set_bit(data->ctx.atomic, i)) {
+            return (int)i;
+        }
+    }
+
+    /* All channels busy */
+    return -ENOSPC;
+}
+
+static int dma_custom_release_channel(const struct device *dev,
+                                      uint32_t channel)
+{
+    struct dma_custom_data *data = dev->data;
+
+    if (channel >= DMA_CHANNELS_COUNT) {
+        return -EINVAL;
+    }
+
+    atomic_clear_bit(data->ctx.atomic, channel);
+    return 0;
+}
+
 /* -------------------------------------------------- */
 /* API                                                */
 /* -------------------------------------------------- */
+
 
 static const struct dma_driver_api dma_custom_api = {
     .config     = dma_custom_configure,
     .start      = dma_custom_start,
     .stop       = dma_custom_stop,
     .get_status = dma_custom_get_status,
+    .suspend    = dma_custom_suspend,
+    .resume     = dma_custom_resume,
 };
 
 /* -------------------------------------------------- */
@@ -520,56 +525,46 @@ static int dma_custom_init(const struct device *dev)
 {
     const struct dma_custom_config *config = dev->config;
 
-    LOG_DBG("[DMA] base=0x%x plic_src=%u zirq=%u prio=%u\n",
-           config->base_addr, config->plic_src,
-           get_zirq(config->plic_src), config->priority);
+    LOG_DBG("[DMA] base=0x%x plic_src=%u irqn=0x%x prio=%u",
+            config->base_addr, config->plic_src,
+            config->encoded_irqn, config->priority);
 
     config->irq_config_func(dev);
     return 0;
 }
 
-#define DMA_CUSTOM_DEVICE(inst)                                                     \
-    static void dma_irq_config_##inst(const struct device *dev)                     \
-    {                                                                               \
-        uint32_t plic_src = DT_INST_IRQ_BY_IDX(inst, 0, irq);                       \
-        uint32_t zirq = plic_src + PLIC_OFFSET;                                     \
-        uint32_t prio = DT_INST_IRQ_BY_IDX(inst, 0, priority);                      \
-                                                                                    \
-                                                                                    \
-        /* sanity checks */                                                         \
-        if (zirq >= CONFIG_NUM_IRQS) {                                              \
-            LOG_DBG("  ERROR: zirq out of range!\n");                               \
-        }                                                                           \
-                                                                                    \
-        riscv_plic_set_priority(zirq, 2U);                                          \
-                                                                                    \
-        LOG_DBG("  priority set OK\n");                                             \
-                                                                                    \
-        irq_connect_dynamic(zirq, prio, dma_custom_isr,                             \
-                            DEVICE_DT_INST_GET(inst), 0);                           \
-                                                                                    \
-        LOG_DBG("  irq connected\n");                                               \
-                                                                                    \
-        irq_enable(zirq);                                                           \
-                                                                                    \
-        LOG_DBG("  irq enabled\n");                                                 \
-    }                                                                               \
-    static const struct dma_custom_config dma_config_##inst = {                     \
-        .base_addr       = DT_INST_REG_ADDR(inst),                                  \
-        .plic_src        = DT_INST_IRQ_BY_IDX(inst, 0, irq),                        \
-        .priority        = DT_INST_IRQ_BY_IDX(inst, 0, priority),                   \
-        .irq_config_func = dma_irq_config_##inst,                                   \
-    };                                                                              \
-    static struct dma_custom_data dma_data_##inst = {                               \
-        .ctx = {                                                                    \
-            .magic        = DMA_MAGIC,                                              \
-            .dma_channels = DMA_CHANNELS_COUNT,                                     \
-            .atomic       = ATOMIC_INIT(0),                                         \
-        },                                                                          \
-    };                                                                              \
-    DEVICE_DT_INST_DEFINE(inst, dma_custom_init, NULL,                              \
-                          &dma_data_##inst, &dma_config_##inst,                     \
-                          POST_KERNEL, CONFIG_DMA_INIT_PRIORITY,                    \
+#define DMA_CUSTOM_DEVICE(inst)                                              \
+                                                                             \
+    static void dma_irq_config_##inst(const struct device *dev)              \
+    {                                                                        \
+        IRQ_CONNECT(DT_INST_IRQN(inst),                                      \
+                    DT_INST_IRQ_BY_IDX(inst, 0, priority),                   \
+                    dma_custom_isr,                                           \
+                    DEVICE_DT_INST_GET(inst),                                 \
+                    0);                                                      \
+        irq_enable(DT_INST_IRQN(inst));                                      \
+        LOG_DBG("DMA inst=%d irqn=0x%x", inst, DT_INST_IRQN(inst));         \
+    }                                                                        \
+                                                                             \
+    static const struct dma_custom_config dma_config_##inst = {              \
+        .base_addr       = DT_INST_REG_ADDR(inst),                           \
+        .plic_src        = DT_INST_IRQ_BY_IDX(inst, 0, irq),                 \
+        .encoded_irqn    = DT_INST_IRQN(inst),                               \
+        .priority        = DT_INST_IRQ_BY_IDX(inst, 0, priority),            \
+        .irq_config_func = dma_irq_config_##inst,                            \
+    };                                                                       \
+                                                                             \
+    static struct dma_custom_data dma_data_##inst = {                        \
+        .ctx = {                                                             \
+            .magic        = DMA_MAGIC,                                       \
+            .dma_channels = DMA_CHANNELS_COUNT,                              \
+            .atomic       = ATOMIC_INIT(0),                                  \
+        },                                                                   \
+    };                                                                       \
+                                                                             \
+    DEVICE_DT_INST_DEFINE(inst, dma_custom_init, NULL,                       \
+                          &dma_data_##inst, &dma_config_##inst,              \
+                          POST_KERNEL, CONFIG_DMA_INIT_PRIORITY,             \
                           &dma_custom_api);
 
 DT_INST_FOREACH_STATUS_OKAY(DMA_CUSTOM_DEVICE)
