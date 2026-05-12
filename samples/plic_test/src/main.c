@@ -1,89 +1,156 @@
+/*
+ * GPIO Interrupt Test — Mindgrove Secure IoT SoC
+ *
+ * Tests GPIO pins 0 and 1 simultaneously.
+ * Each pin has its own work item so re-arm is independent.
+ *
+ * Re-arm strategy:
+ *   Re-arm immediately from the work queue — do NOT wait for pin to go
+ *   HIGH first. If the pin is still LOW when re-armed, the ISR fires
+ *   again (correct level-triggered behavior). The REARM_MS delay between
+ *   re-arms prevents flooding while a pin is held LOW.
+ */
+
 #include <zephyr/kernel.h>
+#include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/irq.h>
-#include <zephyr/sys/printk.h>
-#include <zephyr/devicetree.h>
-#include <zephyr/drivers/interrupt_controller/intc_mindgrove_plic.h>
+#include <zephyr/logging/log.h>
 
-#define GPIO0_NODE         DT_NODELABEL(gpio0) 
+LOG_MODULE_REGISTER(gpio_test, LOG_LEVEL_INF);
 
-// --- Configuration based on vendor IRQ mapping ---
-#define GPIO_PIN_NUM       1        // Using pin 1 for the interrupt test
-#define IRQ_PIN_OFFSET     32       // PLIC IRQ ID offset for GPIO
-#define MY_DEV_IRQ         (uint32_t)(GPIO_PIN_NUM + IRQ_PIN_OFFSET) // PLIC IRQ ID = 33
-#define MY_DEV_PRIO        1        // Priority for the PLIC source
-#define MY_IRQ_FLAGS       0
+#define GPIO_NODE       DT_NODELABEL(gpio0)
+#define TEST_PIN_COUNT  2        /* test pin 0 and pin 1 */
+#define REARM_MS        50       /* delay between re-arms while held LOW */
 
 static const struct device *gpio_dev;
 
-// 1. Declare the ISR using the direct method macro
-ISR_DIRECT_DECLARE(my_gpio_isr)
+/* Per-pin state */
+struct pin_state {
+    struct gpio_callback        cb;
+    struct k_work_delayable     rearm_work;
+    volatile uint32_t           count;
+    uint8_t                     pin;
+};
+
+static struct pin_state pins[TEST_PIN_COUNT];
+
+/* ------------------------------------------------------------------ */
+/* Work handler — re-arms the interrupt for its specific pin          */
+/* ------------------------------------------------------------------ */
+
+static void rearm_work_handler(struct k_work *work)
 {
-    printk(">>> ISR TRIGGERED: GPIO pin %d (IRQ ID: %d) <<<\n", GPIO_PIN_NUM, MY_DEV_IRQ);
-    
-    // In this context, the Zephyr kernel handles the PLIC EOI.
-    // We only print and return.
-    
-    // The macro returns 0 by default, which is required for PLIC.
-    return 0;
+    struct pin_state *ps = CONTAINER_OF(work, struct pin_state,
+                                        rearm_work.work);
+
+    /*
+     * Re-arm immediately. If pin is still LOW the ISR fires again —
+     * that is correct for level-triggered hardware. The REARM_MS delay
+     * above prevents a tight loop.
+     */
+    int ret = gpio_pin_interrupt_configure(gpio_dev, ps->pin,
+                                           GPIO_INT_LEVEL_LOW);
+    if (ret < 0) {
+        printk("[REARM] pin=%u ERROR: %d\n", ps->pin, ret);
+    } else {
+        int val = gpio_pin_get_raw(gpio_dev, ps->pin);
+        printk("[REARM] pin=%u re-armed (val=%d)\n", ps->pin, val);
+    }
 }
 
-void main(void)
+/* ------------------------------------------------------------------ */
+/* Callback — one per pin, identified by the pins bitmask             */
+/* ------------------------------------------------------------------ */
+
+static void gpio_cb_handler(const struct device *dev,
+                             struct gpio_callback *cb,
+                             uint32_t fired_pins)
 {
-    printk("GPIO + ISR test starting...\n");
+    struct pin_state *ps = CONTAINER_OF(cb, struct pin_state, cb);
 
-    gpio_dev = DEVICE_DT_GET(GPIO0_NODE);
+    ps->count++;
+    int val = gpio_pin_get_raw(dev, ps->pin);
 
+    printk("[CB] pin=%u count=%u val=%d\n", ps->pin, ps->count, val);
+
+    /*
+     * Schedule re-arm after REARM_MS. Must NOT call
+     * gpio_pin_interrupt_configure() here — the PLIC has not yet
+     * completed this interrupt's claim/complete cycle. Calling
+     * irq_enable() now causes immediate re-delivery → stack overflow.
+     */
+    k_work_reschedule(&ps->rearm_work, K_MSEC(REARM_MS));
+}
+
+/* ------------------------------------------------------------------ */
+/* main                                                                */
+/* ------------------------------------------------------------------ */
+
+int main(void)
+{
+    printk("\n========================================\n");
+    printk("  GPIO Interrupt Test — Mindgrove SoC\n");
+    printk("  Testing pins 0 and 1\n");
+    printk("  Connect any pin to GND to trigger\n");
+    printk("========================================\n\n");
+
+    gpio_dev = DEVICE_DT_GET(GPIO_NODE);
     if (!device_is_ready(gpio_dev)) {
-        printk("GPIO device not ready\n");
-        return;
+        printk("[MAIN] ERROR: GPIO device not ready\n");
+        return -1;
     }
+    printk("[MAIN] GPIO device: %s\n\n", gpio_dev->name);
 
-    int ret;
+    for (int i = 0; i < TEST_PIN_COUNT; i++) {
+        uint8_t pin = (uint8_t)i;
+        pins[i].pin = pin;
 
-    // 1. Connect the direct ISR to the PLIC source ID 
-    // NOTE: This must be called before irq_enable, and before using the pin.
-    IRQ_DIRECT_CONNECT(MY_DEV_IRQ, MY_DEV_PRIO, my_gpio_isr, MY_IRQ_FLAGS);
-    
-    // 2. Enable the IRQ line in the PLIC
-    irq_enable(MY_DEV_IRQ);
-    printk("PLIC IRQ %d enabled and connected directly.\n", MY_DEV_IRQ);
-
-
-    // 3. Configure the GPIO pin interrupt settings (Falling Edge)
-    ret = gpio_pin_interrupt_configure(gpio_dev,
-                                 GPIO_PIN_NUM,
-                                 GPIO_INT_EDGE_FALLING); 
-    
-    if (ret != 0) {
-        printk("Error configuring GPIO interrupt: %d\n", ret);
-        return;
-    }
-    
-    // 4. Configure GPIO pin 1 as INPUT with PULL-UP resistor
-    ret = gpio_pin_configure(gpio_dev, 
-                                 GPIO_PIN_NUM, 
-                                 GPIO_INPUT | GPIO_PULL_UP);
-
-    if (ret != 0) {
-        printk("Error configuring GPIO pin: %d\n", ret);
-        return;
-    }
-    
-    printk("System Ready. Waiting for interrupt...\n");
-
-    int current_pin_val;
-    
-    while (1) {
-        current_pin_val = gpio_pin_get_raw(gpio_dev, GPIO_PIN_NUM);
-        
-        if (current_pin_val >= 0) {
-            printk("[Polling] Pin %d Status: %d\n", GPIO_PIN_NUM, current_pin_val);
-        } else {
-            printk("[Polling] Failed to read GPIO pin\n");
+        /* Configure as input with pull-up */
+        int ret = gpio_pin_configure(gpio_dev, pin,
+                                     GPIO_INPUT | GPIO_PULL_UP);
+        if (ret < 0) {
+            printk("[MAIN] ERROR: pin %u configure failed: %d\n", pin, ret);
+            return -1;
         }
 
-        k_sleep(K_SECONDS(1)); 
-    }
-}
+        int val = gpio_pin_get_raw(gpio_dev, pin);
+        printk("[MAIN] Pin %u: initial value = %d (%s)\n",
+               pin, val, val ? "HIGH" : "LOW");
 
+        /* Init per-pin work item */
+        k_work_init_delayable(&pins[i].rearm_work, rearm_work_handler);
+
+        /* Register per-pin callback for exactly this pin's bit */
+        gpio_init_callback(&pins[i].cb, gpio_cb_handler, BIT(pin));
+        gpio_add_callback(gpio_dev, &pins[i].cb);
+
+        /* Arm interrupt */
+        ret = gpio_pin_interrupt_configure(gpio_dev, pin,
+                                           GPIO_INT_LEVEL_LOW);
+        if (ret < 0) {
+            printk("[MAIN] ERROR: pin %u interrupt configure failed: %d\n",
+                   pin, ret);
+            return -1;
+        }
+
+        printk("[MAIN] Pin %u armed for LEVEL_LOW\n", pin);
+    }
+
+    printk("\n[MAIN] Ready. Connect pin 0 or pin 1 to GND...\n\n");
+
+    uint32_t last_total = 0;
+
+    while (1) {
+        uint32_t total = pins[0].count + pins[1].count;
+
+        if (total != last_total) {
+            printk("[MAIN] counts: pin0=%u  pin1=%u\n\n",
+                   pins[0].count, pins[1].count);
+            last_total = total;
+        }
+
+        k_sleep(K_MSEC(100));
+    }
+
+    return 0;
+}
