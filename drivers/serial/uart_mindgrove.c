@@ -7,6 +7,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/arch/cpu.h>
 #include <zephyr/drivers/uart.h>
+#include <zephyr/drivers/interrupt_controller/riscv_plic.h>
 
 #define DT_DRV_COMPAT mindgrove_uart
 
@@ -27,11 +28,7 @@
 #define SECIOT_VCU118_UART_BAUD 115200
 
 #endif
-
-#define RXDATA_EMPTY   (1 << 31)   /* Receive FIFO Empty */
 #define RXDATA_MASK    0xFF        /* Receive Data Mask */
-
-#define TXDATA_FULL    (1 << 31)   /* Transmit FIFO Full */
 
 #define TXCTRL_TXEN    (1 << 0)    /* Activate Tx Channel */
 
@@ -39,6 +36,16 @@
 
 #define IE_TXWM        (1 << 0)    /* TX Interrupt Enable/Pending */
 #define IE_RXWM        (1 << 1)    /* RX Interrupt Enable/Pending */
+
+/* INTR_EN register bits */
+#define IE_TX_DONE       (1U << 0U)   /* TX complete, FIFO empty */
+#define IE_TX_NOT_FULL   (1U << 1U)   /* TX can accept new data */
+#define IE_RX_NOT_EMPTY  (1U << 2U)   /* RX has data to read */
+#define IE_RX_FULL       (1U << 3U)   /* RX buffer full */
+#define IE_PARITY_ERR    (1U << 4U)
+#define IE_OVERRUN_ERR   (1U << 5U)
+#define IE_FRAME_ERR     (1U << 6U)
+#define IE_BREAK_ERR     (1U << 7U)
 
 #define UART_TX_OFFSET        0x04
 #define UART_RX_OFFSET        0x08
@@ -78,12 +85,9 @@ struct uart_mindgrove_regs_t {
     uint16_t reserv3;
     uint16_t control;
     uint16_t reserv4;
-    uint8_t  ie; 
-    uint8_t  reserv5;
-    uint16_t reserv6;
-    uint8_t  iqcycles;
-    uint8_t  reserv7;
-    uint16_t reserv8;
+    uint16_t  ie; 
+    uint16_t  reserv5;
+    uint32_t reserv6;
     uint8_t  rx_threshold;
     uint8_t  reserv9;
     uint16_t reserv10;
@@ -99,6 +103,7 @@ struct uart_mindgrove_config {
 	uint32_t       baud_rate;
 	uint32_t       rxcnt_irq;
 	uint32_t       txcnt_irq;
+	uint32_t irq_num;
 	const struct	pinctrl_dev_config *pcfg;
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	irq_cfg_func_t cfg_func;
@@ -171,45 +176,31 @@ static int uart_mindgrove_poll_in(const struct device *dev, unsigned char *c)
  * @return Number of bytes sent
  */
 static int uart_mindgrove_fifo_fill(const struct device *dev,
-				const uint8_t *tx_data,
-				int size)
+                                    const uint8_t *tx_data, int size)
 {
-	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
-	int i;
+    volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
+    int i = 0;
 
-	for (i = 0; i < size && !(uart->tx & TXDATA_FULL); i++)
-		uart->tx = (int)tx_data[i];
-
-	return i;
+    for (; i < size; i++) {
+        if (uart->status & STS_TX_FULL)  /* check status reg, not TX reg */
+            break;
+        uart->tx.data_8 = tx_data[i];   /* 8-bit write                  */
+    }
+    return i;
 }
 
-/**
- * @brief Read data from FIFO
- *
- * @param dev UART device struct
- * @param rxData Data container
- * @param size Container size
- *
- * @return Number of bytes read
- */
 static int uart_mindgrove_fifo_read(const struct device *dev,
-				uint8_t *rx_data,
-				const int size)
+                                    uint8_t *rx_data, const int size)
 {
-	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
-	int i;
-	uint32_t val;
+    volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
+    int i = 0;
 
-	for (i = 0; i < size; i++) {
-		val = uart->rx;
-
-		if (val & RXDATA_EMPTY)
-			break;
-
-		rx_data[i] = (uint8_t)(val & RXDATA_MASK);
-	}
-
-	return i;
+    for (; i < size; i++) {
+        if (!(uart->status & STS_RX_NOT_EMPTY))  /* check status reg, not RX reg */
+            break;
+        rx_data[i] = uart->rx.data_8;            /* 8-bit read pops the FIFO     */
+    }
+    return i;
 }
 
 /**
@@ -221,11 +212,9 @@ static int uart_mindgrove_fifo_read(const struct device *dev,
  */
 static void uart_mindgrove_irq_tx_enable(const struct device *dev)
 {
-	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
-
-	uart->ie |= IE_TXWM;
+    volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
+    uart->ie |= IE_TX_NOT_FULL;    // notify when TX can accept data
 }
-
 /**
  * @brief Disable TX interrupt in ie register
  *
@@ -233,11 +222,11 @@ static void uart_mindgrove_irq_tx_enable(const struct device *dev)
  *
  * @return N/A
  */
+
 static void uart_mindgrove_irq_tx_disable(const struct device *dev)
 {
-	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
-
-	uart->ie &= ~IE_TXWM;
+    volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
+    uart->ie &= ~IE_TX_NOT_FULL;
 }
 
 /**
@@ -249,9 +238,10 @@ static void uart_mindgrove_irq_tx_disable(const struct device *dev)
  */
 static int uart_mindgrove_irq_tx_ready(const struct device *dev)
 {
-	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
-
-	return !!(uart->ie & IE_TXWM);
+    volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
+    /* TX ready = interrupt enabled AND TX actually not full */
+    return !!(uart->ie & IE_TX_NOT_FULL) &&
+           !(uart->status & STS_TX_FULL);
 }
 
 /**
@@ -263,14 +253,10 @@ static int uart_mindgrove_irq_tx_ready(const struct device *dev)
  */
 static int uart_mindgrove_irq_tx_complete(const struct device *dev)
 {
-	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
-
-	/*
-	 * No TX EMTPY flag for this controller,
-	 * just check if TX FIFO is not full
-	 */
-	return !(uart->tx & TXDATA_FULL);
+    volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
+    return !!(uart->status & STS_TX_EMPTY);
 }
+
 
 /**
  * @brief Enable RX interrupt in ie register
@@ -281,9 +267,8 @@ static int uart_mindgrove_irq_tx_complete(const struct device *dev)
  */
 static void uart_mindgrove_irq_rx_enable(const struct device *dev)
 {
-	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
-
-	uart->ie |= IE_RXWM;
+    volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
+    uart->ie |= IE_RX_NOT_EMPTY;   // notify when RX has data
 }
 
 /**
@@ -295,9 +280,8 @@ static void uart_mindgrove_irq_rx_enable(const struct device *dev)
  */
 static void uart_mindgrove_irq_rx_disable(const struct device *dev)
 {
-	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
-
-	uart->ie &= ~IE_RXWM;
+    volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
+    uart->ie &= ~IE_RX_NOT_EMPTY;
 }
 
 /**
@@ -309,20 +293,23 @@ static void uart_mindgrove_irq_rx_disable(const struct device *dev)
  */
 static int uart_mindgrove_irq_rx_ready(const struct device *dev)
 {
-	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
-
-	return !!(uart->ie & IE_RXWM);
+    volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
+    /* RX ready = interrupt enabled AND data actually present */
+    return !!(uart->ie & IE_RX_NOT_EMPTY) &&
+           !!(uart->status & STS_RX_NOT_EMPTY);
 }
 
 /* No error interrupt for this controller */
 static void uart_mindgrove_irq_err_enable(const struct device *dev)
 {
-	ARG_UNUSED(dev);
+	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
+	uart->ie |= (IE_PARITY_ERR | IE_BREAK_ERR | IE_FRAME_ERR | IE_OVERRUN_ERR);
 }
 
 static void uart_mindgrove_irq_err_disable(const struct device *dev)
 {
-	ARG_UNUSED(dev);
+	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
+	uart->ie &= ~(IE_PARITY_ERR | IE_BREAK_ERR | IE_FRAME_ERR | IE_OVERRUN_ERR);
 }
 
 /**
@@ -334,10 +321,17 @@ static void uart_mindgrove_irq_err_disable(const struct device *dev)
  */
 static int uart_mindgrove_irq_is_pending(const struct device *dev)
 {
-	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
-
-	return !!(uart->ie & (IE_RXWM | IE_TXWM));
+    volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
+    uint8_t ie = uart->ie;
+    uint16_t st = uart->status;
+    return ((ie & IE_TX_NOT_FULL)  && !(st & STS_TX_FULL))     ||
+           ((ie & IE_RX_NOT_EMPTY) && (st & STS_RX_NOT_EMPTY)) ||
+           ((ie & IE_PARITY_ERR)   && (st & PARITY_ERROR))     ||
+           ((ie & IE_OVERRUN_ERR)  && (st & OVERRUN))          ||
+           ((ie & IE_FRAME_ERR)    && (st & FRAME_ERROR))      ||
+           ((ie & IE_BREAK_ERR)    && (st & BREAK_ERROR));
 }
+
 
 static int uart_mindgrove_irq_update(const struct device *dev)
 {
@@ -374,24 +368,25 @@ static void uart_mindgrove_irq_handler(void *arg)
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 
 
+// In uart_mindgrove_init:
 static int uart_mindgrove_init(const struct device *dev)
 {
-	struct uart_mindgrove_config * const cfg = DEV_CFG(dev);
-	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
+    struct uart_mindgrove_config * const cfg = DEV_CFG(dev);
+    volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
 
-	/* Set baud rate */
-	uart->div = (cfg->sys_clk_freq / cfg->baud_rate) / 16;
+    uart->div = (cfg->sys_clk_freq / cfg->baud_rate) / 16;
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	/* Ensure that uart IRQ is disabled initially */
-	uart->ie = 0;
-
-	/* Setup IRQ handler */
-	cfg->cfg_func();
-	irq_enable(cfg->rxcnt_irq); 
+    uart->ie = 0;
+    cfg->cfg_func();
+	irq_enable(cfg->irq_num);
+    //irq_enable(cfg->rxcnt_irq);
+    // Only enable txcnt_irq if it's a DIFFERENT irq number
+    if (cfg->txcnt_irq != cfg->rxcnt_irq) {
+        irq_enable(cfg->txcnt_irq);
+    }
 #endif
-
-	return 0;
+    return 0;
 }
 
 static const struct uart_driver_api uart_mindgrove_driver_api = {
@@ -419,12 +414,15 @@ static const struct uart_driver_api uart_mindgrove_driver_api = {
 #ifdef CONFIG_UART_MINDGROVE_PORT
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-#define UART_MINDGROVE_CFG_FUNC(n) .cfg_func = uart_mindgrove_irq_cfg_func_##n,
-#define UART_MINDGROVE_IRQ_CONFIG_FUNC(n) \
-    static void uart_mindgrove_irq_cfg_func_##n(void) { \
-        IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority), \
-                    uart_mindgrove_irq_handler, DEVICE_DT_INST_GET(n), 0); \
-        irq_enable(DT_INST_IRQN(n)); \
+#define UART_MINDGROVE_CFG_FUNC(n)          \
+    .cfg_func = uart_mindgrove_irq_cfg_func_##n,  \
+    .irq_num  = DT_INST_IRQN(n),
+#define UART_MINDGROVE_IRQ_CONFIG_FUNC(n)                        \
+    static void uart_mindgrove_irq_cfg_func_##n(void) {          \
+        IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority),  \
+                    uart_mindgrove_irq_handler,                  \
+                    DEVICE_DT_INST_GET(n), 0);                   \
+        riscv_plic_set_priority(DT_INST_IRQN(n), 1);            \
     }
 #else
 #define UART_MINDGROVE_CFG_FUNC(n)

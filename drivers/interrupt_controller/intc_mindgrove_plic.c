@@ -314,6 +314,7 @@ static void plic_irq_handler(const struct device *dev)
 
     if ((local_irq == 0U) || (local_irq >= cfg->nr_irqs)) {
         z_irq_spurious(NULL);
+        return;
     }
 
     const struct _isr_table_entry *e = &cfg->isr_table[local_irq];
@@ -340,7 +341,7 @@ static int plic_init(const struct device *dev)
     mem_addr_t en_addr = get_context_en_addr(dev, 0);
     mem_addr_t thres_addr = get_threshold_addr(dev, 0);
     //printk("[PLIC] en_addr=0x%lx thres_addr=0x%lx\n",
-    //       (unsigned long)en_addr, (unsigned long)thres_addr);
+           //(unsigned long)en_addr, (unsigned long)thres_addr);
 
     /* Now do the actual init */
     for (uint32_t cpu = 0; cpu < arch_num_cpus(); cpu++) {
@@ -348,7 +349,7 @@ static int plic_init(const struct device *dev)
         thres_addr = get_threshold_addr(dev, cpu);
 
         //printk("[PLIC] clearing %u enable words at 0x%lx\n",
-        //       get_plic_enabled_size(dev), (unsigned long)en_addr);
+               //get_plic_enabled_size(dev), (unsigned long)en_addr);
 
         for (uint32_t i = 0; i < get_plic_enabled_size(dev); i++) {
             sys_write32(0U, en_addr + i * sizeof(uint32_t));
@@ -357,7 +358,7 @@ static int plic_init(const struct device *dev)
     }
 
     //printk("[PLIC] clearing %u priorities at 0x%lx\n",
-    //       cfg->nr_irqs, (unsigned long)cfg->prio);
+           //cfg->nr_irqs, (unsigned long)cfg->prio);
 
     for (uint32_t i = 0U; i < cfg->nr_irqs; i++) {
         sys_write32(0U, cfg->prio + i * sizeof(uint32_t));
