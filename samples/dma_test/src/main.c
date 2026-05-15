@@ -447,49 +447,49 @@ void test_m2p(const struct device *dma_dev)
     k_msleep(10);
 
     /* ================= VERIFICATION ================= */
-    printk("\n=== M2P VERIFICATION ===\n");
-    printk("Data sent via UART TX: %s\n", m2p_tx_str);
-    printk("(Loopback required: connect TX → RX)\n");
+printk("\n=== M2P VERIFICATION ===\n");
+printk("Expected Pattern: %s\n", m2p_tx_str);
+printk("(Loopback required: connect TX -> RX)\n");
 
-    printk("\nReading RX buffer...\n");
+memset(m2p_verify_buffer, 0, sizeof(m2p_verify_buffer));
 
-    for (int i = 0; i < M2P_BUFFER_SIZE; i++) {
-        unsigned char c = 0xFF;
+printk("\nReading RX buffer...\n");
 
-        if (uart_poll_in(uart_dev, &c) == 0) {
-            m2p_verify_buffer[i] = c;
-        } else {
-            m2p_verify_buffer[i] = 0xFF;
-        }
-    }
+for (int i = 0; i < M2P_BUFFER_SIZE; i++) {
 
-    printk("\nAnalyzing DMA pattern...\n");
+    unsigned char c = 0xFF;
 
-    /* Print received data */
-    for (int i = 0; i < M2P_BUFFER_SIZE; i++) {
-        printk("Index %2d | RX: 0x%02x (%c)\n",
-               i,
-               m2p_verify_buffer[i],
-               (m2p_verify_buffer[i] >= 32 && m2p_verify_buffer[i] <= 126)
-                   ? m2p_verify_buffer[i] : '.');
-    }
-
-    /* Count transitions */
-    int transitions = 0;
-
-    for (int i = 1; i < M2P_BUFFER_SIZE; i++) {
-        if (m2p_verify_buffer[i] != m2p_verify_buffer[i - 1]) {
-            transitions++;
-        }
-    }
-
-    printk("Transitions detected: %d\n", transitions);
-
-    if (transitions >= 1 && transitions <= 3) {
-        printk("✅ EXPECTED DMA REGISTER-SAMPLING BEHAVIOR\n");
+    if (uart_poll_in(uart_dev, &c) == 0) {
+        m2p_verify_buffer[i] = c;
     } else {
-        printk("❌ UNEXPECTED DATA PATTERN\n");
+        m2p_verify_buffer[i] = '?';
     }
+
+    printk("RX[%02d] = 0x%02x (%c)\n",
+           i,
+           m2p_verify_buffer[i],
+           (m2p_verify_buffer[i] >= 32 &&
+            m2p_verify_buffer[i] <= 126)
+                ? m2p_verify_buffer[i]
+                : '.');
+}
+
+/* Null terminate for printing */
+m2p_verify_buffer[M2P_BUFFER_SIZE] = '\0';
+
+printk("\nReceived Pattern: %s\n", m2p_verify_buffer);
+
+/* Final compare */
+if (memcmp(m2p_tx_str,
+           m2p_verify_buffer,
+           M2P_BUFFER_SIZE) == 0) {
+
+    printk("✅ DMA M2P TEST PASSED\n");
+
+} else {
+
+    printk("❌ DMA M2P TEST FAILED\n");
+}
 
     /* ================= CLEANUP ================= */
     dma_stop(dma_dev, channel);
