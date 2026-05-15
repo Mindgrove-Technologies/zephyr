@@ -193,7 +193,6 @@
         compatible = "mindgrove,trng";
         reg = <0x9600 0x100>;
         instance-id = <0>;
-        status = "okay";
     };
   };
 };

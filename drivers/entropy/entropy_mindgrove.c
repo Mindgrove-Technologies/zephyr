@@ -33,7 +33,6 @@ struct trng_config {
  */
 static int trng_generate(const struct device *dev, uint8_t *out, uint16_t len)
 {
-    //printk("TRNG: Generating %u bytes of entropy...\n", len);
     const struct trng_config *cfg = dev->config;
     trng_regs_t *regs = (trng_regs_t *)(cfg->base);
     uint16_t remaining = len;
