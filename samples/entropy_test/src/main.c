@@ -8,7 +8,7 @@
 
 int main(void)
 {
-    /* 1. Get the device binding from the 'chosen' node we set up earlier */
+    /* 1. Get the device binding from the 'chosen' node */
     const struct device *const entropy_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_entropy));
     uint8_t entropy_buffer[BUFFER_SIZE];
     int ret;
@@ -25,7 +25,6 @@ int main(void)
 
     for (int s = 1; s <= SAMPLES_TO_COLLECT; s++) {
         /* 3. Call the standard API */
-        /* This eventually calls your vtrng_generate function */
         ret = entropy_get_entropy(entropy_dev, entropy_buffer, BUFFER_SIZE);
 
         if (ret < 0) {
@@ -38,7 +37,7 @@ int main(void)
             printk("\n");
         }
 
-        /* Small delay to see it happen in real-time on console */
+        /* Small delay */
         k_msleep(500);
     }
 
