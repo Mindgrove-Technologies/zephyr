@@ -3,7 +3,7 @@
 #include <zephyr/drivers/entropy.h>
 #include <zephyr/sys/printk.h>
 
-#define SAMPLES_TO_COLLECT 3
+#define SAMPLES_TO_COLLECT 10
 #define BUFFER_SIZE 16
 
 int main(void)
@@ -13,32 +13,30 @@ int main(void)
     uint8_t entropy_buffer[BUFFER_SIZE];
     int ret;
 
-    printk("\n--- Mindgrove TRNG Hardware Test ---\n");
+    printk("\n\r--- Mindgrove TRNG Hardware Test ---\n\r");
 
     /* 2. Check if the driver initialized successfully */
     if (!device_is_ready(entropy_dev)) {
-        printk("Error: TRNG device not ready. Check your init priority!\n");
+        printk("Error: TRNG device not ready. Check your init priority!\n\r");
         return -EIO;
     }
 
-    printk("Device %s is ready. Starting data collection...\n\n", entropy_dev->name);
+    printk("Device %s is ready. Starting data collection...\n\r", entropy_dev->name);
 
     for (int s = 1; s <= SAMPLES_TO_COLLECT; s++) {
         /* 3. Call the standard API */
         ret = entropy_get_entropy(entropy_dev, entropy_buffer, BUFFER_SIZE);
 
         if (ret < 0) {
-            printk("Sample %d: Failed to get entropy (Error: %d)\n", s, ret);
+            printk("Sample %d: Failed to get entropy (Error: %d)\n\r", s, ret);
         } else {
             printk("Sample %02d [%db]: ", s, BUFFER_SIZE);
             for (int i = 0; i < BUFFER_SIZE; i++) {
                 printk("%02x ", entropy_buffer[i]);
             }
-            printk("\n");
+            printk("\n\r");
         }
 
-        /* Small delay */
-        k_msleep(500);
     }
 
     return 0;

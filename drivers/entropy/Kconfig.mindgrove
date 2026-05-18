@@ -1,4 +1,4 @@
-config ENTROPY_MINDGROVE_TRNG
+config ENTROPY_MINDGROVE
     bool "Mindgrove TRNG driver"
     default y
     depends on DT_HAS_MINDGROVE_TRNG_ENABLED
