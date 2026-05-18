@@ -13,4 +13,3 @@ common:
     type: one_line
     regex:
       - "entropy_test! (.*)"
-
