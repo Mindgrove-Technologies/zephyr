@@ -1,14 +1,32 @@
-# SPDX-License-Identifier: Apache-2.0
-
 cmake_minimum_required(VERSION 3.20.0)
-
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
-project(sha_256)
+project(sha256_tests)
 
 target_sources(app PRIVATE src/main.c)
 
-if(CONFIG_XIP)
-    zephyr_code_relocate(FILES src/main.c LOCATION ROM_TEXT NOCOPY)
-    zephyr_code_relocate(FILES src/main.c LOCATION RAM_DATA)
-    zephyr_code_relocate(FILES src/main.c LOCATION RAM_BSS)
+if(CONFIG_SHA256_TEST_SINGLE_KAT)
+    target_sources(app PRIVATE src/test_single_kat.c)
+endif()
+
+if(CONFIG_SHA256_TEST_MMT01)
+    target_sources(app PRIVATE src/test_sha256_mmt_01.c)
+endif()
+if(CONFIG_SHA256_TEST_MMT02)
+    target_sources(app PRIVATE src/test_sha256_mmt_02.c)
+endif()
+if(CONFIG_SHA256_TEST_MMT03)
+    target_sources(app PRIVATE src/test_sha256_mmt_03.c)
+endif()
+if(CONFIG_SHA256_TEST_MMT04)
+    target_sources(app PRIVATE src/test_sha256_mmt_04.c)
+endif()
+if(CONFIG_SHA256_TEST_MMT05)
+    target_sources(app PRIVATE src/test_sha256_mmt_05.c)
+endif()
+if(CONFIG_SHA256_TEST_MMT06)
+    target_sources(app PRIVATE src/test_sha256_mmt_06.c)
+endif()
+
+if(CONFIG_SHA256_TEST_MCT)
+    target_sources(app PRIVATE src/test_mct.c)
 endif()
