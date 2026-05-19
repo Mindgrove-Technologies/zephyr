@@ -180,8 +180,6 @@ uint16_t SHA256_Single_Run(unsigned char *sha_output, const unsigned char *input
 	// last block is being run
 	get_sha_append_bits(sha_append_bits, input_len_bits, sha_append_length_bits);
 
-	printk("\n");
-
 	// Runs the sha for each block of text
 	for (int block_index = 0; block_index < total_blocks; block_index += 1) {
 		offset = block_index * (sha_block_length_bits / byte_length);
@@ -427,7 +425,6 @@ static int sha_init(const struct device *dev)
 	const struct mindgrove_sha_config *cfg = dev->config;
 	sha_reg = cfg->regs;
 	if (!sha_reg) {
-		printk("SHA device not ready!\n");
 		return -ENODEV;
 	}
 	return 0;

@@ -3,10 +3,13 @@
 #include <zephyr/device.h>
 #include <zephyr/crypto/crypto.h>
 #include "zephyr/crypto/rsa.h" //Custom header for Zephyr RSA API definitions
+#include <zephyr/logging/log.h>
 #include "crypto_mindgrove_rsa.h"
 #include "crypto_mindgrove_sha.h"
 #include "rsa_padding.h"
 #include <mbedtls/bignum.h>
+
+LOG_MODULE_REGISTER(mg_rsa, CONFIG_CRYPTO_LOG_LEVEL);
 
 #define DT_DRV_COMPAT mindgrove_rsa2048
 
@@ -381,9 +384,9 @@ static int mg_rsa_invoke(const struct device *dev, enum rsa_mg_op op, enum rsa_m
 
 exit:
 	if (ret != 0 || rsa_ret != 0) {
-		printk("RSA ERROR: ret=%d, hardware_ret=%u\n", ret, rsa_ret);
+		LOG_ERR("RSA ERROR: ret=%d, hardware_ret=%u", ret, rsa_ret);
 	} else {
-		printk("RSA SUCCESS\n");
+		LOG_INF("RSA SUCCESS");
 	}
 	return ret;
 }
