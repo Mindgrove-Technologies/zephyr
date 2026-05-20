@@ -1,0 +1,102 @@
+mainmenu "AES CBC Test Application"
+
+source "Kconfig.zephyr"
+
+menu "AES CBC Tests"
+config AES_TEST_CBC_GFSBOX
+    bool "CBC GFSbox (128+192+256)"
+    default n
+config AES_TEST_CBC_KEYSBOX
+    bool "CBC KEYSbox (128+192+256)"
+    default n
+config AES_TEST_CBC_MMT
+    bool "CBC MMT (128+192+256)"
+    default n
+config AES_TEST_CBC_VARKEY_128
+    bool "CBC VARKEY 128-bit"
+    default n
+config AES_TEST_CBC_VARKEY_192
+    bool "CBC VARKEY 192-bit"
+    default n
+config AES_TEST_CBC_VARKEY_256
+    bool "CBC VARKEY 256-bit"
+    default n
+config AES_TEST_CBC_VARTXT_128
+    bool "CBC VARTXT 128-bit"
+    default n
+config AES_TEST_CBC_VARTXT_192
+    bool "CBC VARTXT 192-bit"
+    default n
+config AES_TEST_CBC_VARTXT_256
+    bool "CBC VARTXT 256-bit"
+    default n
+config AES_TEST_CBC_MCT
+    bool "CBC Monte Carlo Test"
+    default n
+endmenu
+
+menu "AES ECB Tests"
+config AES_TEST_ECB_GFSBOX
+    bool "ECB GFSbox (128+192+256)"
+    default n
+config AES_TEST_ECB_KEYSBOX
+    bool "ECB KEYSbox (128+192+256)"
+    default n
+config AES_TEST_ECB_MMT
+    bool "ECB MMT (128+192+256)"
+    default n
+config AES_TEST_ECB_VARKEY_128
+    bool "ECB VARKEY 128-bit"
+    default n
+config AES_TEST_ECB_VARKEY_192
+    bool "ECB VARKEY 192-bit"
+    default n
+config AES_TEST_ECB_VARKEY_256
+    bool "ECB VARKEY 256-bit"
+    default n
+config AES_TEST_ECB_VARTXT_128
+    bool "ECB VARTXT 128-bit"
+    default n
+config AES_TEST_ECB_VARTXT_192
+    bool "ECB VARTXT 192-bit"
+    default n
+config AES_TEST_ECB_VARTXT_256
+    bool "ECB VARTXT 256-bit"
+    default n
+config AES_TEST_ECB_MCT
+    bool "ECB Monte Carlo Test"
+    default n
+endmenu
+
+menu "AES CTR Tests"
+config AES_TEST_CTR_GFSBOX
+    bool "CTR GFSbox (128+192+256)"
+    default n
+config AES_TEST_CTR_KEYSBOX
+    bool "CTR KEYSbox (128+192+256)"
+    default n
+config AES_TEST_CTR_MMT
+    bool "CTR MMT (128+192+256)"
+    default n
+config AES_TEST_CTR_VARKEY_128
+    bool "CTR VARKEY 128-bit"
+    default n
+config AES_TEST_CTR_VARKEY_192
+    bool "CTR VARKEY 192-bit"
+    default n
+config AES_TEST_CTR_VARKEY_256
+    bool "CTR VARKEY 256-bit"
+    default n
+config AES_TEST_CTR_VARTXT_128
+    bool "CTR VARTXT 128-bit"
+    default n
+config AES_TEST_CTR_VARTXT_192
+    bool "CTR VARTXT 192-bit"
+    default n
+config AES_TEST_CTR_VARTXT_256
+    bool "CTR VARTXT 256-bit"
+    default n
+config AES_TEST_CTR_MCT
+    bool "CTR Monte Carlo Test"
+    default n
+endmenu
