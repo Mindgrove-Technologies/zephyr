@@ -1,425 +1,225 @@
-// #include <zephyr/kernel.h>
-// #include <zephyr/device.h>
-// #include <zephyr/crypto/crypto.h>
-// #include <zephyr/crypto/cipher.h>
-// #include <string.h>
-// #include "rsp_files.h"
-
-// #define ASSERT_OK(expr, msg) \
-//     do { int _ret = (expr); if (_ret != 0) { printk("FAIL: %s (%d)\n", msg, _ret); return -1; } } while (0)
-
-// #define ASSERT_MEM_EQ(a,b,len,msg) \
-//     do { if (memcmp(a,b,len) != 0) { printk("FAIL: %s\n", msg); return -1; } } while (0)
-
-// static const struct device *aes_dev;
-
-// static int aes_init(void)
-// {
-//     aes_dev = DEVICE_DT_GET_ONE(mindgrove_aes);
-//     if (!device_is_ready(aes_dev)) {
-//         printk("AES device not ready\n");
-//         return -1;
-//     }
-//     return 0;
-// }
-
-// static int aes_kat_multimode(void)
-// {
-//     printk("=== AES Multi-mode KAT START ===\n");
-
-//     extern const aes_kat_t kat_vectors[];
-//     extern const uint32_t kat_vectors_count;
-
-//     for (uint32_t i = 0; i < kat_vectors_count; i++) {
-
-//         const aes_kat_t *tv = &kat_vectors[i];
-
-//         /* ---- Map custom mode → Zephyr mode ---- */
-//         enum cipher_mode zmode;
-
-//         switch (tv->mode) {
-//         case AES_ECB:
-//             zmode = CRYPTO_CIPHER_MODE_ECB;
-//             break;
-//         case AES_CBC:
-//             zmode = CRYPTO_CIPHER_MODE_CBC;
-//             break;
-//         case AES_CTR:
-//             zmode = CRYPTO_CIPHER_MODE_CTR;
-//             break;
-//         default:
-//             printk("Unsupported AES mode %u\n", tv->mode);
-//             continue;
-//         }
-
-//         printk("\n==============================\n");
-//         printk("Vector %u | Mode %u | Key %u-bit\n",
-//                i, tv->mode, tv->key_len * 8);
-//         printk("==============================\n");
-
-//         uint8_t cipher_text[256] = {0};
-//         uint8_t decrypted_text[256] = {0};
-
-//         /* ================= ENCRYPT ================= */
-
-//         struct cipher_ctx ctx = {0};
-//         ctx.key.bit_stream = tv->key;
-//         ctx.keylen = tv->key_len;
-//         ctx.flags = CAP_RAW_KEY | CAP_SYNC_OPS | CAP_SEPARATE_IO_BUFS;
-
-//         ASSERT_OK(cipher_begin_session(aes_dev, &ctx,
-//                                        CRYPTO_CIPHER_ALGO_AES,
-//                                        zmode,   /* FIXED */
-//                                        CRYPTO_CIPHER_OP_ENCRYPT),
-//                   "Encrypt begin failed");
-
-//         uint8_t iv_local[16];
-//         if (tv->iv_len)
-//             memcpy(iv_local, tv->iv, tv->iv_len);
-
-//         for (size_t off = 0; off < tv->pt_len; off += 16) {
-
-//             size_t blk_len;
-
-//             if (zmode == CRYPTO_CIPHER_MODE_CTR)
-//                 blk_len = MIN(16, tv->pt_len - off);
-//             else
-//                 blk_len = 16;
-
-//             struct cipher_pkt pkt = {
-//                 .in_buf = tv->plaintext + off,
-//                 .in_len = blk_len,
-//                 .out_buf = cipher_text + off,
-//                 .out_buf_max = blk_len,
-//             };
-
-//             int ret;
-
-//             switch (zmode) {   /* FIXED */
-
-//             case CRYPTO_CIPHER_MODE_ECB:
-//                 ret = cipher_block_op(&ctx, &pkt);
-//                 break;
-
-//             case CRYPTO_CIPHER_MODE_CBC:
-//                 ret = cipher_cbc_op(&ctx, &pkt, iv_local);
-//                 break;
-
-//             case CRYPTO_CIPHER_MODE_CTR:
-//                 ret = cipher_ctr_op(&ctx, &pkt, iv_local);
-//                 break;
-
-//             default:
-//                 ret = -EINVAL;
-//             }
-
-//             ASSERT_OK(ret, "Encrypt block failed");
-//         }
-
-//         cipher_free_session(aes_dev, &ctx);
-
-//         ASSERT_MEM_EQ(cipher_text, tv->ciphertext, tv->ct_len,
-//                       "Encryption mismatch");
-
-//         printk("Encryption PASS\n");
-
-//         /* ================= DECRYPT ================= */
-
-//         struct cipher_ctx ctx_dec = {0};
-//         ctx_dec.key.bit_stream = tv->key;
-//         ctx_dec.keylen = tv->key_len;
-//         ctx_dec.flags = CAP_RAW_KEY | CAP_SYNC_OPS | CAP_SEPARATE_IO_BUFS;
-
-//         ASSERT_OK(cipher_begin_session(aes_dev, &ctx_dec,
-//                                        CRYPTO_CIPHER_ALGO_AES,
-//                                        zmode,   /* FIXED */
-//                                        CRYPTO_CIPHER_OP_DECRYPT),
-//                   "Decrypt begin failed");
-
-//         if (tv->iv_len)
-//             memcpy(iv_local, tv->iv, tv->iv_len);
-
-//         for (size_t off = 0; off < tv->ct_len; off += 16) {
-
-//             size_t blk_len;
-
-//             if (zmode == CRYPTO_CIPHER_MODE_CTR)
-//                 blk_len = MIN(16, tv->ct_len - off);
-//             else
-//                 blk_len = 16;
-
-//             struct cipher_pkt pkt = {
-//                 .in_buf = cipher_text + off,
-//                 .in_len = blk_len,
-//                 .out_buf = decrypted_text + off,
-//                 .out_buf_max = blk_len,
-//             };
-
-//             int ret;
-
-//             switch (zmode) {   /* FIXED */
-
-//             case CRYPTO_CIPHER_MODE_ECB:
-//                 ret = cipher_block_op(&ctx_dec, &pkt);
-//                 break;
-
-//             case CRYPTO_CIPHER_MODE_CBC:
-//                 ret = cipher_cbc_op(&ctx_dec, &pkt, iv_local);
-//                 break;
-
-//             case CRYPTO_CIPHER_MODE_CTR:
-//                 ret = cipher_ctr_op(&ctx_dec, &pkt, iv_local);
-//                 break;
-
-//             default:
-//                 ret = -EINVAL;
-//             }
-
-//             ASSERT_OK(ret, "Decrypt block failed");
-//         }
-
-//         cipher_free_session(aes_dev, &ctx_dec);
-
-//         ASSERT_MEM_EQ(decrypted_text, tv->plaintext, tv->pt_len,
-//                       "Decryption mismatch");
-
-//         printk("Decryption PASS\n");
-//     }
-
-//     printk("=== AES Multi-mode KAT COMPLETE ===\n");
-//     return 0;
-// }
-
-
-// static int aes_mmt_multimode(void)
-// {
-//     printk("=== AES MMT Multi-block Test START ===\n");
-
-//     extern const aes_kat_t mmt_vectors[];
-//     extern const uint32_t mmt_vectors_count;
-
-//     uint8_t cipher_text[256];
-//     uint8_t decrypted_text[256];
-
-//     for (uint32_t i = 0; i < mmt_vectors_count; i++) {
-
-//         const aes_kat_t *tv = &mmt_vectors[i];
-
-//         /* -------------------------------------------------- */
-//         /* Map test vector mode → Zephyr cipher mode          */
-//         /* -------------------------------------------------- */
-
-//         enum cipher_mode zmode;
-
-//         switch (tv->mode) {
-//         case AES_ECB:
-//             zmode = CRYPTO_CIPHER_MODE_ECB;
-//             break;
-//         case AES_CBC:
-//             zmode = CRYPTO_CIPHER_MODE_CBC;
-//             break;
-//         case AES_CTR:
-//             zmode = CRYPTO_CIPHER_MODE_CTR;
-//             break;
-//         default:
-//             printk("Skipping unsupported mode %u\n", tv->mode);
-//             continue;
-//         }
-
-//         printk("\n====================================\n");
-//         printk("MMT Vector %u | Mode %u | Key %u-bit\n",
-//                i, tv->mode, tv->key_len * 8);
-//         printk("====================================\n");
-
-//         /* Safety checks */
-//         if (tv->pt_len > sizeof(cipher_text) ||
-//             tv->ct_len > sizeof(cipher_text)) {
-//             printk("Vector too large\n");
-//             return -ENOMEM;
-//         }
-
-//         if ((zmode == CRYPTO_CIPHER_MODE_ECB ||
-//              zmode == CRYPTO_CIPHER_MODE_CBC) &&
-//             ((tv->pt_len % 16) != 0 ||
-//              (tv->ct_len % 16) != 0)) {
-//             printk("Block size alignment error\n");
-//             return -EINVAL;
-//         }
-
-//         /* ================================================== */
-//         /* ================= ENCRYPT ======================== */
-//         /* ================================================== */
-
-//         memset(cipher_text, 0, sizeof(cipher_text));
-
-//         struct cipher_ctx ctx_enc = {0};
-//         ctx_enc.key.bit_stream = tv->key;
-//         ctx_enc.keylen         = tv->key_len;
-//         ctx_enc.flags          = CAP_RAW_KEY |
-//                                  CAP_SYNC_OPS |
-//                                  CAP_SEPARATE_IO_BUFS;
-
-//         ASSERT_OK(cipher_begin_session(aes_dev,
-//                                        &ctx_enc,
-//                                        CRYPTO_CIPHER_ALGO_AES,
-//                                        zmode,
-//                                        CRYPTO_CIPHER_OP_ENCRYPT),
-//                   "Encrypt begin failed");
-
-//         uint8_t iv_enc[16];
-
-//         if (zmode != CRYPTO_CIPHER_MODE_ECB)
-//             memcpy(iv_enc, tv->iv, 16);
-
-//         for (size_t off = 0; off < tv->pt_len; off += 16) {
-
-//             size_t blk_len = 16;
-
-//             if (zmode == CRYPTO_CIPHER_MODE_CTR)
-//                 blk_len = MIN(16, tv->pt_len - off);
-
-//             struct cipher_pkt pkt = {
-//                 .in_buf      = tv->plaintext + off,
-//                 .in_len      = blk_len,
-//                 .out_buf     = cipher_text + off,
-//                 .out_buf_max = blk_len,
-//             };
-
-//             int ret;
-
-//             switch (zmode) {
-
-//             case CRYPTO_CIPHER_MODE_ECB:
-//                 ret = cipher_block_op(&ctx_enc, &pkt);
-//                 break;
-
-//             case CRYPTO_CIPHER_MODE_CBC:
-//                 ret = cipher_cbc_op(&ctx_enc, &pkt, iv_enc);
-//                 break;
-
-//             case CRYPTO_CIPHER_MODE_CTR:
-//                 ret = cipher_ctr_op(&ctx_enc, &pkt, iv_enc);
-//                 break;
-
-//             default:
-//                 ret = -EINVAL;
-//             }
-
-//             ASSERT_OK(ret, "Encrypt block failed");
-//         }
-
-//         cipher_free_session(aes_dev, &ctx_enc);
-
-//         ASSERT_MEM_EQ(cipher_text,
-//                       tv->ciphertext,
-//                       tv->ct_len,
-//                       "Encryption mismatch");
-
-//         printk("Encryption PASS\n");
-
-//         /* ================================================== */
-//         /* ================= DECRYPT ======================== */
-//         /* ================================================== */
-
-//         memset(decrypted_text, 0, sizeof(decrypted_text));
-
-//         struct cipher_ctx ctx_dec = {0};
-//         ctx_dec.key.bit_stream = tv->key;
-//         ctx_dec.keylen         = tv->key_len;
-//         ctx_dec.flags          = CAP_RAW_KEY |
-//                                  CAP_SYNC_OPS |
-//                                  CAP_SEPARATE_IO_BUFS;
-
-//         ASSERT_OK(cipher_begin_session(aes_dev,
-//                                        &ctx_dec,
-//                                        CRYPTO_CIPHER_ALGO_AES,
-//                                        zmode,
-//                                        CRYPTO_CIPHER_OP_DECRYPT),
-//                   "Decrypt begin failed");
-
-//         if (zmode != CRYPTO_CIPHER_MODE_ECB)
-//             memcpy(iv_enc, tv->iv, 16);
-
-//         for (size_t off = 0; off < tv->ct_len; off += 16) {
-
-//             size_t blk_len = 16;
-
-//             if (zmode == CRYPTO_CIPHER_MODE_CTR)
-//                 blk_len = MIN(16, tv->ct_len - off);
-
-//             struct cipher_pkt pkt = {
-//                 .in_buf      = tv->ciphertext + off,
-//                 .in_len      = blk_len,
-//                 .out_buf     = decrypted_text + off,
-//                 .out_buf_max = blk_len,
-//             };
-
-//             int ret;
-
-//             switch (zmode) {
-
-//             case CRYPTO_CIPHER_MODE_ECB:
-//                 ret = cipher_block_op(&ctx_dec, &pkt);
-//                 break;
-
-//             case CRYPTO_CIPHER_MODE_CBC:
-//                 ret = cipher_cbc_op(&ctx_dec, &pkt, iv_enc);
-//                 break;
-
-//             case CRYPTO_CIPHER_MODE_CTR:
-//                 ret = cipher_ctr_op(&ctx_dec, &pkt, iv_enc);
-//                 break;
-
-//             default:
-//                 ret = -EINVAL;
-//             }
-
-//             ASSERT_OK(ret, "Decrypt block failed");
-//         }
-
-//         cipher_free_session(aes_dev, &ctx_dec);
-
-//         ASSERT_MEM_EQ(decrypted_text,
-//                       tv->plaintext,
-//                       tv->pt_len,
-//                       "Decryption mismatch");
-
-//         printk("Decryption PASS\n");
-//     }
-
-//     printk("=== AES MMT Multi-block Test COMPLETE ===\n");
-//     return 0;
-// }
-
-// void main(void)
-// {
-//     printk("=== AES SANITY TEST START ===\n");
-
-//     if (aes_init()) {
-//         goto fail;
-//     }
-
-//     if(aes_kat_multimode()){
-//         printk("AES ALL MODES SINGLE KAT FAILED\n");
-//         goto fail;
-//     } else {
-//         printk("AES ALL MODES SINGLE KAT PASSED\n");
-//     }
-
-//      if(aes_mmt_multimode()){
-//         printk("AES ALL MODES MMT KAT FAILED\n");
-//         goto fail;
-//     } else {
-//         printk("AES ALL MODES MMT KAT PASSED\n");
-//     }
-//     for (;;) {
-//         k_sleep(K_FOREVER);
-//     }
-
-// fail:
-//     printk("=== AES TEST FAILED ===\n");
-//     for (;;) {
-//         k_sleep(K_FOREVER);
-//     }
-// }
-
+#include <zephyr/kernel.h>
+#include <zephyr/sys/printk.h>
+
+/* * NOTE ON MEMORY CONSTRAINTS: 
+ * Due to strict hardware memory limits, only ONE CONFIG_AES_CBC_* test 
+ * variant should be enabled in prj.conf / Kconfig at any given time.
+ */
+
+/* --- 1. Function Declarations --- */
+#if defined(CONFIG_AES_CBC_GFSBOX)
+int test_aes_cbc_gfsbox(void);
+#endif
+
+#if defined(CONFIG_AES_CBC_KEYSBOX_128) || \
+    defined(CONFIG_AES_CBC_KEYSBOX_192) || \
+    defined(CONFIG_AES_CBC_KEYSBOX_256)
+int test_aes_cbc_keysbox(void);
+#endif
+#if defined(CONFIG_AES_CBC_MMT)
+int test_aes_cbc_mmt(void);
+#endif
+
+#if defined(CONFIG_AES_CBC_VARKEY_128_01) || defined(CONFIG_AES_CBC_VARKEY_128_02) || \
+    defined(CONFIG_AES_CBC_VARKEY_128_03) || defined(CONFIG_AES_CBC_VARKEY_128_04) || \
+    defined(CONFIG_AES_CBC_VARKEY_128_05) || defined(CONFIG_AES_CBC_VARKEY_128_06)
+int test_aes_cbc_varkey_128(void);
+#endif
+
+#if defined(CONFIG_AES_CBC_VARKEY_192_01) || defined(CONFIG_AES_CBC_VARKEY_192_02) || \
+    defined(CONFIG_AES_CBC_VARKEY_192_03) || defined(CONFIG_AES_CBC_VARKEY_192_04) || \
+    defined(CONFIG_AES_CBC_VARKEY_192_05) || defined(CONFIG_AES_CBC_VARKEY_192_06) || \
+    defined(CONFIG_AES_CBC_VARKEY_192_07) || defined(CONFIG_AES_CBC_VARKEY_192_08)
+int test_aes_cbc_varkey_192(void);
+#endif
+
+#if defined(CONFIG_AES_CBC_VARKEY_256_01) || defined(CONFIG_AES_CBC_VARKEY_256_02) || \
+    defined(CONFIG_AES_CBC_VARKEY_256_03) || defined(CONFIG_AES_CBC_VARKEY_256_04) || \
+    defined(CONFIG_AES_CBC_VARKEY_256_05) || defined(CONFIG_AES_CBC_VARKEY_256_06) || \
+    defined(CONFIG_AES_CBC_VARKEY_256_07) || defined(CONFIG_AES_CBC_VARKEY_256_08) || \
+    defined(CONFIG_AES_CBC_VARKEY_256_09) || defined(CONFIG_AES_CBC_VARKEY_256_10) || \
+    defined(CONFIG_AES_CBC_VARKEY_256_11)
+int test_aes_cbc_varkey_256(void);
+#endif
+
+#if defined(CONFIG_AES_CBC_VARTXT_128_01) || defined(CONFIG_AES_CBC_VARTXT_128_02) || \
+    defined(CONFIG_AES_CBC_VARTXT_128_03) || defined(CONFIG_AES_CBC_VARTXT_128_04) || \
+    defined(CONFIG_AES_CBC_VARTXT_128_05) || defined(CONFIG_AES_CBC_VARTXT_128_06)
+int test_aes_cbc_vartxt_128(void);
+#endif
+
+#if defined(CONFIG_AES_CBC_VARTXT_192_01) || defined(CONFIG_AES_CBC_VARTXT_192_02) || \
+    defined(CONFIG_AES_CBC_VARTXT_192_03) || defined(CONFIG_AES_CBC_VARTXT_192_04) || \
+    defined(CONFIG_AES_CBC_VARTXT_192_05) || defined(CONFIG_AES_CBC_VARTXT_192_06)
+int test_aes_cbc_vartxt_192(void);
+#endif
+
+#if defined(CONFIG_AES_CBC_VARTXT_256_01) || defined(CONFIG_AES_CBC_VARTXT_256_02) || \
+    defined(CONFIG_AES_CBC_VARTXT_256_03) || defined(CONFIG_AES_CBC_VARTXT_256_04) || \
+    defined(CONFIG_AES_CBC_VARTXT_256_05) || defined(CONFIG_AES_CBC_VARTXT_256_06)
+int test_aes_cbc_vartxt_256(void);
+#endif
+
+/* --- 2. Test Runner Infrastructure --- */
+#define RUN(fn, label) \
+    do { int _r = fn(); \
+         printk(label ": %s\n", _r ? "FAILED" : "PASSED"); } while(0)
+
+int main(void)
+{
+    printk("\n===== AES CBC Single-Test Execution =====\n");
+
+#if defined(CONFIG_AES_CBC_GFSBOX)
+    RUN(test_aes_cbc_gfsbox,  "CBC GFSBOX");
+#endif
+#if defined(CONFIG_AES_CBC_KEYSBOX_128) || defined(CONFIG_AES_CBC_KEYSBOX_192) || defined(CONFIG_AES_CBC_KEYSBOX_256)
+    RUN(test_aes_cbc_keysbox, "CBC KEYSBOX");
+#endif
+#if defined(CONFIG_AES_CBC_MMT)
+    RUN(test_aes_cbc_mmt,     "CBC MMT");
+#endif
+
+    /* VARKEY 128 */
+#if defined(CONFIG_AES_CBC_VARKEY_128_01)
+    RUN(test_aes_cbc_varkey_128, "CBC VARKEY 128-01");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_128_02)
+    RUN(test_aes_cbc_varkey_128, "CBC VARKEY 128-02");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_128_03)
+    RUN(test_aes_cbc_varkey_128, "CBC VARKEY 128-03");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_128_04)
+    RUN(test_aes_cbc_varkey_128, "CBC VARKEY 128-04");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_128_05)
+    RUN(test_aes_cbc_varkey_128, "CBC VARKEY 128-05");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_128_06)
+    RUN(test_aes_cbc_varkey_128, "CBC VARKEY 128-06");
+#endif
+
+    /* VARKEY 192 */
+#if defined(CONFIG_AES_CBC_VARKEY_192_01)
+    RUN(test_aes_cbc_varkey_192, "CBC VARKEY 192-01");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_192_02)
+    RUN(test_aes_cbc_varkey_192, "CBC VARKEY 192-02");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_192_03)
+    RUN(test_aes_cbc_varkey_192, "CBC VARKEY 192-03");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_192_04)
+    RUN(test_aes_cbc_varkey_192, "CBC VARKEY 192-04");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_192_05)
+    RUN(test_aes_cbc_varkey_192, "CBC VARKEY 192-05");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_192_06)
+    RUN(test_aes_cbc_varkey_192, "CBC VARKEY 192-06");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_192_07)
+    RUN(test_aes_cbc_varkey_192, "CBC VARKEY 192-07");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_192_08)
+    RUN(test_aes_cbc_varkey_192, "CBC VARKEY 192-08");
+#endif
+
+    /* VARKEY 256 */
+#if defined(CONFIG_AES_CBC_VARKEY_256_01)
+    RUN(test_aes_cbc_varkey_256, "CBC VARKEY 256-01");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_256_02)
+    RUN(test_aes_cbc_varkey_256, "CBC VARKEY 256-02");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_256_03)
+    RUN(test_aes_cbc_varkey_256, "CBC VARKEY 256-03");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_256_04)
+    RUN(test_aes_cbc_varkey_256, "CBC VARKEY 256-04");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_256_05)
+    RUN(test_aes_cbc_varkey_256, "CBC VARKEY 256-05");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_256_06)
+    RUN(test_aes_cbc_varkey_256, "CBC VARKEY 256-06");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_256_07)
+    RUN(test_aes_cbc_varkey_256, "CBC VARKEY 256-07");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_256_08)
+    RUN(test_aes_cbc_varkey_256, "CBC VARKEY 256-08");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_256_09)
+    RUN(test_aes_cbc_varkey_256, "CBC VARKEY 256-09");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_256_10)
+    RUN(test_aes_cbc_varkey_256, "CBC VARKEY 256-10");
+#endif
+#if defined(CONFIG_AES_CBC_VARKEY_256_11)
+    RUN(test_aes_cbc_varkey_256, "CBC VARKEY 256-11");
+#endif
+
+    /* VARTXT 128 */
+#if defined(CONFIG_AES_CBC_VARTXT_128_01)
+    RUN(test_aes_cbc_vartxt_128, "CBC VARTXT 128-01");
+#endif
+#if defined(CONFIG_AES_CBC_VARTXT_128_02)
+    RUN(test_aes_cbc_vartxt_128, "CBC VARTXT 128-02");
+#endif
+#if defined(CONFIG_AES_CBC_VARTXT_128_03)
+    RUN(test_aes_cbc_vartxt_128, "CBC VARTXT 128-03");
+#endif
+#if defined(CONFIG_AES_CBC_VARTXT_128_04)
+    RUN(test_aes_cbc_vartxt_128, "CBC VARTXT 128-04");
+#endif
+#if defined(CONFIG_AES_CBC_VARTXT_128_05)
+    RUN(test_aes_cbc_vartxt_128, "CBC VARTXT 128-05");
+#endif
+#if defined(CONFIG_AES_CBC_VARTXT_128_06)
+    RUN(test_aes_cbc_vartxt_128, "CBC VARTXT 128-06");
+#endif
+
+    /* VARTXT 192 */
+#if defined(CONFIG_AES_CBC_VARTXT_192_01)
+    RUN(test_aes_cbc_vartxt_192, "CBC VARTXT 192-01");
+#endif
+#if defined(CONFIG_AES_CBC_VARTXT_192_02)
+    RUN(test_aes_cbc_vartxt_192, "CBC VARTXT 192-02");
+#endif
+#if defined(CONFIG_AES_CBC_VARTXT_192_03)
+    RUN(test_aes_cbc_vartxt_192, "CBC VARTXT 192-03");
+#endif
+#if defined(CONFIG_AES_CBC_VARTXT_192_04)
+    RUN(test_aes_cbc_vartxt_192, "CBC VARTXT 192-04");
+#endif
+#if defined(CONFIG_AES_CBC_VARTXT_192_05)
+    RUN(test_aes_cbc_vartxt_192, "CBC VARTXT 192-05");
+#endif
+#if defined(CONFIG_AES_CBC_VARTXT_192_06)
+    RUN(test_aes_cbc_vartxt_192, "CBC VARTXT 192-06");
+#endif
+
+    /* VARTXT 256 */
+#if defined(CONFIG_AES_CBC_VARTXT_256_01)
+    RUN(test_aes_cbc_vartxt_256, "CBC VARTXT 256-01");
+#endif
+#if defined(CONFIG_AES_CBC_VARTXT_256_02)
+    RUN(test_aes_cbc_vartxt_256, "CBC VARTXT 256-02");
+#endif
+#if defined(CONFIG_AES_CBC_VARTXT_256_03)
+    RUN(test_aes_cbc_vartxt_256, "CBC VARTXT 256-03");
+#endif
+#if defined(CONFIG_AES_CBC_VARTXT_256_04)
+    RUN(test_aes_cbc_vartxt_256, "CBC VARTXT 256-04");
+#endif
+#if defined(CONFIG_AES_CBC_VARTXT_256_05)
+    RUN(test_aes_cbc_vartxt_256, "CBC VARTXT 256-05");
+#endif
+#if defined(CONFIG_AES_CBC_VARTXT_256_06)
+    RUN(test_aes_cbc_vartxt_256, "CBC VARTXT 256-06");
+#endif
+
+    printk("\n===== Execution Complete =====\n");
+    return 0;
+}
