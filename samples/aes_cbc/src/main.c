@@ -16,8 +16,14 @@ int test_aes_cbc_gfsbox(void);
     defined(CONFIG_AES_CBC_KEYSBOX_256)
 int test_aes_cbc_keysbox(void);
 #endif
+
 #if defined(CONFIG_AES_CBC_MMT)
 int test_aes_cbc_mmt(void);
+#endif
+
+/* Added & corrected: Links explicitly to your MCT test suite component */
+#if defined(CONFIG_AES_CBC_MCT)
+int test_aes_cbc_mct(void);
 #endif
 
 #if defined(CONFIG_AES_CBC_VARKEY_128_01) || defined(CONFIG_AES_CBC_VARKEY_128_02) || \
@@ -77,6 +83,11 @@ int main(void)
 #endif
 #if defined(CONFIG_AES_CBC_MMT)
     RUN(test_aes_cbc_mmt,     "CBC MMT");
+#endif
+
+    /* Added: Calls your new Monte Carlo Test engine when enabled via Kconfig */
+#if defined(CONFIG_AES_CBC_MCT)
+    test_aes_cbc_mct();
 #endif
 
     /* VARKEY 128 */

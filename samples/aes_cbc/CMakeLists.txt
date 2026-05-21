@@ -14,6 +14,10 @@ if(CONFIG_AES_CBC_MMT)
     target_sources(app PRIVATE src/test_aes_cbc_mmt.c)
 endif()
 
+if(CONFIG_AES_CBC_MCT)
+    target_sources(app PRIVATE src/test_aes_cbc_mct.c)
+endif()
+
 # VARKEY
 if(CONFIG_AES_CBC_VARKEY_128_01 OR CONFIG_AES_CBC_VARKEY_128_02 OR
    CONFIG_AES_CBC_VARKEY_128_03 OR CONFIG_AES_CBC_VARKEY_128_04 OR
