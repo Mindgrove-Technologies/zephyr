@@ -141,7 +141,7 @@ typedef union{
 #define RMC_RINSTR(x)  ((uint32_t)(x))
 
 #define MAX_QSPI_FREQ 75000000UL
-#define CLOCK_FREQUENCY_FPGA        30000000UL
+#define CLOCK_FREQUENCY_ASIC        700000000UL
 
 //ll
 typedef struct {                                /*!< QUADSPI0 Structure                                                        */
@@ -398,7 +398,7 @@ uint16_t QSPI_Transaction(qspi_msg *msg) {
      * Clock validation: QSPI clock = 30MHz / (PRESCALER + 1)
      * Must not exceed MAX_QSPI_FREQ.
      */
-    if (((uint64_t)CLOCK_FREQUENCY_FPGA /
+    if (((uint64_t)CLOCK_FREQUENCY_ASIC /
             ((uint64_t)msg->PRESCALER + 1ULL)) > MAX_QSPI_FREQ) {
         return EPERM;
     }

@@ -188,14 +188,14 @@
     };
 
     qspi0: qspi@60200 {
-            compatible = "mindgrove,qspi-psram"; //PSRAM
+            compatible = "mindgrove,qspi-flash"; //FLASH
             reg = <0x60200 0x100>; 
             size = <8388608>; 
             status = "okay";
         };
 
     qspi1: qspi@60300 {
-        compatible = "mindgrove,qspi-flash"; //FLASH 
+        compatible = "mindgrove,qspi-psram"; //PSRAM 
         reg = <0x60300 0x100>;
         size = <134217728>;
         status = "okay";

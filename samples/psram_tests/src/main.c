@@ -6,7 +6,7 @@
 
 /* Get PSRAM base address from DTS — the memory-mapped window address */
 #define PSRAM_DEVICE_NODE   DT_COMPAT_GET_ANY_STATUS_OKAY(mindgrove_qspi_psram)
-#define PSRAM_BASE_ADDR     (0x90000000U)
+#define PSRAM_BASE_ADDR     (0xB0000000U)
 #define PSRAM_TEST_WORDS    16U
 
 /* ================= HELPERS ================= */
