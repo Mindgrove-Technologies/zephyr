@@ -40,11 +40,11 @@ config 2ND_LVL_INTR_01_OFFSET
 
 config MAX_IRQ_PER_AGGREGATOR
     int
-    default 58          # Must cover highest IRQ
+    default 82          # Must cover highest IRQ
 
 config NUM_IRQS
     int
-    default 59          # Total IRQs = highest IRQ + 1 (58 + 1)
+    default 82          # Total IRQs = highest IRQ + 1 (58 + 1)
 
 config RISCV_HAS_CPU_IDLE
     bool
