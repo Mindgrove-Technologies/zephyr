@@ -14,6 +14,7 @@ LOG_MODULE_REGISTER(qspi_flash);
 
 /* ================= Flash Command Opcodes (JEDEC Standard) ================= */
 
+#define CLOCK_FREQUENCY_ASIC        700000000UL
 /** @brief Sector Erase (4KB) command */
 #define FLASH_CMD_ERASE_4K   0x20
 
@@ -139,7 +140,7 @@ uint16_t QSPI_Transaction(qspi_msg *msg) {
      * Clock validation: QSPI clock = 700MHz / (PRESCALER + 1)
      * Must not exceed MAX_QSPI_FREQ.
      */
-    if (((uint64_t)CLOCK_FREQUENCY_FPGA /
+    if (((uint64_t)CLOCK_FREQUENCY_ASIC /
             ((uint64_t)msg->PRESCALER + 1ULL)) > MAX_QSPI_FREQ) {
         return EPERM;
     }
@@ -570,6 +571,8 @@ static int flash_qspi_erase(const struct device *dev,
 
     return 0;
 }
+
+#define FLASH_CMD_SFDP_READ            (0x5AU)
 #if defined(CONFIG_FLASH_JESD216_API)
 static int flash_qspi_sfdp_read(const struct device *dev,
                                 off_t addr,
@@ -583,7 +586,7 @@ static int flash_qspi_sfdp_read(const struct device *dev,
     flash_msg.address_mode = CCR_ADMODE_SINGLE_LINE;
     flash_msg.address_size = CCR_ADSIZE_24_BIT;
     flash_msg.address = addr;
-    flash_msg.instruction = 0x5A;
+    flash_msg.instruction = FLASH_CMD_SFDP_READ;
     flash_msg.instruction_mode = CCR_IMODE_SINGLE_LINE;
     flash_msg.data_mode = CCR_DMODE_SINGLE_LINE;
     flash_msg.functional_mode = CCR_FMODE_INDIRECT_READ;

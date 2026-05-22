@@ -56,7 +56,7 @@ int test_indirect_write(const struct device *flash_dev)
     printk("\n--- Indirect Write Test ---\n");
 
     /* Erase */
-    printk("Erasing 4KB sector at 0x%06X\n", (uint32_t)erase_addr);
+    printk("Erasing 4KB sector at 0x%0x\n", (uint32_t)erase_addr);
     ret = flash_erase(flash_dev, erase_addr, 4096);
     if (ret != 0) {
         printk("FAIL: flash_erase returned %d\n", ret);
