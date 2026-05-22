@@ -1,0 +1,27 @@
+# dts/bindings/mindgrove,gptimer.yaml
+description: Mindgrove GPTimer
+
+compatible: "mindgrove,gptimer"
+
+include: base.yaml
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  clock-frequency:
+    type: int
+    required: true
+    description: Timer input clock frequency in Hz
+
+  prescaler:
+    type: int
+    required: true
+    description: Clock prescaler divider value
+  timer-mode:
+    type: int
+    required: true
+    description: "1=UP count, 2=DOWN count"

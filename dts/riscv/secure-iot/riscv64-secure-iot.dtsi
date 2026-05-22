@@ -54,7 +54,7 @@
 			reg-names = "mtime", "mtimecmp";
 		};
 
-    plic0: interrupt-controller@c000000 {
+       plic0: interrupt-controller@c000000 {
         compatible = "mindgrove,plic";        
         reg = <0xc000000 0x400000>;              
         interrupt-controller;
@@ -63,13 +63,13 @@
         interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;            
         riscv-irq-aggregator-offset = <0>;
         riscv,max-priority = <7>;      
-        riscv,ndev = <57>;
+        riscv,ndev = <81>;
     };
 
     uart0: serial@11300 {
         compatible = "mindgrove,uart";
         reg= < 0x11300 0x100>;
-        interrupts = <47 1>;             // <irq_number priority>
+        interrupts = <53 1>;             // <irq_number priority>
 			  interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
         interrupt-controller;
         #interrupt-cells = <1>; 
@@ -86,7 +86,7 @@
         reg= <0x11400 0x100>;
         interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
         // Use the proper IRQ number connected to the PLIC (Zephyr's standard way)
-        interrupts = <47 1>;             // <PLIC_IRQ_ID priority>
+        interrupts = <54 1>;             // <PLIC_IRQ_ID priority>
         // interrupt-names = "irq";
         // #interrupt-cells = <1>; 
 			  // #address-cells = <0>;
@@ -103,7 +103,7 @@
         reg= <0x11500 0x100>;
         interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
         // Use the proper IRQ number connected to the PLIC (Zephyr's standard way)
-        interrupts = <47 1>;             // <PLIC_IRQ_ID priority>
+        interrupts = <55 1>;             // <PLIC_IRQ_ID priority>
         // interrupt-names = "irq";
         // #interrupt-cells = <1>; 
 			  // #address-cells = <0>;
@@ -188,5 +188,49 @@
       compatible = "shakti,i2c0";
       reg= <0x0 0x44100 0x0 0x100>;
     };
-  };
+
+/* GPTimer — interrupt-parent is plic0, source 47, priority 1 */
+timer0: gptimer@44200 {
+    compatible = "mindgrove,gptimer";
+    reg = <0x44200 0x20>;
+    interrupt-parent = <&plic0>;
+    interrupts = <47 1>;
+    clock-frequency = <30870>;
+    prescaler = <22676>;
+    timer-mode = <2>;
+    status = "okay";
 };
+    timer1: gptimer@44220 {
+    compatible = "mindgrove,gptimer";
+    reg = <0x44200 0x20>;
+    interrupt-parent = <&plic0>;
+    interrupts = <48 1>;
+    clock-frequency = <700000000>;  /* your SoC clock */
+    timer-mode = <2>;
+    prescaler = <22676>;            /* 700MHz / 22676 ≈ 30870 Hz */
+    status = "okay";
+};
+
+    timer2: gptimer@44240 {
+    compatible = "mindgrove,gptimer";
+    reg = <0x44200 0x20>;
+    interrupt-parent = <&plic0>;
+    interrupts = <49 1>;
+    clock-frequency = <700000000>;  /* your SoC clock */
+    timer-mode = <2>;
+    prescaler = <22676>;            /* 700MHz / 22676 ≈ 30870 Hz */
+    status = "okay";
+};
+    timer3: gptimer@44260 {
+    compatible = "mindgrove,gptimer";
+    reg = <0x44200 0x20>;
+    interrupt-parent = <&plic0>;
+    interrupts = <50 1>;
+    clock-frequency = <700000000>;  /* your SoC clock */
+    timer-mode = <2>;
+    prescaler = <22676>;            /* 700MHz / 22676 ≈ 30870 Hz */
+    status = "okay";
+};
+    
+    };
+  };

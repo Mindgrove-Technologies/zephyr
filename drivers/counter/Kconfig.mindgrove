@@ -1,0 +1,20 @@
+menuconfig COUNTER_MINDGROVE
+    bool "Mindgrove General Purpose Timer (GPTIMER) driver"
+    default y
+    depends on DT_HAS_MINDGROVE_GPTIMER_ENABLED && COUNTER
+    help
+      Enable support for the Mindgrove General Purpose Timer (GPTIMER).
+      This driver provides a standard Zephyr Counter API interface 
+      for the hardware's 4 timer instances.
+
+if COUNTER_MINDGROVE
+
+config COUNTER_MINDGROVE_INIT_PRIORITY
+    int "Initialization priority"
+    default 60
+    help
+      Timer initialization priority. This should be higher (lower number)
+      than any application code that uses the timer, but lower than 
+      the interrupt controller (PLIC) initialization.
+
+endif # COUNTER_MINDGROVE
