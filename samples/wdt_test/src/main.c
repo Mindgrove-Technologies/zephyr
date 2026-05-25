@@ -22,7 +22,7 @@
  * 1 -> HARD RESET after 5 seconds
  * 0 -> IMMEDIATE SOFT RESET
  */
-#define TEST_HARD_RESET  1  /* Set to 0 for Soft Reset, 1 for Hard Reset */
+#define TEST_HARD_RESET  0  /* Set to 0 for Soft Reset, 1 for Hard Reset */
 
 int main(void)
 {
@@ -58,7 +58,7 @@ int main(void)
      * WDT_ACTIVE are not used in this path (matches baremetal driver).
      * window.max is irrelevant but set to 0 to make that explicit.
      */
-    cfg.window.max = 0;
+    cfg.window.max = 1;
     cfg.flags      = WDT_FLAG_MINDGROVE_SOFT_RESET;
     printk("Configuring SOFT RESET mode (immediate)\n");
 #endif
