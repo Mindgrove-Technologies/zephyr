@@ -1,192 +1,160 @@
 #include <zephyr/dt-bindings/gpio/gpio.h>
 
 / {
-  #address-cells = <2>;
-  #size-cells = <2>;
-  compatible = "mindgrove,secureiot-dev";
-  model = "mindgrove,secureiot";
-  cpus {
-    #address-cells = <1>;
-    #size-cells = <0>;
-    timebase-frequency = <10000000>;
-      CPU0: cpu@0 {
-        device_type = "cpu";
-        reg = <0>;
-        status = "okay";
-        compatible = "riscv";
-        riscv,isa = "rv64imafdc";
-        mmu-type = "riscv,sv39";
-        clock-frequency = <40000000>;
-          CPU0_intc: interrupt-controller {
-             #address-cells = <0>;
-	           #interrupt-cells = <1>;
-             interrupt-controller;
-             compatible = "riscv,cpu-intc";
-          };
-      };
-  };
+    #address-cells = <2>;
+    #size-cells = <2>;
+    compatible = "mindgrove,secureiot-dev";
+    model = "mindgrove,secureiot";
 
-  memory@80000000 {
-    device_type = "memory";
-    reg = <0x0 0x80000000 0x0 0x10000000 >;
-  };
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        timebase-frequency = <10000000>;
 
-  soc {
-    #address-cells = <1>;
-		#size-cells = <1>;
-    compatible = "mindgrove,secureiot-soc", "simple-bus";
-    ranges;
+        CPU0: cpu@0 {
+            device_type = "cpu";
+            reg = <0>;
+            status = "okay";
+            compatible = "riscv";
+            riscv,isa = "rv64imafdc";
+            mmu-type = "riscv,sv39";
+            clock-frequency = <40000000>;
 
-    clint@2000000 {
-      #address-cells = <1>;
-      #size-cells = <1>;
-      compatible = "riscv,clint0";
-      interrupts-extended = <&CPU0_intc 3 &CPU0_intc 7 >;
-      reg = <0x02000000 0x00000008
-            0x02004000 0x00000008
-	    0x0200bff8 0x00000008>;
+            CPU0_intc: interrupt-controller {
+                #address-cells = <0>;
+                #interrupt-cells = <1>;
+                interrupt-controller;
+                compatible = "riscv,cpu-intc";
+            };
+        };
     };
 
-    mtimer: timer@200bff8 {
-			compatible = "riscv,machine-timer";
-			interrupts-extended = <&CPU0_intc 7>;
-			reg = <0x200bff8 0x8 0x2004000 0x8>;
-			reg-names = "mtime", "mtimecmp";
-		};
-
-    plic0: interrupt-controller@c000000 {
-        compatible = "mindgrove,plic";        
-        reg = <0xc000000 0x400000>;              
-        interrupt-controller;
-        #interrupt-cells = <2>;
-        #address-cells = <0>;
-        interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;            
-        riscv-irq-aggregator-offset = <0>;
-        riscv,max-priority = <7>;      
-        riscv,ndev = <57>;
+    memory@80000000 {
+        device_type = "memory";
+        reg = <0x0 0x80000000 0x0 0x10000000>;
     };
 
-    uart0: serial@11300 {
-        compatible = "mindgrove,uart";
-        reg= < 0x11300 0x100>;
-        interrupts = <47 1>;             // <irq_number priority>
-			  interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
-        interrupt-controller;
-        #interrupt-cells = <1>; 
-			  #address-cells = <0>;
-        interrupt-names = "irq";
-        interrupts-extended = <&plic0 6 1>;
-        clock-frequency = <35000000>;
-        current-speed = <115200>;
-        status = "okay";
-    };
+    soc {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        compatible = "mindgrove,secureiot-soc", "simple-bus";
+        ranges;
 
-    uart1: serial@11400 {
-        compatible = "mindgrove,uart";
-        reg= <0x11400 0x100>;
-        interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
-        // Use the proper IRQ number connected to the PLIC (Zephyr's standard way)
-        interrupts = <47 1>;             // <PLIC_IRQ_ID priority>
-        // interrupt-names = "irq";
-        // #interrupt-cells = <1>; 
-			  // #address-cells = <0>;
-        interrupt-names = "irq";
-        interrupts-extended = <&plic0 6 1>;
-        interrupt-controller;
-        clock-frequency = <35000000>;
-        current-speed = <115200>;
-        status = "okay";
-    };
+        clint@2000000 {
+            #address-cells = <1>;
+            #size-cells = <1>;
+            compatible = "riscv,clint0";
+            interrupts-extended = <&CPU0_intc 3 &CPU0_intc 7>;
+            reg = <0x02000000 0x00000008
+                   0x02004000 0x00000008
+                   0x0200bff8 0x00000008>;
+        };
 
-    uart2: serial@11500 {
-        compatible = "mindgrove,uart";
-        reg= <0x11500 0x100>;
-        interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
-        // Use the proper IRQ number connected to the PLIC (Zephyr's standard way)
-        interrupts = <47 1>;             // <PLIC_IRQ_ID priority>
-        // interrupt-names = "irq";
-        // #interrupt-cells = <1>; 
-			  // #address-cells = <0>;
-        interrupt-names = "irq";
-        interrupts-extended = <&plic0 6 1>;
-        interrupt-controller;
-        clock-frequency = <35000000>;
-        current-speed = <115200>;
-        status = "okay";
-    };
+        mtimer: timer@200bff8 {
+            compatible = "riscv,machine-timer";
+            interrupts-extended = <&CPU0_intc 7>;
+            reg = <0x200bff8 0x8 0x2004000 0x8>;
+            reg-names = "mtime", "mtimecmp";
+        };
 
-    // uart3: serial@11600 {
-    //     compatible = "mindgrove,uart";
-    //     reg= < 0x11600 0x100>;
-    //     interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
-    //     // Use the proper IRQ number connected to the PLIC (Zephyr's standard way)
-    //     interrupts = <47 1>;             // <PLIC_IRQ_ID priority>
-    //     // interrupt-names = "irq";
-    //     // #interrupt-cells = <1>; 
-		// 	  // #address-cells = <0>;
-    //     interrupt-names = "irq";
-    //     interrupts-extended = <&plic0 6 1>;
-    //     interrupt-controller;
-    //     clock-frequency = <30000000>;
-    //     current-speed = <115200>;
-    //     status = "okay";
-    // };
+        plic0: interrupt-controller@c000000 {
+            compatible = "mindgrove,plic";        
+            reg = <0xc000000 0x400000>;              
+            interrupt-controller;
+            #interrupt-cells = <2>;
+            #address-cells = <0>;
+            interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;            
+            riscv-irq-aggregator-offset = <0>;
+            riscv,max-priority = <7>;      
+            riscv,ndev = <57>;
+        };
 
-    // uart4: serial@11700 {
-    //     compatible = "mindgrove,uart";
-    //     reg= < 0x11700 0x100>;
-    //     interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
-    //     // Use the proper IRQ number connected to the PLIC (Zephyr's standard way)
-    //     interrupts = <48 1>;             // <PLIC_IRQ_ID priority>
-    //     // interrupt-names = "irq";
-    //     // #interrupt-cells = <1>; 
-		// 	  // #address-cells = <0>;
-    //     interrupt-names = "irq";
-    //     interrupts-extended = <&plic0 6 1>;
-    //     interrupt-controller;
-    //     clock-frequency = <30000000>;
-    //     current-speed = <115200>;
-    //     status = "okay";
-    // };
+        uart0: serial@11300 {
+            compatible = "mindgrove,uart";
+            reg = <0x11300 0x100>;
+            interrupts = <47 1>;
+            interrupt-controller;
+            #interrupt-cells = <1>; 
+            #address-cells = <0>;
+            interrupt-names = "irq";
+            interrupts-extended = <&plic0 6 1>;
+            clock-frequency = <35000000>;
+            current-speed = <115200>;
+            status = "okay";
+        };
 
-    spi0: spi@20000 {
+        uart1: serial@11400 {
+            compatible = "mindgrove,uart";
+            reg = <0x11400 0x100>;
+            interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
+            interrupts = <47 1>;
+            interrupt-names = "irq";
+            interrupts-extended = <&plic0 6 1>;
+            interrupt-controller;
+            clock-frequency = <35000000>;
+            current-speed = <115200>;
+            status = "okay";
+        };
+
+        uart2: serial@11500 {
+            compatible = "mindgrove,uart";
+            reg = <0x11500 0x100>;
+            interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
+            interrupts = <47 1>;
+            interrupt-names = "irq";
+            interrupts-extended = <&plic0 6 1>;
+            interrupt-controller;
+            clock-frequency = <35000000>;
+            current-speed = <115200>;
+            status = "okay";
+        };
+
+        spi0: spi@20000 {
             #address-cells = <1>;
             #size-cells = <0>;
             compatible = "shakti,spi";
             reg = <0x0 0x20000 0x0 0x100>;
-    };
+        };
 
-    spi1: spi@20100 {
-           #address-cells = <1>;
-			     #size-cells = <0>;
-           compatible = "shakti,spi";
-           reg = <0x0 0x20100 0x0 0x100>;
+        spi1: spi@20100 {
+            #address-cells = <1>;
+            #size-cells = <0>;
+            compatible = "shakti,spi";
+            reg = <0x0 0x20100 0x0 0x100>;
+        };
+        
+        gpio0: gpio@40200 {
+            #gpio-cells = <2>;
+            compatible = "mindgrove,gpio";
+            reg = <0x40200 0x08>;
+            config_gpio = <GPIO_OUTPUT>; 
+            interrupt-parent = <&plic0>;
+            interrupts = <1 1>, <2 1>, <3 1>, <4 1>,
+                         <5 1>, <6 1>, <7 1>, <8 1>,
+                         <9 1>, <10 1>, <11 1>, <12 1>,
+                         <13 1>, <14 1>, <15 1>, <16 1>,
+                         <17 1>, <18 1>, <19 1>, <20 1>,
+                         <21 1>, <22 1>, <23 1>, <24 1>,
+                         <25 1>, <26 1>, <27 1>, <28 1>,
+                         <29 1>, <30 1>, <31 1>, <32 1>;                
+            gpio-controller; 
+        };
+        
+        i2c0: i2c@44000 {
+            compatible = "shakti,i2c0";
+            reg = <0x0 0x44000 0x0 0x100>;
+        };
+
+        i2c1: i2c@44100 {
+            compatible = "shakti,i2c0";
+            reg = <0x0 0x44100 0x0 0x100>;
+        };
+
+        watchdog0: watchdog@40500 {
+            compatible = "mindgrove,wdt";
+            reg = <0x40500 0x1c>;
+            clock-frequency = <700000000>;
+            status = "okay";
+        };
     };
-    
-    gpio0: gpio@40200 {
-        #gpio-cells = <2>;
-        compatible = "mindgrove,gpio";
-        reg = <0x40200 0x08>;
-        config_gpio = <GPIO_OUTPUT>; 
-        interrupt-parent = <&plic0>;
-        interrupts = <1 1>, <2 1>, <3 1>, <4 1>,
-                      <5 1>, <6 1>, <7 1>, <8 1>,
-                      <9 1>, <10 1>, <11 1>, <12 1>,
-                      <13 1>, <14 1>, <15 1>, <16 1>,
-                      <17 1>, <18 1>, <19 1>, <20 1>,
-                      <21 1>, <22 1>, <23 1>, <24 1>,
-                      <25 1>, <26 1>, <27 1>, <28 1>,
-                      <29 1>, <30 1>, <31 1>, <32 1>;                
-        gpio-controller; 
-    };
-    
-    i2c0: i2c@44000 {
-           compatible = "shakti,i2c0";
-           reg= <0x0 0x44000 0x0 0x100>;
-    };
-    i2c1: i2c@44100 {
-      compatible = "shakti,i2c0";
-      reg= <0x0 0x44100 0x0 0x100>;
-    };
-  };
 };
