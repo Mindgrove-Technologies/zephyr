@@ -7,7 +7,9 @@
 #include <zephyr/kernel.h>
 #include <zephyr/arch/cpu.h>
 #include <zephyr/drivers/uart.h>
-
+#include <zephyr/drivers/pinctrl.h>
+#include <zephyr/sys/printk.h>
+ 
 #define DT_DRV_COMPAT mindgrove_uart
 
 #ifdef CONFIG_BOARD_SHAKTI_VAJRA
@@ -376,23 +378,44 @@ static void uart_mindgrove_irq_handler(void *arg)
 
 static int uart_mindgrove_init(const struct device *dev)
 {
-	struct uart_mindgrove_config * const cfg = DEV_CFG(dev);
-	volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
+    struct uart_mindgrove_config * const cfg = DEV_CFG(dev);
+    volatile struct uart_mindgrove_regs_t *uart = DEV_UART(dev);
+    int ret;
 
-	/* Set baud rate */
-	uart->div = (cfg->sys_clk_freq / cfg->baud_rate) / 16;
+    printk("UART init: pcfg = %p\n", cfg->pcfg);
+    
+    if (cfg->pcfg) {
+        printk("  state_cnt = %d\n", cfg->pcfg->state_cnt);
+        for (int i = 0; i < cfg->pcfg->state_cnt; i++) {
+            printk("  state[%d].id = %d\n", i, cfg->pcfg->states[i].id);
+        }
+
+        /* ONLY apply pinctrl states if the pin configuration exists (UART3, UART4) */
+        ret = pinctrl_apply_state(cfg->pcfg, PINCTRL_STATE_DEFAULT);
+        if (ret < 0) {
+            printk("CRITICAL: pinctrl_apply_state failed: %d\n", ret);
+            return ret;
+        }
+    } else {
+        /* Safely bypassed for non-pinmuxed ports (UART0, UART1, UART2) */
+        printk("  Bypassing pinmux setup (hardwired pins).\n");
+    }
+
+    /* Set baud rate safely */
+    uart->div = (cfg->sys_clk_freq / cfg->baud_rate) / 16;
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	/* Ensure that uart IRQ is disabled initially */
-	uart->ie = 0;
+    /* Ensure that uart IRQ is disabled initially */
+    uart->ie = 0;
 
-	/* Setup IRQ handler */
-	cfg->cfg_func();
-	irq_enable(cfg->rxcnt_irq); 
+    /* Setup IRQ handler */
+    cfg->cfg_func();
+    irq_enable(cfg->rxcnt_irq); 
 #endif
 
-	return 0;
+    return 0;
 }
+
 
 static const struct uart_driver_api uart_mindgrove_driver_api = {
 	.poll_in          = uart_mindgrove_poll_in,
@@ -416,44 +439,49 @@ static const struct uart_driver_api uart_mindgrove_driver_api = {
 #endif
 };
 
-#ifdef CONFIG_UART_MINDGROVE_PORT
-
+/* Remove the #ifdef CONFIG_UART_MINDGROVE_PORT wrapper entirely.
+   Replace the bottom of the file from the #ifdef onwards with this: */
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-#define UART_MINDGROVE_CFG_FUNC(n) .cfg_func = uart_mindgrove_irq_cfg_func_##n,
-#define UART_MINDGROVE_IRQ_CONFIG_FUNC(n) \
-    static void uart_mindgrove_irq_cfg_func_##n(void) { \
-        IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority), \
-                    uart_mindgrove_irq_handler, DEVICE_DT_INST_GET(n), 0); \
-        irq_enable(DT_INST_IRQN(n)); \
+#define UART_MINDGROVE_CFG_FUNC(n)      .cfg_func = uart_mindgrove_irq_cfg_func_##n,
+#define UART_MINDGROVE_IRQ_CONFIG_FUNC(n)                                   \
+    static void uart_mindgrove_irq_cfg_func_##n(void) {                     \
+        IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority),             \
+                    uart_mindgrove_irq_handler, DEVICE_DT_INST_GET(n), 0);  \
+        irq_enable(DT_INST_IRQN(n));                                        \
     }
 #else
 #define UART_MINDGROVE_CFG_FUNC(n)
 #define UART_MINDGROVE_IRQ_CONFIG_FUNC(n)
-#endif // CONFIG_UART_INTERRUPT_DRIVEN
+#endif
 
-#endif // CONFIG_UART_MINDGROVE_PORT
+#define UART_MINDGROVE_PINCTRL_DEFINE(n) \
+    IF_ENABLED(DT_INST_PINCTRL_HAS_IDX(n, 0), (PINCTRL_DT_INST_DEFINE(n);))
 
+#define UART_MINDGROVE_PINCTRL_ASSIGN(n) \
+    COND_CODE_1(DT_INST_PINCTRL_HAS_IDX(n, 0), \
+        (PINCTRL_DT_INST_DEV_CONFIG_GET(n)), (NULL))
 
-#define UART_MINDGROVE_INIT(n) \
-    UART_MINDGROVE_IRQ_CONFIG_FUNC(n) \
-    static struct uart_mindgrove_config uart_mindgrove_config_##n = { \
-        .port = DT_INST_REG_ADDR(n), \
-        .sys_clk_freq = DT_INST_PROP(n, clock_frequency), \
-        .baud_rate = DT_INST_PROP(n, current_speed), \
-        .rxcnt_irq = 0, \
-        .txcnt_irq = 0, \
-        UART_MINDGROVE_CFG_FUNC(n) \
-    }; \
-    static struct uart_mindgrove_data uart_mindgrove_data_##n; \
-    DEVICE_DT_INST_DEFINE(n, \
-        uart_mindgrove_init, \
-        NULL, \
-        &uart_mindgrove_data_##n, \
-        &uart_mindgrove_config_##n, \
-        PRE_KERNEL_1, \
-        CONFIG_KERNEL_INIT_PRIORITY_DEVICE, \
-        &uart_mindgrove_driver_api, \
+#define UART_MINDGROVE_INIT(n)                                              \
+    UART_MINDGROVE_PINCTRL_DEFINE(n)                                        \
+    UART_MINDGROVE_IRQ_CONFIG_FUNC(n)                                       \
+    static struct uart_mindgrove_config uart_mindgrove_config_##n = {       \
+        .port         = DT_INST_REG_ADDR(n),                               \
+        .sys_clk_freq = DT_INST_PROP(n, clock_frequency),                  \
+        .baud_rate    = DT_INST_PROP(n, current_speed),                    \
+        .pcfg         = UART_MINDGROVE_PINCTRL_ASSIGN(n),                  \
+        .rxcnt_irq    = 0,                                                  \
+        .txcnt_irq    = 0,                                                  \
+        UART_MINDGROVE_CFG_FUNC(n)                                          \
+    };                                                                      \
+    static struct uart_mindgrove_data uart_mindgrove_data_##n;              \
+    DEVICE_DT_INST_DEFINE(n,                                                \
+        uart_mindgrove_init,                                                \
+        NULL,                                                               \
+        &uart_mindgrove_data_##n,                                           \
+        &uart_mindgrove_config_##n,                                         \
+        PRE_KERNEL_1,                                                       \
+        CONFIG_KERNEL_INIT_PRIORITY_DEVICE,                                 \
+        &uart_mindgrove_driver_api,                                         \
         NULL);
-	
-DT_INST_FOREACH_STATUS_OKAY(UART_MINDGROVE_INIT)
 
+DT_INST_FOREACH_STATUS_OKAY(UART_MINDGROVE_INIT)

@@ -1,0 +1,16 @@
+# Copyright (c) 2024 Mindgrove Technologies
+# SPDX-License-Identifier: Apache-2.0
+
+config PINCTRL_MINDGROVE
+	bool "Mindgrove pinctrl driver"
+	default y if DT_HAS_MINDGROVE_PINCTRL_ENABLED
+	depends on PINCTRL
+	help
+	  Enable pinctrl driver for Mindgrove SoC platform.
+
+config PINCTRL_INIT_PRIORITY
+	int "Pinctrl initialization priority"
+	default 45
+	depends on PINCTRL
+	help
+	  Initialization priority for the pinctrl driver.

@@ -1,0 +1,15 @@
+description: Mindgrove pin controller
+compatible: "mindgrove,pinctrl"
+include: base.yaml
+
+properties:
+  reg:
+    required: true
+
+child-binding:
+  description: Pin configuration state node
+  properties:
+    pinmux:
+      type: array
+      required: true
+      description: Array of pin configuration words encoded with MINDGROVE_PINMUX()

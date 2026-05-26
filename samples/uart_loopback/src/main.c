@@ -3,7 +3,7 @@
 #include <zephyr/drivers/uart.h>
 #include <zephyr/kernel.h>
 
-const struct device *dev = DEVICE_DT_GET(DT_NODELABEL(uart2));
+const struct device *dev = DEVICE_DT_GET(DT_NODELABEL(uart3));
 
 void uart_loopback_test(void)
 {
