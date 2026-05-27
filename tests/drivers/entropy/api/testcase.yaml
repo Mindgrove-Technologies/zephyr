@@ -4,6 +4,7 @@ tests:
     tags:
       - drivers
       - entropy
+
   drivers.entropy.bt_hci:
     platform_allow:
       - nrf52_bsim
@@ -15,6 +16,7 @@ tests:
       - driver
       - entropy
       - bluetooth
+
   drivers.entropy.psa_crypto:
     filter: CONFIG_BUILD_WITH_TFM
     extra_args:
@@ -24,3 +26,10 @@ tests:
       - driver
       - entropy
       - psa-crypto
+
+  drivers.entropy.mindgrove:
+    platform_allow:
+      - secure-iot
+    tags:
+      - driver
+      - entropy
