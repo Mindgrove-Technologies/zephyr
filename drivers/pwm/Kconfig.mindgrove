@@ -1,0 +1,16 @@
+# Copyright (c) 2025 Mindgrove Technologies Private Limited.
+# SPDX-License-Identifier: Apache-2.0
+
+config PWM_MINDGROVE
+	bool "Mindgrove PWM driver"
+	default y
+  depends on PWM
+	help
+	  This option enables Mindgrove PWM Driver for secure_iot
+
+config PWM_CLOCK_FREQUENCY
+    int "PWM clock frequency"
+    default 700000000
+    depends on PWM_MINDGROVE
+    help
+      This option sets the input clock frequency for the PWM peripheral.

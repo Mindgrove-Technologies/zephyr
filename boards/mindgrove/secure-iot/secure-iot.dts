@@ -84,8 +84,79 @@ chosen {
 	sclk_configure = <0x0 0x0 0x10 0x0 0x0>;
     comm_configure = <0x01 0x00 0x03 0x08>;
 	clock-frequency = <10000000>;
-	status="okay";
+	status="disabled";
 };
+
+&pwm0 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm1 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm2 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm3 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm4 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm5 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm6 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm7 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm8 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm9 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm10 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm11 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm12 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
+&pwm13 {
+	status = "okay";
+	db_configure = <0 4 5000>;
+};
+
 
 &plic0 {
     status = "okay";

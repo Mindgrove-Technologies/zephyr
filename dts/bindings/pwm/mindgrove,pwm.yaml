@@ -1,0 +1,24 @@
+# Copyright (c) 2025 Mindgrove Technologies Private Limited.
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Mindgrove PWM controller.
+
+include:
+  - name: pinctrl-device.yaml
+
+compatible: "mindgrove,pwm"
+
+properties:
+  reg:
+    type: array
+    required: true
+
+  db_configure:
+    type: array
+    required: true
+
+  clock-frequency:
+    type: int
+    required: true
+    description: Clock frequency of the PWM peripheral in Hz

@@ -212,6 +212,119 @@ spi3: spi@20300 {
       reg = <0x44100 0x100>;
     };
 
+
+    pwm0: pwm@30000 {
+      pinctrl-0 = <&pwm0_7_default>;
+      pinctrl-names = "default";
+      compatible = "mindgrove,pwm";
+      reg= <0x30000 0x100>;
+      clock-frequency = <700000000>;
+    };
+    
+    pwm1: pwm@30100 {
+      pinctrl-0 = <&pwm0_7_default>;
+      pinctrl-names = "default";
+      compatible = "mindgrove,pwm";
+      reg= <0x30100 0x100>;
+       clock-frequency = <700000000>;
+    };
+
+    pwm2: pwm@30200 {
+      pinctrl-0 = <&pwm0_7_default>;
+      pinctrl-names = "default";
+      compatible = "mindgrove,pwm";
+      reg= <0x30200 0x100>;
+       clock-frequency = <700000000>;
+    };
+
+    pwm3: pwm@30300 {
+      pinctrl-0 = <&pwm0_7_default>;
+      pinctrl-names = "default";
+      compatible = "mindgrove,pwm";
+      reg= <0x30300 0x100>;
+     clock-frequency = <700000000>;
+    };
+    
+    pwm4: pwm@30400 {
+      pinctrl-0 = <&pwm0_7_default>;
+      pinctrl-names = "default";
+      compatible = "mindgrove,pwm";
+      reg= <0x30400 0x100>;
+      clock-frequency = <700000000>;
+    };
+    
+    pwm5: pwm@30500 {
+      pinctrl-0 = <&pwm0_7_default>;
+      pinctrl-names = "default";
+      compatible = "mindgrove,pwm";
+      reg= <0x30500 0x100>;
+      clock-frequency = <700000000>;
+    };
+    
+    pwm6: pwm@30600 {
+      pinctrl-0 = <&pwm0_7_default>;
+      pinctrl-names = "default";
+      compatible = "mindgrove,pwm";
+      reg= <0x30600 0x100>;
+      clock-frequency = <700000000>;
+    };
+    
+    pwm7: pwm@30700 {
+      pinctrl-0 = <&pwm0_7_default>;
+      pinctrl-names = "default";
+      compatible = "mindgrove,pwm";
+      reg= <0x30700 0x100>;
+      clock-frequency = <700000000>;
+    };
+
+    pwm8: pwm@30800 {
+      pinctrl-0 = <&pwm8_13_default>;
+      pinctrl-names = "default";
+      compatible = "mindgrove,pwm";
+      reg = <0x30800 0x100>;
+       clock-frequency = <700000000>;
+    };
+
+    pwm9: pwm@30900 {
+      pinctrl-0 = <&pwm8_13_default>;
+      pinctrl-names = "default";
+      compatible = "mindgrove,pwm";
+      reg = <0x30900 0x100>;
+       clock-frequency = <700000000>;
+    };
+
+    pwm10: pwm@31000{
+      pinctrl-0 = <&pwm8_13_default>;
+      pinctrl-names = "default";
+      compatible = "mindgrove,pwm";
+      reg = <0x31000 0x100>;
+       clock-frequency = <700000000>;
+    };
+
+    pwm11: pwm@31100{
+      pinctrl-0 = <&pwm8_13_default>;
+      pinctrl-names = "default";
+      compatible = "mindgrove,pwm";
+      reg = <0x31100 0x100>;
+       clock-frequency = <700000000>;
+    };
+
+    pwm12: pwm@31200{
+      pinctrl-0 = <&pwm8_13_default>;
+      pinctrl-names = "default";
+      compatible = "mindgrove,pwm";
+      reg = <0x31200 0x100>;
+      clock-frequency = <700000000>;
+    };
+
+    pwm13: pwm@31300{
+      pinctrl-0 = <&pwm8_13_default>;
+      pinctrl-names = "default";
+      compatible = "mindgrove,pwm";
+      reg = <0x31300 0x100>;
+      clock-frequency = <700000000>;
+    };
+
     pinctrl: pin-controller@40400 {
     compatible = "mindgrove,pinctrl";
     reg = <0x00040400 0x80>;
