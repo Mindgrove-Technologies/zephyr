@@ -1,0 +1,26 @@
+# Copyright (c) 2025 Mindgrove Technologies Private Limited.
+# SPDX-License-Identifier: Apache-2.0
+description: |
+  Mindgrove SPI controller.
+
+compatible: "mindgrove,spi"
+
+include:
+  - name: spi-controller.yaml
+  - name: pinctrl-device.yaml
+
+properties:
+  reg:
+    type: array
+    required: true
+  sclk_configure:
+    type: array
+    required: false
+  comm_configure:
+    type: array
+    required: false
+  clock-frequency:
+    type: int
+    required: true
+  cs-gpios:
+    required: false

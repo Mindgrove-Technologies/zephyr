@@ -61,14 +61,14 @@ extern "C" {
 
 #define SSPI_BASE_OFFSET 0x100
 
-#define COMMCTRL    0x00
-#define CLKCTRL     0x04
-#define TXREG       0x08
-#define RXREG       0x0C
-#define INTR_EN     0x10
-#define FIFOSTS     0x14
-#define COMMSTS     0x18
-#define INQUAL      0x1C
+// #define COMMCTRL    0x00
+// #define CLKCTRL     0x04
+// #define TXREG       0x08
+// #define RXREG       0x0C
+// #define INTR_EN     0x10
+// #define FIFOSTS     0x14
+// #define COMMSTS     0x18
+// #define INQUAL      0x1C
 
 //SSPIx Clock Control Register
 #define SPI_CLK_POLARITY(x)   (x<<0)
@@ -78,9 +78,20 @@ extern "C" {
 #define SPI_TX2SS_DELAY(x)    (x<<18)
 
 //SSPIx Communication Control Register
-#define SPI_MASTER(x)          (x<<0)  
+// #define SPI_MASTER(x)          (x<<0)  
+// #define SPI_ENABLE(x)          (x<<1)
+// #define SPI_LSB_FIRST(x)       (x<<2)
+// #define SPI_COMM_MODE(x)       (x<<4)
+// #define SPI_TOTAL_BITS_TX(x)   (x<<6)
+// #define SPI_TOTAL_BITS_RX(x)   (x<<14)
+// #define SPI_OUT_EN_SCLK(x)        (x<<22)
+// #define SPI_OUT_EN_NCS(x)        (x<<23)
+// #define SPI_OUT_EN_MISO(x)        (x<<24)
+// #define SPI_OUT_EN_MOSI(x)        (x<<25)
+#define SPI_MODE(x)          (x<<0)  
 #define SPI_ENABLE(x)          (x<<1)
 #define SPI_LSB_FIRST(x)       (x<<2)
+#define SPI_FLUSH              (1<<3)
 #define SPI_COMM_MODE(x)       (x<<4)
 #define SPI_TOTAL_BITS_TX(x)   (x<<6)
 #define SPI_TOTAL_BITS_RX(x)   (x<<14)
@@ -88,6 +99,8 @@ extern "C" {
 #define SPI_OUT_EN_NCS         (1<<23)
 #define SPI_OUT_EN_MISO        (1<<24)
 #define SPI_OUT_EN_MOSI        (1<<25)
+#define SPI_DMA_TX_SIZE(x)     (x<<26)
+#define SPI_DMA_RX_SIZE(x)     (x<<29)
 
 //SSPIx Communication Status Register
 #define SPI_BUSY             (1<<0)
@@ -140,12 +153,16 @@ extern "C" {
 #define SPI_RX_FULL_INTR_EN     (1<<17)
 #define SPI_RX_OVERRUN_INTR_EN  (1<<18)
 
+// SSPIx NCS Control Register
+#define SPI_NCS_SELECT(x)	(x<<0)
+#define SPI_NCS_SW(x)		(x<<1) /* Default value of rg_ncs_sw is one */
+
 #define FIFO_DEPTH_8  32
 #define FIFO_DEPTH_16 FIFO_DEPTH_8/2
 #define FIFO_DEPTH_32 FIFO_DEPTH_8/4
 
-#define MASTER 1
-#define SLAVE 0
+#define MASTER 0
+#define SLAVE 1
 
 #define DISABLE 0
 #define ENABLE 1
@@ -178,8 +195,6 @@ extern "C" {
 
 #define MODE_SEL        1<<19                   // if mode bit is 0 then spi is fullduplex
 #define SIMPLEX_TX      0<<18      // if mode bit is 0 then spi is fullduplex
-// #define FULLDUPLEX                // if mode bit is 0 then spi is fullduplex
-
 
 /**
  * The below code defines a union type named "Data" that can hold a 32-bit integer, a 16-bit integer,
@@ -262,14 +277,15 @@ typedef struct{
  * expansion or compatibility with other systems.
  */
     uint16_t    reserve0;
-/**
- * @var uint8_t qual
- * The "qual" property is the SSPI Input Qualification Control Register,
- * which is an 8-bit register used to set the input qualification level for the SSPI receiver. This
- * register determines the minimum pulse width required for the SSPI receiver to recognize a valid
- * input signal. 
- */
-    uint8_t     qual;
+    uint8_t     ncs_ctrl;
+// /**
+//  * @var uint8_t qual
+//  * The "qual" property is the SSPI Input Qualification Control Register,
+//  * which is an 8-bit register used to set the input qualification level for the SSPI receiver. This
+//  * register determines the minimum pulse width required for the SSPI receiver to recognize a valid
+//  * input signal. 
+//  */
+//     uint8_t     qual;
 /**
  * @var uint8_t reserve5
  * The reserve5 is an 8-bit reserved field in the sspi_struct. It is not
@@ -292,10 +308,10 @@ struct spi_shakti_data {
 
 struct spi_shakti_cfg {
     struct gpio_dt_spec ncs;
-	uint32_t base;
-	uint32_t f_sys;
+    uint32_t base;
+    uint32_t f_sys;
     const struct pinctrl_dev_config *pcfg;
-    struct k_mutex mutex;
+    int spi_num;  /* add this */
 };
 
 #endif

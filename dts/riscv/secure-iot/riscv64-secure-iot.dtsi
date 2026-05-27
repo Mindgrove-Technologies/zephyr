@@ -144,40 +144,47 @@
       pinctrl-names = "default";
     };
 
-    spi0: spi@20000 {
-      #address-cells = <1>;
-      #size-cells = <0>;
-      compatible = "shakti,spi";
-      reg = <0x20000 0x100>;
-    };
+spi0: spi@20000 {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    compatible = "mindgrove,spi";
+    interrupts = <40 1>;
+    interrupts-extended = <&plic0 8 1>;
+    reg = <0x20000 0x100>;
+};
 
-    spi1: spi@20100 {
-      #address-cells = <1>;
-      #size-cells = <0>;
-      compatible = "shakti,spi";
-      reg = <0x20100 0x100>;
-    };
+spi1: spi@20100 {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    compatible = "mindgrove,spi";
+    interrupts = <41 1>;
+    interrupts-extended = <&plic0 8 1>;
+    reg = <0x20100 0x100>;
+};
 
-    spi2: spi@20200 {
-      #address-cells = <1>;
-      #size-cells = <0>;
-      compatible = "shakti,spi";
-      reg = <0x20200 0x100>;
-      pinctrl-0 = <&spi2_default>;
-      pinctrl-names = "default";
-      status = "disabled";
-    };
+spi2: spi@20200 {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    compatible = "mindgrove,spi";
+    interrupts = <42 1>;
+    interrupts-extended = <&plic0 8 1>;
+    reg = <0x20200 0x100>;
+    pinctrl-0 = <&spi2_default>;
+    pinctrl-names = "default";
+    status = "disabled";
+};
 
-    spi3: spi@20300 {
-      #address-cells = <1>;
-      #size-cells = <0>;
-      compatible = "shakti,spi";
-      reg = <0x20300 0x100>;
-      pinctrl-0 = <&spi3_default>;
-      pinctrl-names = "default";
-      status = "disabled";
-    };
-
+spi3: spi@20300 {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    compatible = "mindgrove,spi";
+    interrupts = <43 1>;
+    interrupts-extended = <&plic0 8 1>;
+    reg = <0x20300 0x100>;
+    pinctrl-0 = <&spi3_default>;
+    pinctrl-names = "default";
+    status = "disabled";
+};
     gpio0: gpio@40200 {
       #gpio-cells = <2>;
       compatible = "mindgrove,gpio";

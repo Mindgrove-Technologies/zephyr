@@ -62,7 +62,6 @@ chosen {
 		sclk_configure = <0x0 0x0 0x10 0x0 0x0>;
         comm_configure = <0x01 0x00 0x03 0x08>;
 		clock-frequency = <10000000>;
-        // cs-gpios = <&gpio0 10 0>;
 
 };
 
@@ -71,8 +70,21 @@ chosen {
 		sclk_configure = <0x0 0x0 0x10 0x0 0x0>;
         comm_configure = <0x01 0x00 0x03 0x08>;
 		clock-frequency = <10000000>;
-        // cs-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
 
+};
+
+&spi2 {
+	sclk_configure = <0x0 0x0 0x10 0x0 0x0>;
+    comm_configure = <0x01 0x00 0x03 0x08>;
+	clock-frequency = <10000000>;
+	status="okay";
+};
+
+&spi3 {
+	sclk_configure = <0x0 0x0 0x10 0x0 0x0>;
+    comm_configure = <0x01 0x00 0x03 0x08>;
+	clock-frequency = <10000000>;
+	status="okay";
 };
 
 &plic0 {
