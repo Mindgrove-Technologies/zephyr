@@ -188,5 +188,11 @@
       compatible = "shakti,i2c0";
       reg= <0x0 0x44100 0x0 0x100>;
     };
+
+    trng0: entropy@9600 {
+        compatible = "mindgrove,trng";
+        reg = <0x9600 0x100>;
+        instance-id = <0>;
+    };
   };
 };
