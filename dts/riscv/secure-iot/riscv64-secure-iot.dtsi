@@ -150,6 +150,12 @@
             reg = <0x0 0x44100 0x0 0x100>;
         };
 
+        trng0: entropy@9600 {
+            compatible = "mindgrove,trng";
+            reg = <0x9600 0x100>;
+            instance-id = <0>;
+        };
+
         watchdog0: watchdog@40500 {
             compatible = "mindgrove,wdt";
             reg = <0x40500 0x1c>;
