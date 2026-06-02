@@ -21,3 +21,10 @@ tests:
     extra_configs:
       - CONFIG_TEST_WDT_MAX_WINDOW_TIME=254
       - CONFIG_TEST_WDT_SLEEP_TIME=68
+      
+  drivers.watchdog.mindgrove:
+    platform_allow:
+      - secure-iot
+    tags:
+      - driver
+      - watchdog

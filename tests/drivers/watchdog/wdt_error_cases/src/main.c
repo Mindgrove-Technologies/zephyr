@@ -19,6 +19,14 @@
 #define WDT_NODE DT_INST(0, nordic_nrf_wdt)
 #elif DT_HAS_COMPAT_STATUS_OKAY(zephyr_counter_watchdog)
 #define WDT_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(zephyr_counter_watchdog)
+#elif DT_HAS_COMPAT_STATUS_OKAY(mindgrove_wdt)
+#define WDT_NODE DT_INST(0, mindgrove_wdt)
+#define WDT_TEST_FLAGS \
+    (WDT_DISABLE_SUPPORTED | WDT_FLAG_RESET_SOC_SUPPORTED )
+#define DEFAULT_FLAGS            (WDT_FLAG_RESET_SOC)
+#define MAX_INSTALLABLE_TIMEOUTS (8)
+#define WDT_WINDOW_MAX_ALLOWED   (0xFFFFFFFFU)
+#define DEFAULT_OPTIONS          (0)          /* Mindgrove WDT supports no pause options */
 #endif
 
 #if DT_NODE_HAS_STATUS_OKAY(DT_CHOSEN(zephyr_dtcm))
@@ -52,6 +60,14 @@
 #define MAX_INSTALLABLE_TIMEOUTS (8)
 #define WDT_WINDOW_MAX_ALLOWED   (0x07CFFFFFU)
 #define DEFAULT_OPTIONS          (WDT_OPT_PAUSE_IN_SLEEP | WDT_OPT_PAUSE_HALTED_BY_DBG)
+#elif DT_HAS_COMPAT_STATUS_OKAY(mindgrove_wdt)
+#define WDT_TEST_FLAGS                                                                             \
+    (WDT_DISABLE_SUPPORTED | WDT_FLAG_RESET_SOC_SUPPORTED |                                    \
+     WDT_FLAG_ONLY_ONE_TIMEOUT_VALUE_SUPPORTED)
+#define DEFAULT_FLAGS            (WDT_FLAG_RESET_SOC)
+#define MAX_INSTALLABLE_TIMEOUTS (8)
+#define WDT_WINDOW_MAX_ALLOWED   (0xFFFFFFFFU)
+#define DEFAULT_OPTIONS          (0)  /* Clear clock pause option requests */
 #else
 /* By default run most of the error checks.
  * See Readme.txt on how to align test scope for the specific target.
@@ -954,6 +970,10 @@ ZTEST(wdt_coverage, test_09c_wdt_feed_stall)
 ZTEST(wdt_coverage, test_10_wdt_install_timeout_max_number_of_timeouts)
 {
 	int i, ret;
+	#if defined(CONFIG_WDT_MINDGROVE) || (MAX_INSTALLABLE_TIMEOUTS == 1)
+    /* Skip this test because Mindgrove hardware only supports 1 channel */
+    ztest_test_skip();
+	#endif
 
 	m_cfg_wdt0.callback = NULL;
 	m_cfg_wdt0.flags = DEFAULT_FLAGS;

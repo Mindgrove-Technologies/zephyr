@@ -107,6 +107,10 @@
 #define WDT_NODE DT_INST(0, andestech_atcwdt200)
 #define TIMEOUTS 0
 #define WDT_TEST_MAX_WINDOW 200U
+#elif DT_HAS_COMPAT_STATUS_OKAY(mindgrove_wdt)
+#define WDT_NODE DT_INST(0, mindgrove_wdt)
+#define TIMEOUTS 0
+#define WDT_TEST_MAX_WINDOW 5000U
 #endif
 #if DT_HAS_COMPAT_STATUS_OKAY(raspberrypi_pico_watchdog)
 #define WDT_TEST_MAX_WINDOW 8000U
