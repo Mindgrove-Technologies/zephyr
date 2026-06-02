@@ -1,0 +1,50 @@
+# Kconfig
+mainmenu "SHA256 Test Application"
+
+source "Kconfig.zephyr"
+
+menu "SHA256 Test Selection"
+
+config SHA256_TEST_SINGLE_KAT
+    bool "Single-block KAT test"
+    default n
+
+config SHA256_TEST_MMT01
+    bool "MMT vector 01"
+    default n
+
+config SHA256_TEST_MMT02
+    bool "MMT vector 02"
+    default n
+
+config SHA256_TEST_MMT03
+    bool "MMT vector 03"
+    default n
+
+config SHA256_TEST_MMT04
+    bool "MMT vector 04"
+    default n
+
+config SHA256_TEST_MMT05
+    bool "MMT vector 05"
+    default n
+
+config SHA256_TEST_MMT06
+    bool "MMT vector 06"
+    default n
+
+config SHA256_TEST_MMT_ALL
+    bool "All MMT vectors (01-06)"
+    default n
+    select SHA256_TEST_MMT01
+    select SHA256_TEST_MMT02
+    select SHA256_TEST_MMT03
+    select SHA256_TEST_MMT04
+    select SHA256_TEST_MMT05
+    select SHA256_TEST_MMT06
+
+config SHA256_TEST_MCT
+    bool "Monte Carlo Test"
+    default n
+
+endmenu

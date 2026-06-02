@@ -1,0 +1,176 @@
+mainmenu "AES CTR Test Application"
+
+source "Kconfig.zephyr"
+
+menu "AES CTR GFSbox"
+config AES_CTR_GFSBOX
+    bool "CTR GFSbox (128+192+256)"
+    default n
+endmenu
+
+# --- UPDATED: AES CTR KEYSbox Section ---
+menu "AES CTR KEYSbox"
+
+    config AES_CTR_KEYSBOX_128
+        bool "CTR KEYSbox 128-bit"
+
+    config AES_CTR_KEYSBOX_192
+        bool "CTR KEYSbox 192-bit"
+
+    config AES_CTR_KEYSBOX_256
+        bool "CTR KEYSbox 256-bit"
+
+endmenu
+
+menu "AES CTR MMT"
+config AES_CTR_MMT
+    bool "CTR MMT (128+192+256)"
+    default n
+endmenu
+
+menu "AES CTR VARKEY 128-bit"
+config AES_CTR_VARKEY_128_01
+    bool "CTR VARKEY 128 batch 01"
+    default n
+config AES_CTR_VARKEY_128_02
+    bool "CTR VARKEY 128 batch 02"
+    default n
+config AES_CTR_VARKEY_128_03
+    bool "CTR VARKEY 128 batch 03"
+    default n
+config AES_CTR_VARKEY_128_04
+    bool "CTR VARKEY 128 batch 04"
+    default n
+config AES_CTR_VARKEY_128_05
+    bool "CTR VARKEY 128 batch 05"
+    default n
+config AES_CTR_VARKEY_128_06
+    bool "CTR VARKEY 128 batch 06"
+    default n
+endmenu
+
+menu "AES CTR VARKEY 192-bit"
+config AES_CTR_VARKEY_192_01
+    bool "CTR VARKEY 192 batch 01"
+    default n
+config AES_CTR_VARKEY_192_02
+    bool "CTR VARKEY 192 batch 02"
+    default n
+config AES_CTR_VARKEY_192_03
+    bool "CTR VARKEY 192 batch 03"
+    default n
+config AES_CTR_VARKEY_192_04
+    bool "CTR VARKEY 192 batch 04"
+    default n
+config AES_CTR_VARKEY_192_05
+    bool "CTR VARKEY 192 batch 05"
+    default n
+config AES_CTR_VARKEY_192_06
+    bool "CTR VARKEY 192 batch 06"
+    default n
+config AES_CTR_VARKEY_192_07
+    bool "CTR VARKEY 192 batch 07"
+    default n
+config AES_CTR_VARKEY_192_08
+    bool "CTR VARKEY 192 batch 08"
+    default n
+endmenu
+
+menu "AES CTR VARKEY 256-bit"
+config AES_CTR_VARKEY_256_01
+    bool "CTR VARKEY 256 batch 01"
+    default n
+config AES_CTR_VARKEY_256_02
+    bool "CTR VARKEY 256 batch 02"
+    default n
+config AES_CTR_VARKEY_256_03
+    bool "CTR VARKEY 256 batch 03"
+    default n
+config AES_CTR_VARKEY_256_04
+    bool "CTR VARKEY 256 batch 04"
+    default n
+config AES_CTR_VARKEY_256_05
+    bool "CTR VARKEY 256 batch 05"
+    default n
+config AES_CTR_VARKEY_256_06
+    bool "CTR VARKEY 256 batch 06"
+    default n
+config AES_CTR_VARKEY_256_07
+    bool "CTR VARKEY 256 batch 07"
+    default n
+config AES_CTR_VARKEY_256_08
+    bool "CTR VARKEY 256 batch 08"
+    default n
+config AES_CTR_VARKEY_256_09
+    bool "CTR VARKEY 256 batch 09"
+    default n
+config AES_CTR_VARKEY_256_10
+    bool "CTR VARKEY 256 batch 10"
+    default n
+config AES_CTR_VARKEY_256_11
+    bool "CTR VARKEY 256 batch 11"
+    default n
+endmenu
+
+menu "AES CTR VARTXT 128-bit"
+config AES_CTR_VARTXT_128_01
+    bool "CTR VARTXT 128 batch 01"
+    default n
+config AES_CTR_VARTXT_128_02
+    bool "CTR VARTXT 128 batch 02"
+    default n
+config AES_CTR_VARTXT_128_03
+    bool "CTR VARTXT 128 batch 03"
+    default n
+config AES_CTR_VARTXT_128_04
+    bool "CTR VARTXT 128 batch 04"
+    default n
+config AES_CTR_VARTXT_128_05
+    bool "CTR VARTXT 128 batch 05"
+    default n
+config AES_CTR_VARTXT_128_06
+    bool "CTR VARTXT 128 batch 06"
+    default n
+endmenu
+
+menu "AES CTR VARTXT 192-bit"
+config AES_CTR_VARTXT_192_01
+    bool "CTR VARTXT 192 batch 01"
+    default n
+config AES_CTR_VARTXT_192_02
+    bool "CTR VARTXT 192 batch 02"
+    default n
+config AES_CTR_VARTXT_192_03
+    bool "CTR VARTXT 192 batch 03"
+    default n
+config AES_CTR_VARTXT_192_04
+    bool "CTR VARTXT 192 batch 04"
+    default n
+config AES_CTR_VARTXT_192_05
+    bool "CTR VARTXT 192 batch 05"
+    default n
+config AES_CTR_VARTXT_192_06
+    bool "CTR VARTXT 192 batch 06"
+    default n
+endmenu
+
+menu "AES CTR VARTXT 256-bit"
+config AES_CTR_VARTXT_256_01
+    bool "CTR VARTXT 256 batch 01"
+    default n
+config AES_CTR_VARTXT_256_02
+    bool "CTR VARTXT 256 batch 02"
+    default n
+config AES_CTR_VARTXT_256_03
+    bool "CTR VARTXT 256 batch 03"
+    default n
+config AES_CTR_VARTXT_256_04
+    bool "CTR VARTXT 256 batch 04"
+    default n
+config AES_CTR_VARTXT_256_05
+    bool "CTR VARTXT 256 batch 05"
+    default n
+config AES_CTR_VARTXT_256_06
+    bool "CTR VARTXT 256 batch 06"
+    default n
+endmenu
