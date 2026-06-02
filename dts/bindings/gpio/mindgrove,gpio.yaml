@@ -8,6 +8,10 @@ compatible: "mindgrove,gpio"
 include: [gpio-controller.yaml, base.yaml]
 
 properties:
+  reg:
+    type: array
+    required: true
+
   interrupts:
     type: array
     required: true
