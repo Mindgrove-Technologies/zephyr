@@ -1,4 +1,5 @@
-/* 
+/*  
+ * 
  * @copyright Copyright (c) Mindgrove Technologies Pvt. Ltd 2025. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -35,8 +36,6 @@
  */
 
 #include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/gpio/gpio_utils.h>
 #include <zephyr/sys/util.h>
 #include <zephyr/logging/log.h>
@@ -214,8 +213,6 @@ static int gpio_mindgrove_port_toggle_bits(const struct device *dev,
     return 0;
 }
 
-static int gpio_mindgrove_pin_interrupt_configure(const struct device *dev,
-                                                  gpio_pin_t pin,
                                                   enum gpio_int_mode mode,
                                                   enum gpio_int_trig trig)
 {
