@@ -1,0 +1,140 @@
+mainmenu "AES CBC Test Suite"
+
+source "Kconfig.zephyr"
+
+config AES_CBC_TEST_SUITE
+    bool "Enable AES CBC Test Suite Infrastructure"
+    default y
+    select CRYPTO
+    help
+      Master switch for the AES CBC testing suite.
+
+if AES_CBC_TEST_SUITE
+
+choice AES_CBC_TEST_SELECTION
+    prompt "Active AES CBC Test Variant"
+    default AES_CBC_GFSBOX
+    help
+      Due to strict hardware memory limits, you may only select 
+      ONE test variant to compile into the binary at any given time.
+
+    # --- Fixed Tests ---
+    config AES_CBC_GFSBOX
+        bool "GFSbox (128+192+256) ~24KB"
+
+    config AES_CBC_KEYSBOX_128
+        bool "AES CBC Keysbox 128-bit test"
+
+    config AES_CBC_KEYSBOX_192
+        bool "AES CBC Keysbox 192-bit test"
+
+    config AES_CBC_KEYSBOX_256
+        bool "AES CBC Keysbox 256-bit test"
+
+    config AES_CBC_MMT
+        bool "MMT (128+192+256) ~18KB"
+
+    config AES_CBC_MCT
+        bool "Monte Carlo Test"
+
+    # --- VARKEY 128-bit ---
+    config AES_CBC_VARKEY_128_01
+        bool "VARKEY 128 batch 01 (~28KB)"
+    config AES_CBC_VARKEY_128_02
+        bool "VARKEY 128 batch 02 (~28KB)"
+    config AES_CBC_VARKEY_128_03
+        bool "VARKEY 128 batch 03 (~28KB)"
+    config AES_CBC_VARKEY_128_04
+        bool "VARKEY 128 batch 04 (~28KB)"
+    config AES_CBC_VARKEY_128_05
+        bool "VARKEY 128 batch 05 (~28KB)"
+    config AES_CBC_VARKEY_128_06
+        bool "VARKEY 128 batch 06 (~28KB)"
+
+    # --- VARKEY 192-bit ---
+    config AES_CBC_VARKEY_192_01
+        bool "VARKEY 192 batch 01 (~28KB)"
+    config AES_CBC_VARKEY_192_02
+        bool "VARKEY 192 batch 02 (~28KB)"
+    config AES_CBC_VARKEY_192_03
+        bool "VARKEY 192 batch 03 (~28KB)"
+    config AES_CBC_VARKEY_192_04
+        bool "VARKEY 192 batch 04 (~28KB)"
+    config AES_CBC_VARKEY_192_05
+        bool "VARKEY 192 batch 05 (~28KB)"
+    config AES_CBC_VARKEY_192_06
+        bool "VARKEY 192 batch 06 (~28KB)"
+    config AES_CBC_VARKEY_192_07
+        bool "VARKEY 192 batch 07 (~28KB)"
+    config AES_CBC_VARKEY_192_08
+        bool "VARKEY 192 batch 08 (~28KB)"
+
+    # --- VARKEY 256-bit ---
+    config AES_CBC_VARKEY_256_01
+        bool "VARKEY 256 batch 01 (~28KB)"
+    config AES_CBC_VARKEY_256_02
+        bool "VARKEY 256 batch 02 (~28KB)"
+    config AES_CBC_VARKEY_256_03
+        bool "VARKEY 256 batch 03 (~28KB)"
+    config AES_CBC_VARKEY_256_04
+        bool "VARKEY 256 batch 04 (~28KB)"
+    config AES_CBC_VARKEY_256_05
+        bool "VARKEY 256 batch 05 (~28KB)"
+    config AES_CBC_VARKEY_256_06
+        bool "VARKEY 256 batch 06 (~28KB)"
+    config AES_CBC_VARKEY_256_07
+        bool "VARKEY 256 batch 07 (~28KB)"
+    config AES_CBC_VARKEY_256_08
+        bool "VARKEY 256 batch 08 (~28KB)"
+    config AES_CBC_VARKEY_256_09
+        bool "VARKEY 256 batch 09 (~28KB)"
+    config AES_CBC_VARKEY_256_10
+        bool "VARKEY 256 batch 10 (~28KB)"
+    config AES_CBC_VARKEY_256_11
+        bool "VARKEY 256 batch 11 (~28KB)"
+
+    # --- VARTXT 128-bit ---
+    config AES_CBC_VARTXT_128_01
+        bool "VARTXT 128 batch 01 (~28KB)"
+    config AES_CBC_VARTXT_128_02
+        bool "VARTXT 128 batch 02 (~28KB)"
+    config AES_CBC_VARTXT_128_03
+        bool "VARTXT 128 batch 03 (~28KB)"
+    config AES_CBC_VARTXT_128_04
+        bool "VARTXT 128 batch 04 (~28KB)"
+    config AES_CBC_VARTXT_128_05
+        bool "VARTXT 128 batch 05 (~28KB)"
+    config AES_CBC_VARTXT_128_06
+        bool "VARTXT 128 batch 06 (~28KB)"
+
+    # --- VARTXT 192-bit ---
+    config AES_CBC_VARTXT_192_01
+        bool "VARTXT 192 batch 01 (~28KB)"
+    config AES_CBC_VARTXT_192_02
+        bool "VARTXT 192 batch 02 (~28KB)"
+    config AES_CBC_VARTXT_192_03
+        bool "VARTXT 192 batch 03 (~28KB)"
+    config AES_CBC_VARTXT_192_04
+        bool "VARTXT 192 batch 04 (~28KB)"
+    config AES_CBC_VARTXT_192_05
+        bool "VARTXT 192 batch 05 (~28KB)"
+    config AES_CBC_VARTXT_192_06
+        bool "VARTXT 192 batch 06 (~28KB)"
+
+    # --- VARTXT 256-bit ---
+    config AES_CBC_VARTXT_256_01
+        bool "VARTXT 256 batch 01 (~28KB)"
+    config AES_CBC_VARTXT_256_02
+        bool "VARTXT 256 batch 02 (~28KB)"
+    config AES_CBC_VARTXT_256_03
+        bool "VARTXT 256 batch 03 (~28KB)"
+    config AES_CBC_VARTXT_256_04
+        bool "VARTXT 256 batch 04 (~28KB)"
+    config AES_CBC_VARTXT_256_05
+        bool "VARTXT 256 batch 05 (~28KB)"
+    config AES_CBC_VARTXT_256_06
+        bool "VARTXT 256 batch 06 (~28KB)"
+
+endchoice
+
+endif # AES_CBC_TEST_SUITE

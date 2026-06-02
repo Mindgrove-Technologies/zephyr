@@ -8,6 +8,7 @@
 
 chosen {
 		zephyr,console = &uart0;
+		zephyr,entropy = &trng0;
 	};
 };
 
@@ -20,13 +21,13 @@ chosen {
 &uart1 {
 	status = "okay";
 	current-speed = <115200>;
-	clock-frequency = <35000000>;
+	clock-frequency = <700000000>;
 };
 //
 &uart2 {
 	status = "okay";
 	current-speed = <115200>;
-	clock-frequency = <35000000>;
+	clock-frequency = <700000000>;
 };
 
 // &uart3 {
@@ -77,6 +78,24 @@ chosen {
 };
 
 &gpio0 {
+	status = "okay";
+};
+
+
+&aes0 {
+	status = "okay";
+};
+
+&sha0 {
+	status = "okay";
+};
+
+&rsa0 {
+	status = "okay";
+};
+
+
+&trng0 {
 	status = "okay";
 };
 

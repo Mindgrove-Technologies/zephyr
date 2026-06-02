@@ -1,0 +1,17 @@
+# mindgrove,trng.yaml
+description: Mindgrove True Random Number Generator (TRNG)
+
+compatible: "mindgrove,trng"
+
+include: base.yaml
+
+properties:
+  reg:
+    required: true
+    description: Base address and size of the TRNG register block.
+
+  instance-id:
+    type: int
+    required: true
+    enum: [0, 1]
+    description: Hardware instance index (0 or 1).

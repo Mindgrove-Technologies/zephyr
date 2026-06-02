@@ -16,3 +16,21 @@ zephyr_library_sources_ifdef(CONFIG_CRYPTO_MCUX_DCP		crypto_mcux_dcp.c)
 zephyr_library_sources_ifdef(CONFIG_CRYPTO_SI32 		crypto_si32.c)
 zephyr_library_sources_ifdef(CONFIG_CRYPTO_CC23X0		crypto_cc23x0.c)
 zephyr_library_link_libraries_ifdef(CONFIG_MBEDTLS mbedTLS)
+zephyr_library_sources_ifdef(
+  CONFIG_CRYPTO_MINDGROVE_AES
+  crypto_mindgrove_aes.c
+)
+zephyr_library_sources_ifdef(
+  CONFIG_CRYPTO_MINDGROVE_SHA256
+  crypto_mindgrove_sha.c
+)
+zephyr_library_sources_ifdef(
+  CONFIG_CRYPTO_MINDGROVE_RSA
+  crypto_mindgrove_rsa.c
+)
+if(DEFINED ZEPHYR_MBEDTLS_MODULE_DIR)
+    zephyr_include_directories(${ZEPHYR_MBEDTLS_MODULE_DIR}/include)
+else()
+    zephyr_include_directories(${ZEPHYR_BASE}/modules/crypto/mbedtls/include)
+endif()
+zephyr_library_sources_ifdef(CONFIG_CRYPTO_MINDGROVE_RSA mindgrove_rsa_padding.c)
