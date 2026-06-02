@@ -34,3 +34,9 @@ tests:
       - psa-crypto
     integration_platforms:
       - nrf5340dk/nrf5340/cpuapp/ns
+  drivers.entropy.mindgrove:
+    platform_allow:
+      - secure-iot
+    tags:
+      - driver
+      - entropy

@@ -35,6 +35,8 @@ LOG_MODULE_REGISTER(main);
 #define CRYPTO_DEV_COMPAT ti_cc23x0_aes
 #elif CONFIG_CRYPTO_SI32
 #define CRYPTO_DEV_COMPAT silabs_si32_aes
+#elif DT_HAS_COMPAT_STATUS_OKAY(mindgrove_aes)    /* Add this line */
+#define CRYPTO_DEV_COMPAT mindgrove_aes           /* Add this line */
 #else
 #error "You need to enable one crypto device"
 #endif

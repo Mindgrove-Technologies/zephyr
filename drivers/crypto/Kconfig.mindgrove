@@ -1,0 +1,48 @@
+# MINDGROVE AES driver
+config CRYPTO_MINDGROVE_AES
+    bool "MINDGROVE AES hardware accelerator"
+    depends on CRYPTO
+    help
+      Enable the MINDGROVE hardware AES accelerator driver.
+
+# Enable the MINDGROVE SHA driver
+config ENABLE_MINDGROVE
+    bool "Enable MINDGROVE SHA driver"
+    default y
+    help
+      Enable the MINDGROVE SHA-256 hardware accelerator driver.
+
+if ENABLE_MINDGROVE
+
+config CRYPTO_MINDGROVE_SHA256
+    bool "MINDGROVE SHA-256 hardware accelerator"
+    depends on CRYPTO
+    help
+      Enable MINDGROVE SHA-256 hardware accelerator driver.
+
+config MINDGROVE_SHA_MAX_SESSIONS
+    int "Maximum number of concurrent SHA sessions"
+    depends on CRYPTO_MINDGROVE_SHA256
+    default 4
+    range 1 16
+
+config MINDGROVE_SHA_INIT_PRIORITY
+    int "SHA driver initialization priority"
+    depends on CRYPTO_MINDGROVE_SHA256
+    default 70
+    range 0 99
+
+config CRYPTO_MINDGROVE_RSA
+    bool "Mindgrove RSA 2048 Hardware Accelerator"
+    depends on CRYPTO
+    depends on DT_HAS_MINDGROVE_RSA2048_ENABLED
+    select CRYPTO_MINDGROVE_SHA256
+    select MBEDTLS
+    select MBEDTLS_RSA_C
+    select MBEDTLS_PKCS1_V15
+    help
+      Enable support for the Mindgrove RSA hardware accelerator.
+      This driver supports RSA-2048 operations with PKCS, PSS, and OAEP padding.
+      Automatically enables mbedTLS bignum for R² mod N precomputation.
+
+endif # ENABLE_MINDGROVE

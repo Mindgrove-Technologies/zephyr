@@ -1,0 +1,39 @@
+mainmenu "RSA 2048 Test Application"
+
+source "Kconfig.zephyr"
+
+menu "RSA 2048 Tests"
+
+config RSA_TEST_OAEP_DECRYPT_01
+    bool "OAEP Decrypt KAT batch 01"
+    default n
+
+config RSA_TEST_OAEP_DECRYPT_02
+    bool "OAEP Decrypt KAT batch 02"
+    default n
+
+config RSA_TEST_OAEP_ENCRYPT
+    bool "OAEP Encrypt KAT"
+    default n
+
+config RSA_TEST_PKCS_ENC_DEC
+    bool "PKCS Encrypt/Decrypt KAT"
+    default n
+
+config RSA_TEST_PKCS_SIGN_GEN
+    bool "PKCS Sign Generation KAT"
+    default n
+
+config RSA_TEST_PKCS_SIGN_VERIF
+    bool "PKCS Sign Verification KAT"
+    default n
+
+config RSA_TEST_PSS_SIGN_GEN
+    bool "PSS Sign Generation KAT"
+    default n
+
+config RSA_TEST_PSS_SIGN_VERIF
+    bool "PSS Sign Verification KAT"
+    default n
+
+endmenu

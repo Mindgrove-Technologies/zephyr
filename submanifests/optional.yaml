@@ -71,4 +71,8 @@ manifest:
       remote: upstream
       groups:
         - optional
+    - name: mbedtls
+      url: https://github.com/zephyrproject-rtos/mbedtls
+      path: modules/crypto/mbedtls
+      revision: zephyr_mbedtls_v3.6.4
 # zephyr-keep-sorted-stop
