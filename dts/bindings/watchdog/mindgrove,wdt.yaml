@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+
+description: Mindgrove Watchdog Timer (WDT)
+
+compatible: "mindgrove,wdt"
+
+include: base.yaml
+
+properties:
+  clock-frequency:
+    type: int
+    required: true
+    description: Watchdog input clock frequency in Hz.

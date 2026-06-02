@@ -148,3 +148,11 @@ tests:
     filter: dt_compat_enabled("ti,tps382x")
     platform_allow: mimxrt1050_evk/mimxrt1052/hyperflash
     extra_args: DTC_OVERLAY_FILE="boards/mimxrt1050_evk_ti_tps382x.overlay"
+
+  drivers.watchdog.mindgrove:
+    platform_allow:
+      - secure-iot
+    tags:
+      - driver
+      - watchdog
+

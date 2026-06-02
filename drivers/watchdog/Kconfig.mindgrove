@@ -1,0 +1,9 @@
+# Copyright (c) 2025 Mindgrove Technologies Private Limited.
+# SPDX-License-Identifier: Apache-2.0
+
+config WDT_MINDGROVE
+	bool "Mindgrove Watchdog Timer (WDT) driver"
+	default y
+	select HAS_DTS_WDT
+	help
+	  Enable the Watchdog Timer (WDT) driver for Mindgrove SoCs.

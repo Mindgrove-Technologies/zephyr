@@ -1,58 +1,61 @@
 #include <zephyr/dt-bindings/gpio/gpio.h>
 
 / {
-  #address-cells = <2>;
-  #size-cells = <2>;
-  compatible = "mindgrove,secureiot-dev";
-  model = "mindgrove,secureiot";
-  cpus {
-    #address-cells = <1>;
-    #size-cells = <0>;
-    timebase-frequency = <10000000>;
-      CPU0: cpu@0 {
-        device_type = "cpu";
-        reg = <0>;
-        status = "okay";
-        compatible = "riscv";
-        riscv,isa = "rv64imafdc";
-        mmu-type = "riscv,sv39";
-        clock-frequency = <40000000>;
-          CPU0_intc: interrupt-controller {
-             #address-cells = <0>;
-	           #interrupt-cells = <1>;
-             interrupt-controller;
-             compatible = "riscv,cpu-intc";
-          };
-      };
-  };
+    #address-cells = <2>;
+    #size-cells = <2>;
+    compatible = "mindgrove,secureiot-dev";
+    model = "mindgrove,secureiot";
 
-  memory@80000000 {
-    device_type = "memory";
-    reg = <0x0 0x80000000 0x0 0x10000000 >;
-  };
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        timebase-frequency = <10000000>;
 
-  soc {
-    #address-cells = <1>;
-		#size-cells = <1>;
-    compatible = "mindgrove,secureiot-soc", "simple-bus";
-    ranges;
+        CPU0: cpu@0 {
+            device_type = "cpu";
+            reg = <0>;
+            status = "okay";
+            compatible = "riscv";
+            riscv,isa = "rv64imafdc";
+            mmu-type = "riscv,sv39";
+            clock-frequency = <40000000>;
 
-    clint@2000000 {
-      #address-cells = <1>;
-      #size-cells = <1>;
-      compatible = "riscv,clint0";
-      interrupts-extended = <&CPU0_intc 3 &CPU0_intc 7 >;
-      reg = <0x02000000 0x00000008
-            0x02004000 0x00000008
-	    0x0200bff8 0x00000008>;
+            CPU0_intc: interrupt-controller {
+                #address-cells = <0>;
+                #interrupt-cells = <1>;
+                interrupt-controller;
+                compatible = "riscv,cpu-intc";
+            };
+        };
     };
 
-    mtimer: timer@200bff8 {
-			compatible = "riscv,machine-timer";
-			interrupts-extended = <&CPU0_intc 7>;
-			reg = <0x200bff8 0x8 0x2004000 0x8>;
-			reg-names = "mtime", "mtimecmp";
-		};
+    memory@80000000 {
+        device_type = "memory";
+        reg = <0x0 0x80000000 0x0 0x10000000>;
+    };
+
+    soc {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        compatible = "mindgrove,secureiot-soc", "simple-bus";
+        ranges;
+
+        clint@2000000 {
+            #address-cells = <1>;
+            #size-cells = <1>;
+            compatible = "riscv,clint0";
+            interrupts-extended = <&CPU0_intc 3 &CPU0_intc 7>;
+            reg = <0x02000000 0x00000008
+                   0x02004000 0x00000008
+                   0x0200bff8 0x00000008>;
+        };
+
+        mtimer: timer@200bff8 {
+            compatible = "riscv,machine-timer";
+            interrupts-extended = <&CPU0_intc 7>;
+            reg = <0x200bff8 0x8 0x2004000 0x8>;
+            reg-names = "mtime", "mtimecmp";
+        };
 
     plic0: interrupt-controller@c000000 {
         compatible = "mindgrove,plic";        
@@ -135,71 +138,58 @@
     //     status = "okay";
     // };
 
-    spi0: spi@20000 {
+        spi0: spi@20000 {
             #address-cells = <1>;
             #size-cells = <0>;
             compatible = "shakti,spi";
             reg = <0x0 0x20000 0x0 0x100>;
-    };
+        };
 
-    spi1: spi@20100 {
-           #address-cells = <1>;
-			     #size-cells = <0>;
-           compatible = "shakti,spi";
-           reg = <0x0 0x20100 0x0 0x100>;
-    };
-    
-    gpio0: gpio@40200 {
-      compatible = "mindgrove,gpio";          /* FIX 3 */
-      reg = <0x40200 0x50>;                   /* FIX 4: 0x08→0x50, single-cell */
-      gpio-controller;                        /* FIX 5 */
-      #gpio-cells = <2>;
-      interrupt-parent = <&plic0>;            /* FIX 6: plic→plic0 */
-      interrupts = < 1 1>, < 2 1>, < 3 1>, < 4 1>,
-                   < 5 1>, < 6 1>, < 7 1>, < 8 1>,
-                   < 9 1>, <10 1>, <11 1>, <12 1>,
-                   <13 1>, <14 1>, <15 1>, <16 1>,
-                   <17 1>, <18 1>, <19 1>, <20 1>,
-                   <21 1>, <22 1>, <23 1>, <24 1>,
-                   <25 1>, <26 1>, <27 1>, <28 1>,
-                   <29 1>, <30 1>, <31 1>, <32 1>;
-      ngpios=<32>;  
-      status = "okay";
-    };
-    
-    i2c0: i2c@44000 {
-           compatible = "shakti,i2c0";
-           reg= <0x0 0x44000 0x0 0x100>;
-    };
-    i2c1: i2c@44100 {
-      compatible = "shakti,i2c0";
-      reg= <0x0 0x44100 0x0 0x100>;
-    };
+        spi1: spi@20100 {
+            #address-cells = <1>;
+            #size-cells = <0>;
+            compatible = "shakti,spi";
+            reg = <0x0 0x20100 0x0 0x100>;
+        };
+        
+        gpio0: gpio@40200 {
+            #gpio-cells = <2>;
+            compatible = "mindgrove,gpio";
+            reg = <0x40200 0x08>;
+            config_gpio = <GPIO_OUTPUT>; 
+            interrupt-parent = <&plic0>;
+            interrupts = <1 1>, <2 1>, <3 1>, <4 1>,
+                         <5 1>, <6 1>, <7 1>, <8 1>,
+                         <9 1>, <10 1>, <11 1>, <12 1>,
+                         <13 1>, <14 1>, <15 1>, <16 1>,
+                         <17 1>, <18 1>, <19 1>, <20 1>,
+                         <21 1>, <22 1>, <23 1>, <24 1>,
+                         <25 1>, <26 1>, <27 1>, <28 1>,
+                         <29 1>, <30 1>, <31 1>, <32 1>;                
+            gpio-controller; 
+        };
+        
+        i2c0: i2c@44000 {
+            compatible = "shakti,i2c0";
+            reg = <0x0 0x44000 0x0 0x100>;
+        };
 
-    aes0: aes@4000000 {
-    compatible = "mindgrove,aes";
-    reg = <0x4000000 0x100>;
-    status = "okay";
+        i2c1: i2c@44100 {
+            compatible = "shakti,i2c0";
+            reg = <0x0 0x44100 0x0 0x100>;
+        };
+
+        trng0: entropy@9600 {
+            compatible = "mindgrove,trng";
+            reg = <0x9600 0x100>;
+            instance-id = <0>;
+        };
+
+        watchdog0: watchdog@40500 {
+            compatible = "mindgrove,wdt";
+            reg = <0x40500 0x1c>;
+            clock-frequency = <700000000>;
+            status = "okay";
+        };
     };
-
-
-    sha0: sha@3000000 {
-    compatible = "mindgrove,sha256";
-    reg = <0x3000000 0x100>;
-    status = "okay";
-    };
-
-    rsa0: rsa@5000000 {
-    compatible = "mindgrove,rsa2048";
-    reg = <0x5000000 0x100>;
-    status = "okay";
-    };
-
-
-    trng0: entropy@9600 {
-        compatible = "mindgrove,trng";
-        reg = <0x9600 0x100>;
-        instance-id = <0>;
-    };
-  };
 };
