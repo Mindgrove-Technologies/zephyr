@@ -374,6 +374,21 @@ static void uart_mindgrove_irq_handler(void *arg)
 #endif /* CONFIG_UART_INTERRUPT_DRIVEN */
 
 
+static void uart_mindgrove_set_thresholds(volatile struct uart_mindgrove_regs_t *uart,
+                                          uint8_t tx_thresh, uint8_t rx_thresh)
+{
+    // Mask to 3 bits and shift
+    uint16_t ctrl = uart->control;
+    
+    //ctrl &= ~((0x7 << 7) | (0x7 << 10)); // Clear TX[9:7] and RX[12:10]
+    ctrl |= ((tx_thresh & 0x7) << 7) | ((rx_thresh & 0x7) << 10);
+
+    uart->control = ctrl;
+    
+    // Optional: store rx_threshold separately if used by DMA hardware
+    // uart->rx_threshold = rx_thresh & 0x7;
+}
+
 static int uart_mindgrove_init(const struct device *dev)
 {
 	struct uart_mindgrove_config * const cfg = DEV_CFG(dev);
@@ -381,7 +396,7 @@ static int uart_mindgrove_init(const struct device *dev)
 
 	/* Set baud rate */
 	uart->div = (cfg->sys_clk_freq / cfg->baud_rate) / 16;
-
+	uart_mindgrove_set_thresholds(uart, 1, 1); // Set TX and RX thresholds to 1 byte for enabling DMA through UART
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	/* Ensure that uart IRQ is disabled initially */
 	uart->ie = 0;

@@ -81,6 +81,9 @@ chosen {
 	status = "okay";
 };
 
+&dma0 {
+	status="okay"
+};
 
 &aes0 {
 	status = "okay";

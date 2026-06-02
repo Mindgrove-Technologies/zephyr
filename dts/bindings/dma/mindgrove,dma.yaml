@@ -1,0 +1,13 @@
+description: Mindgrove Custom SoC DMA controller
+compatible: "mindgrove,dma"
+
+include: [dma-controller.yaml, base.yaml] # Added base.yaml for standard props
+
+properties:
+    reg:
+      required: true
+    "#dma-cells":
+      const: 1
+    # Add this to define the interrupt structure
+    interrupts:
+      required: true

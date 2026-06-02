@@ -1,0 +1,7 @@
+config DMA_MINDGROVE
+    bool "MINDGROVE DMA driver"
+    default y
+    depends on DT_HAS_MINDGROVE_DMA_ENABLED
+    select DMA_HAS_CONTEXT # Required for struct dma_context usage
+    help
+      Enable support for the Mindgrove Custom SoC DMA controller.

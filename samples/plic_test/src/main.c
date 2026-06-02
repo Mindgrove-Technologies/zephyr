@@ -1,89 +1,84 @@
 #include <zephyr/kernel.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/irq.h>
-#include <zephyr/sys/printk.h>
+#include <zephyr/device.h>
 #include <zephyr/devicetree.h>
-#include <zephyr/drivers/interrupt_controller/intc_mindgrove_plic.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/sys/sys_io.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/drivers/interrupt_controller/riscv_plic.h>
 
-#define GPIO0_NODE         DT_NODELABEL(gpio0) 
+LOG_MODULE_REGISTER(gpio_test, LOG_LEVEL_INF);
 
-// --- Configuration based on vendor IRQ mapping ---
-#define GPIO_PIN_NUM       1        // Using pin 1 for the interrupt test
-#define IRQ_PIN_OFFSET     32       // PLIC IRQ ID offset for GPIO
-#define MY_DEV_IRQ         (uint32_t)(GPIO_PIN_NUM + IRQ_PIN_OFFSET) // PLIC IRQ ID = 33
-#define MY_DEV_PRIO        1        // Priority for the PLIC source
-#define MY_IRQ_FLAGS       0
+#define GPIO_NODE  DT_NODELABEL(gpio0)
+#define TEST_PIN   0
 
-static const struct device *gpio_dev;
+/* PLIC / GPIO register addresses */
+#define PLIC_PEND  0x0C001000U
+#define PLIC_EN    0x0C002000U
+#define PLIC_CLAIM 0x0C200004U
+#define GPIO_INTR  0x40230U
+#define GPIO_DATA  0x40208U
 
-// 1. Declare the ISR using the direct method macro
-ISR_DIRECT_DECLARE(my_gpio_isr)
+static struct gpio_callback gpio_cb;
+static volatile uint32_t isr_count;
+
+static void gpio_interrupt_cb(const struct device *dev,
+                              struct gpio_callback *cb, uint32_t pins)
 {
-    printk(">>> ISR TRIGGERED: GPIO pin %d (IRQ ID: %d) <<<\n", GPIO_PIN_NUM, MY_DEV_IRQ);
-    
-    // In this context, the Zephyr kernel handles the PLIC EOI.
-    // We only print and return.
-    
-    // The macro returns 0 by default, which is required for PLIC.
-    return 0;
+    isr_count++;
+
+    /* Complete PLIC claim first */
+    uint32_t claim = sys_read32(PLIC_CLAIM);
+    if (claim != 0) {
+        sys_write32(claim, PLIC_CLAIM);
+        __asm__ volatile("fence iorw, iorw" ::: "memory");
+    }
+
+    /* Re-enable PLIC source if needed */
+    riscv_plic_irq_enable(13);
+
 }
 
-void main(void)
+int main(void)
 {
-    printk("GPIO + ISR test starting...\n");
+    const struct device *gpio_dev = DEVICE_DT_GET(GPIO_NODE);
+    uint32_t last_count = 0;
 
-    gpio_dev = DEVICE_DT_GET(GPIO0_NODE);
+    printk("=== Mindgrove GPIO interrupt auto-rearm test ===\n");
+    printk("TEST_PIN=%d\n", TEST_PIN);
 
     if (!device_is_ready(gpio_dev)) {
-        printk("GPIO device not ready\n");
-        return;
+        printk("ERROR: GPIO device not ready\n");
+        return 0;
     }
 
-    int ret;
+    printk("[MAIN] GPIO device ready\n");
 
-    // 1. Connect the direct ISR to the PLIC source ID 
-    // NOTE: This must be called before irq_enable, and before using the pin.
-    IRQ_DIRECT_CONNECT(MY_DEV_IRQ, MY_DEV_PRIO, my_gpio_isr, MY_IRQ_FLAGS);
-    
-    // 2. Enable the IRQ line in the PLIC
-    irq_enable(MY_DEV_IRQ);
-    printk("PLIC IRQ %d enabled and connected directly.\n", MY_DEV_IRQ);
+    /* Configure pin as input with pull-up */
+    gpio_pin_configure(gpio_dev, TEST_PIN, GPIO_INPUT | GPIO_PULL_UP);
 
+    /* Register ISR */
+    gpio_init_callback(&gpio_cb, gpio_interrupt_cb, BIT(TEST_PIN));
+    gpio_add_callback(gpio_dev, &gpio_cb);
 
-    // 3. Configure the GPIO pin interrupt settings (Falling Edge)
-    ret = gpio_pin_interrupt_configure(gpio_dev,
-                                 GPIO_PIN_NUM,
-                                 GPIO_INT_EDGE_FALLING); 
-    
-    if (ret != 0) {
-        printk("Error configuring GPIO interrupt: %d\n", ret);
-        return;
-    }
-    
-    // 4. Configure GPIO pin 1 as INPUT with PULL-UP resistor
-    ret = gpio_pin_configure(gpio_dev, 
-                                 GPIO_PIN_NUM, 
-                                 GPIO_INPUT | GPIO_PULL_UP);
+    /* Configure GPIO interrupt (level-low) */
+   gpio_pin_interrupt_configure(gpio_dev, TEST_PIN,
+                             GPIO_INT_LEVEL_LOW);
 
-    if (ret != 0) {
-        printk("Error configuring GPIO pin: %d\n", ret);
-        return;
-    }
-    
-    printk("System Ready. Waiting for interrupt...\n");
+    /* Enable PLIC source */
+    riscv_plic_irq_enable(13);
 
-    int current_pin_val;
-    
+    printk("[MAIN] interrupt configured. Monitoring pin...\n");
+
+    /* --- Polling loop: only print on new ISR events --- */
     while (1) {
-        current_pin_val = gpio_pin_get_raw(gpio_dev, GPIO_PIN_NUM);
-        
-        if (current_pin_val >= 0) {
-            printk("[Polling] Pin %d Status: %d\n", GPIO_PIN_NUM, current_pin_val);
-        } else {
-            printk("[Polling] Failed to read GPIO pin\n");
+        if (isr_count != last_count) {
+            printk("[EVENT] New ISR triggered! ISR_count=%u, pin_val=%d\n",
+                   isr_count, gpio_pin_get_raw(gpio_dev, TEST_PIN));
+            last_count = isr_count;
         }
 
-        k_sleep(K_SECONDS(1)); 
+        k_sleep(K_MSEC(100));  /* check every 100ms */
     }
-}
 
+    return 0;
+}
