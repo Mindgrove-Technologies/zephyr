@@ -131,7 +131,6 @@
     //     current-speed = <115200>;
     //     status = "okay";
     // };
-
     // uart4: serial@11700 {
     //     compatible = "mindgrove,uart";
     //     reg= < 0x11700 0x100>;
@@ -179,7 +178,6 @@
                       <29 1>, <30 1>, <31 1>, <32 1>;                
         gpio-controller; 
     };
-    
     i2c0: i2c@44000 {
            compatible = "shakti,i2c0";
            reg= <0x0 0x44000 0x0 0x100>;
@@ -188,6 +186,21 @@
       compatible = "shakti,i2c0";
       reg= <0x0 0x44100 0x0 0x100>;
     };
+
+    qspi0: qspi@60200 {
+            compatible = "mindgrove,qspi-flash"; //FLASH
+            reg = <0x60200 0x100>; 
+            size = <8388608>; 
+            status = "okay";
+        };
+
+    qspi1: qspi@60300 {
+        compatible = "mindgrove,qspi-psram"; //PSRAM 
+        reg = <0x60300 0x100>;
+        size = <134217728>;
+        status = "okay";
+    };
+
 
     aes0: aes@4000000 {
     compatible = "mindgrove,aes";

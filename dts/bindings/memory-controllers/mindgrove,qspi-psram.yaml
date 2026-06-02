@@ -1,0 +1,15 @@
+description: MINDGROVE QSPI PSRAM
+
+compatible: "mindgrove,qspi-psram"
+
+include: [base.yaml]
+
+properties:
+  reg:
+    required: true
+    description: Base address and size of QSPI controller registers
+
+  size:
+    type: int
+    required: true
+    description: PSRAM size in bytes

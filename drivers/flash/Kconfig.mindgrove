@@ -1,0 +1,37 @@
+# Mindgrove QSPI Flash Driver Configuration
+
+menuconfig FLASH_MINDGROVE
+	bool "Mindgrove QSPI Flash Driver"
+	default y
+	depends on DT_HAS_MINDGROVE_QSPI_FLASH_ENABLED
+	select FLASH_HAS_DRIVER_ENABLED
+	select FLASH_JESD216
+	help
+	  Enable the Mindgrove QSPI flash driver for Secure IoT SoC.
+
+if FLASH_MINDGROVE
+
+config FLASH_MINDGROVE_XIP_SUPPORT
+	bool "Enable Execute-In-Place (XIP) Support"
+	default y
+	help
+	  Configures the QSPI controller for memory-mapped read access.
+	  This allows the CPU to execute code directly from flash.
+	  Note: Write/Erase operations may require special handling (RAM functions)
+	  if XIP is active.
+
+config FLASH_MINDGROVE_POLL_TIMEOUT
+	int "Status Poll Timeout (ms)"
+	default 1000
+	help
+	  Maximum time to wait for the WIP (Write In Progress) bit to clear.
+	  Increase this if you plan on performing Chip Erase operations.
+
+config FLASH_MINDGROVE_INIT_PRIORITY
+	int "Driver Initialization Priority"
+	default FLASH_INIT_PRIORITY
+	help
+	  Initialization priority for the Mindgrove QSPI flash driver.
+	  Defaults to the standard Zephyr flash priority (typically 40 or 80).
+
+endif # FLASH_MINDGROVE
