@@ -331,41 +331,22 @@ static void plic_irq_handler(const struct device *dev)
 static int plic_init(const struct device *dev)
 {
     const struct plic_config *cfg = dev->config;
-
-    //printk("[PLIC] base=0x%lx\n", (unsigned long)cfg->prio);
-    //printk("[PLIC] irq_en=0x%lx\n", (unsigned long)cfg->irq_en);
-    //printk("[PLIC] reg=0x%lx\n", (unsigned long)cfg->reg);
-    //printk("[PLIC] nr_irqs=%u max_prio=%u\n", cfg->nr_irqs, cfg->max_prio);
-    //printk("[PLIC] hart_context[0]=%u\n", cfg->hart_context[0]);
-
     mem_addr_t en_addr = get_context_en_addr(dev, 0);
     mem_addr_t thres_addr = get_threshold_addr(dev, 0);
-    //printk("[PLIC] en_addr=0x%lx thres_addr=0x%lx\n",
-           //(unsigned long)en_addr, (unsigned long)thres_addr);
-
-    /* Now do the actual init */
     for (uint32_t cpu = 0; cpu < arch_num_cpus(); cpu++) {
         en_addr    = get_context_en_addr(dev, cpu);
         thres_addr = get_threshold_addr(dev, cpu);
-
-        //printk("[PLIC] clearing %u enable words at 0x%lx\n",
-               //get_plic_enabled_size(dev), (unsigned long)en_addr);
-
         for (uint32_t i = 0; i < get_plic_enabled_size(dev); i++) {
             sys_write32(0U, en_addr + i * sizeof(uint32_t));
         }
         sys_write32(0U, thres_addr);
     }
 
-    //printk("[PLIC] clearing %u priorities at 0x%lx\n",
-           //cfg->nr_irqs, (unsigned long)cfg->prio);
-
     for (uint32_t i = 0U; i < cfg->nr_irqs; i++) {
         sys_write32(0U, cfg->prio + i * sizeof(uint32_t));
     }
 
     cfg->irq_config_func();
-    //printk("[PLIC] init done\n");
     return 0;
 }
 
