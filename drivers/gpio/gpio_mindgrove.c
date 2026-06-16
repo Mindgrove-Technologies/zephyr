@@ -230,3 +230,4 @@ static const struct gpio_driver_api gpio_mindgrove_api = {
                           &gpio_mindgrove_api);
 
 DT_INST_FOREACH_STATUS_OKAY(GPIO_INIT)
+
