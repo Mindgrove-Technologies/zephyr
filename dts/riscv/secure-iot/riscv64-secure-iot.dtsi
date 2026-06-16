@@ -57,57 +57,73 @@
             reg-names = "mtime", "mtimecmp";
         };
 
-        plic0: interrupt-controller@c000000 {
-            compatible = "mindgrove,plic";        
-            reg = <0xc000000 0x400000>;              
-            interrupt-controller;
-            #interrupt-cells = <2>;
-            #address-cells = <0>;
-            interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;            
-            riscv-irq-aggregator-offset = <0>;
-            riscv,max-priority = <7>;      
-            riscv,ndev = <57>;
-        };
+    plic0: interrupt-controller@c000000 {
+        compatible = "mindgrove,plic";        
+        reg = <0xc000000 0x400000>;              
+        interrupt-controller;
+        #interrupt-cells = <2>;
+        #address-cells = <0>;
+        interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;            
+        riscv-irq-aggregator-offset = <0>;
+        riscv,max-priority = <7>;      
+        riscv,ndev = <81>;
+    };
 
-        uart0: serial@11300 {
-            compatible = "mindgrove,uart";
-            reg = <0x11300 0x100>;
-            interrupts = <47 1>;
-            interrupt-controller;
-            #interrupt-cells = <1>; 
-            #address-cells = <0>;
-            interrupt-names = "irq";
-            interrupts-extended = <&plic0 6 1>;
-            clock-frequency = <35000000>;
-            current-speed = <115200>;
-            status = "okay";
-        };
+    uart0: serial@11300 {
+        compatible = "mindgrove,uart";
+        reg= < 0x11300 0x100>;
+        interrupts = <53 1>;             // <irq_number priority>
+        interrupt-controller;
+        #interrupt-cells = <1>; 
+			  #address-cells = <0>;
+        interrupt-parent = <&plic0>;
+        clock-frequency = <700000000>;
+        current-speed = <115200>;
+        status = "okay";
+    };
 
-        uart1: serial@11400 {
-            compatible = "mindgrove,uart";
-            reg = <0x11400 0x100>;
-            interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
-            interrupts = <47 1>;
-            interrupt-names = "irq";
-            interrupts-extended = <&plic0 6 1>;
-            interrupt-controller;
-            clock-frequency = <35000000>;
-            current-speed = <115200>;
-            status = "okay";
-        };
+    uart1: serial@11400 {
+        compatible = "mindgrove,uart";
+        reg = <0x11400 0x100>;
 
-        uart2: serial@11500 {
-            compatible = "mindgrove,uart";
-            reg = <0x11500 0x100>;
-            interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
-            interrupts = <47 1>;
-            interrupt-names = "irq";
-            interrupts-extended = <&plic0 6 1>;
-            interrupt-controller;
-            clock-frequency = <35000000>;
-            current-speed = <115200>;
-            status = "okay";
-        };
+        interrupt-parent = <&plic0>;
+        interrupts = <54 1>;
+        clock-frequency = <35000000>;
+        current-speed = <115200>;
+        status = "okay";
+    };
+
+    uart2: serial@11500 {
+    compatible = "mindgrove,uart";
+    reg = <0x11500 0x100>;
+    
+    interrupt-parent = <&plic0>;
+    interrupts = <55 1>;
+    clock-frequency = <35000000>;
+    current-speed = <115200>;
+    status = "okay";
+    };
+
+    uart3: serial@11600 {
+    compatible = "mindgrove,uart";
+    reg = <0x11600 0x100>;
+    
+    interrupt-parent = <&plic0>;
+    interrupts = <56 1>;
+    clock-frequency = <35000000>;
+    current-speed = <115200>;
+    };
+
+
+    uart4: serial@11700 {
+    compatible = "mindgrove,uart";
+    reg = <0x11700 0x100>;
+    
+    interrupt-parent = <&plic0>;
+    interrupts = <57 1>;
+    clock-frequency = <35000000>;
+    current-speed = <115200>;
+    };
 
         spi0: spi@20000 {
             #address-cells = <1>;

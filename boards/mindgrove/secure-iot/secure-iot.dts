@@ -23,7 +23,7 @@ chosen {
 	current-speed = <115200>;
 	clock-frequency = <700000000>;
 };
-
+//
 &uart2 {
 	status = "okay";
 	current-speed = <115200>;
