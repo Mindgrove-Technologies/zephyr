@@ -35,4 +35,3 @@ properties:
 gpio-cells:
   - pin
   - flags
-  
